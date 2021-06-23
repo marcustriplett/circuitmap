@@ -72,7 +72,8 @@ class Model:
 			self.priors.setdefault('phi_map',  np.c_[0.03203156 * _ones, 5.216092 * _ones])
 			self.priors.setdefault('phi_cov', np.array([np.array([[1e-1, 0], [0, 5e0]]) 
 				for _ in range(self.n_presynaptic)]))
-			self.priors.setdefault('Omega', np.array([np.diag([0.00389425, 0.00391111, 0.00074478]) for n in range(self.n_presynaptic)]))
+			self.priors.setdefault('Omega', np.array([np.diag([0.00389425, 0.00391111, 0.00074478]) for n in range(self.n_presynaptic)]))	
+			# self.priors.setdefault('Omega', np.array([np.diag([0.0548741, 0.09744828, 0.00685001]) for n in range(self.n_presynaptic)]))
 
 			# Set initial state to prior
 			self.state = self.priors.copy()

@@ -249,7 +249,7 @@ def _posterior_predictive_map_3d_omega(grid, Ik, N, cell_locs, mu, beta, alpha, 
 		gam = (np.random.rand(N) <= alpha).astype(float64)
 		phi = [_sample_phi_independent_truncated_normals(phi_map[n], phi_cov[n], num_mc_samples=1)[0] for n in range(N)]
 		for n in range(N):
-			spike_prob[n] = np.array([sigmoid(phi[n][0] * Ik * np.exp(-(g - cell_locs[n]) @ Omega[n] @ (g - cell_locs[n]).T) - phi[n][1]) for g in grid])
+			spike_prob[n] = np.array([sigmoid(phi[n][0] * Ik * np.exp(-(g - cell_locs[n]) @ Omega[n]/Ik @ (g - cell_locs[n]).T) - phi[n][1]) for g in grid])
 		s = (np.random.rand(N, npts) <= spike_prob).astype(float64)
 		sig = np.random.gamma(shape, 1/rate, npts)
 		ysamp[indx] = np.random.standard_normal(npts) * np.sqrt(1/sig) + np.sum(np.expand_dims(u * gam, 1) * s, 0)

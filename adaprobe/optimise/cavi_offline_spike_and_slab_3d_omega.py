@@ -7,7 +7,7 @@ EPS = 1e-15
 @njit
 def cavi_offline_spike_and_slab_3d_omega(y, stim, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_map_prior, phi_cov_prior, Omega, C, 
 	init_t=1e4, t_mult=1e1, t_loops=10, iters=10, verbose=False, newton_steps=10, seed=None, num_mc_samples=5, return_parameter_history=False):
-	"""Online-mode coordinate-ascent variational inference for the adaprobe model.
+	"""Offline-mode coordinate-ascent variational inference for the adaprobe model.
 
 	"""
 	L, I = stim
@@ -24,7 +24,8 @@ def cavi_offline_spike_and_slab_3d_omega(y, stim, mu_prior, beta_prior, alpha_pr
 	mu = mu_prior.copy()
 	beta = beta_prior.copy()
 	alpha = alpha_prior.copy()
-	lam = np.zeros((N, K))
+	# lam = np.zeros((N, K))
+	lam = 0.1 * np.random.rand(N, K)
 	shape = shape_prior
 	rate = rate_prior
 	phi_map = phi_map_prior.copy()
