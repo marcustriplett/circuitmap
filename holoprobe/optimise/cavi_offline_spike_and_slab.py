@@ -12,7 +12,7 @@ from functools import partial
 from jax.lax import scan, cond, while_loop 
 
 # @njit
-def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, eta_prior, eta_cov_prior, cell_grids, 
+def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, eta_prior, eta_cov_prior, rel_prior, cell_grids, 
 	init_t=1e4, t_mult=1e1, t_loops=10, iters=10, verbose=False, newton_steps=10, seed=None, lam_update='monte-carlo', num_mc_samples=5, 
 	return_parameter_history=False, num_filter_pts_per_dim=4, filter_size=20):
 	"""Offline-mode coordinate-ascent variational inference for the adaprobe model.
@@ -43,9 +43,14 @@ def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shap
 	rate = rate_prior
 	eta = eta_prior.copy()
 	eta_cov = eta_cov_prior.copy()
+	rel = rel_prior.copy()
 
 	mask = get_mask(N)
 	# lam = update_lam_monte_carlo(y, mu, beta, alpha, lam, shape, rate, eta, eta_cov, mask, psfc, num_mc_samples=num_mc_samples)
+
+	# Relevance hyperparameters
+	a_rel = np.max([np.log(eta[n].shape[0]), 2.0])
+	b_rel = 
 
 	mu_hist 		= np.zeros((iters, N))
 	beta_hist 		= np.zeros((iters, N))
@@ -67,7 +72,8 @@ def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shap
 		else:
 			lam = update_lam_MAP(y, mu, beta, alpha, lam, shape, rate, eta, eta_cov, mask, psfc)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
-		eta, eta_cov = update_eta(lam, eta_prior, eta_cov_prior, psfc, newton_steps=newton_steps)
+		eta, eta_cov = update_eta(lam, eta_prior, rel * eta_cov_prior, psfc, newton_steps=newton_steps) # relevance parameter used here
+		rel = update_relevance()
 
 		mu_hist[it] 		= mu
 		beta_hist[it] 		= beta
@@ -77,6 +83,7 @@ def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shap
 		rate_hist[it] 		= rate
 		eta_hist[it] 		= eta
 		eta_cov_hist[it] 	= eta_cov
+		rel_hist			= rel
 
 	return mu, beta, alpha, lam, shape, rate, eta, eta_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, eta_hist, eta_cov_hist
 
@@ -166,6 +173,13 @@ def update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior):
 	rate = rate_prior + 1/2 * (np.sum(np.square(y - np.sum(np.expand_dims(mu * alpha, 1) * lam, 0))) \
 		- np.sum(np.square(np.expand_dims(mu * alpha, 1) * lam)) + np.sum(np.expand_dims((mu**2 + beta**2) * alpha, 1) * lam))
 	return shape, rate
+
+def update_relevance(filt, a_rel, b_rel):
+	""" Automatic relevance determination step. 
+	"""
+	J = filt.shape[0] # num filter components
+	return (1/2 * np.sum(filt ** 2) - b_rel)/(J/2 + a_rel + 1)
+
 
 def update_eta(y, eta_prior, eta_cov_prior, psfc, newton_steps=15, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
 	N = y.shape[0]

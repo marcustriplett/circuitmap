@@ -29,11 +29,12 @@ class Model:
 		self.priors.setdefault('rate', 1.)
 		self.priors.setdefault('mu', np.zeros(self.n_presynaptic))
 		self.priors.setdefault('beta', 3 * np.ones(self.n_presynaptic))
+		self.priors.setdefault('rel', 1e-1 * np.ones(self.n_presynaptic))
 		eta_prior = np.zeros((self.n_presynaptic, self.cell_grids.shape[1] + 1))
 		eta_prior[:, -1] = 6
 		self.priors.setdefault('eta', eta_prior)
-		eta_cov_prior = np.array([1e-1 * np.diag(np.ones(self.cell_grids.shape[1] + 1)) for _ in range(self.n_presynaptic)])
-		eta_cov_prior[:, -1, -1] = 1e-1 # 1e-1 works
+		eta_cov_prior = np.array([self.priors['rel'][n] * np.diag(np.ones(self.cell_grids.shape[1] + 1)) for n in range(self.n_presynaptic)])
+		# eta_cov_prior[:, -1, -1] = 1e-1 # 1e-1 works
 		self.priors.setdefault('eta_cov', eta_cov_prior)
 
 		# Set initial state to prior
@@ -344,11 +345,11 @@ class Model:
 		"""
 		result = optimise.cavi_offline_spike_and_slab(
 			obs, stimuli, self.state['mu'], self.state['beta'], self.state['alpha'], self.state['shape'], 
-			self.state['rate'], self.state['eta'], self.state['eta_cov'], self.cell_grids, **fit_options 
+			self.state['rate'], self.state['eta'], self.state['eta_cov'], self.state['rel'], self.cell_grids, **fit_options 
 		)
 
-		mu, beta, alpha, lam, shape, rate, eta, eta_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
-		eta_hist, eta_cov_hist = result
+		mu, beta, alpha, lam, shape, rate, eta, eta_cov, rel, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+		eta_hist, eta_cov_hist, rel_hist = result
 
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta
@@ -357,6 +358,7 @@ class Model:
 		self.state['rate'] 		= rate
 		self.state['eta']	 	= eta
 		self.state['eta_cov'] 	= eta_cov
+		self.state['rel']		= rel
 		self.state['lam'] 		= list(lam.T)
 		self.trial_count 		= obs.shape[0]
 
