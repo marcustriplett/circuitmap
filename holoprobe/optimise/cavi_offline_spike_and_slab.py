@@ -60,6 +60,7 @@ def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shap
 	rate_hist 		= np.zeros(iters)
 	eta_hist 		= np.zeros((iters, N, D))
 	eta_cov_hist 	= np.zeros((iters, N, D, D))
+	rel_hist		= np.zeros((iters, N))
 
 	# Iterate CAVI updates
 	for it in range(iters):
