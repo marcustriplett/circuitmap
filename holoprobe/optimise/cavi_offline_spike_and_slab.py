@@ -14,7 +14,7 @@ from jax.lax import scan, cond, while_loop
 # @njit
 def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, eta_prior, eta_cov_prior, rel_prior, cell_grids, 
 	init_t=1e4, t_mult=1e1, t_loops=10, iters=10, verbose=False, newton_steps=10, seed=None, lam_update='monte-carlo', num_mc_samples=5, 
-	return_parameter_history=False, num_filter_pts_per_dim=4, filter_size=20):
+	return_parameter_history=False, num_filter_pts_per_dim=4, filter_size=20, a_rel=None, b_rel=None):
 	"""Offline-mode coordinate-ascent variational inference for the adaprobe model.
 
 	"""
@@ -49,8 +49,9 @@ def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shap
 	# lam = update_lam_monte_carlo(y, mu, beta, alpha, lam, shape, rate, eta, eta_cov, mask, psfc, num_mc_samples=num_mc_samples)
 
 	# Relevance hyperparameters
-	a_rel = np.max([np.log(eta.shape[1]), 2.0])
-	b_rel = 0.5
+	if a_rel is None or b_rel is None:
+		a_rel = np.max([np.log(eta.shape[1]), 2.0])
+		b_rel = 0.5
 
 	mu_hist 		= np.zeros((iters, N))
 	beta_hist 		= np.zeros((iters, N))
