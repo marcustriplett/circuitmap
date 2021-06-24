@@ -371,7 +371,8 @@ class Model:
 			'shape': shape_hist,
 			'rate': rate_hist,
 			'eta': eta_hist,
-			'eta_cov': eta_cov_hist
+			'eta_cov': eta_cov_hist,
+			'rel_hist': rel_hist
 		}
 
 	def _fit_cavi_offline_spike_and_slab_3d_omega(self, obs, stimuli, fit_options):
