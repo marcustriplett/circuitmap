@@ -83,7 +83,7 @@ def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shap
 		rate_hist[it] 		= rate
 		eta_hist[it] 		= eta
 		eta_cov_hist[it] 	= eta_cov
-		rel_hist			= rel
+		rel_hist[it]		= rel
 
 	# return mu, beta, alpha, lam, shape, rate, eta, eta_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, eta_hist, eta_cov_hist
 	return mu, beta, alpha, lam, shape, rate, eta, eta_cov, rel, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
