@@ -49,7 +49,7 @@ def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shap
 	# lam = update_lam_monte_carlo(y, mu, beta, alpha, lam, shape, rate, eta, eta_cov, mask, psfc, num_mc_samples=num_mc_samples)
 
 	# Relevance hyperparameters
-	a_rel = np.max([np.log(eta[n].shape[0]), 2.0])
+	a_rel = np.max([np.log(eta.shape[1]), 2.0])
 	b_rel = 0.5
 
 	mu_hist 		= np.zeros((iters, N))
@@ -72,7 +72,7 @@ def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shap
 		else:
 			lam = update_lam_MAP(y, mu, beta, alpha, lam, shape, rate, eta, eta_cov, mask, psfc)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
-		eta, eta_cov = update_eta(lam, eta_prior, rel * eta_cov_prior, psfc, newton_steps=newton_steps) # relevance parameter used here
+		eta, eta_cov = update_eta(lam, eta_prior, eta_cov_prior, rel, psfc, newton_steps=newton_steps) # relevance parameter used here
 		rel = update_relevance(eta, a_rel, b_rel)
 
 		mu_hist[it] 		= mu
@@ -174,16 +174,19 @@ def update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior):
 		- np.sum(np.square(np.expand_dims(mu * alpha, 1) * lam)) + np.sum(np.expand_dims((mu**2 + beta**2) * alpha, 1) * lam))
 	return shape, rate
 
-def update_relevance(filt, a_rel, b_rel):
+@njit
+def update_relevance(filts, a_rel, b_rel):
 	""" Automatic relevance determination step.
 	"""
-	J = filt.shape[0] # num filter components
-	return (1/2 * np.sum(filt ** 2) - b_rel)/(J/2 + a_rel + 1)
+	N, J = filts.shape
+	rel = np.zeros(N)
+	for n in range(N):
+		rel[n] = (1/2 * np.sum(filts[n] ** 2) - b_rel)/(J/2 + a_rel + 1)
+	return rel
 
-
-def update_eta(y, eta_prior, eta_cov_prior, psfc, newton_steps=15, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
+def update_eta(y, eta_prior, eta_cov_prior, rel, psfc, newton_steps=15, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
 	N = y.shape[0]
-	posterior, logliks = laplace_approx(y, eta_prior, eta_cov_prior, psfc) # parallel Laplace approximations
+	posterior, logliks = laplace_approx(y, eta_prior, rel[:, None, None] * eta_cov_prior, psfc) # parallel Laplace approximations
 	eta, eta_cov = posterior
 	return np.array(eta), np.array(eta_cov) # convert to numpy array
 
