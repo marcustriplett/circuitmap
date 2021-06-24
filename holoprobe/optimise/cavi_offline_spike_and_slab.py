@@ -186,6 +186,7 @@ def update_relevance(filts, a_rel, b_rel):
 	rel = np.zeros(N)
 	for n in range(N):
 		rel[n] = (1/2 * np.sum(filts[n] ** 2) - b_rel)/(J/2 + a_rel + 1)
+	rel[rel < EPS] = EPS
 	return rel
 
 def update_eta(y, eta_prior, eta_cov_prior, rel, psfc, newton_steps=15, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
