@@ -50,7 +50,7 @@ def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shap
 
 	# Relevance hyperparameters
 	a_rel = np.max([np.log(eta[n].shape[0]), 2.0])
-	b_rel = 
+	b_rel = 0.5
 
 	mu_hist 		= np.zeros((iters, N))
 	beta_hist 		= np.zeros((iters, N))
@@ -73,7 +73,7 @@ def cavi_offline_spike_and_slab(y, stim, mu_prior, beta_prior, alpha_prior, shap
 			lam = update_lam_MAP(y, mu, beta, alpha, lam, shape, rate, eta, eta_cov, mask, psfc)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		eta, eta_cov = update_eta(lam, eta_prior, rel * eta_cov_prior, psfc, newton_steps=newton_steps) # relevance parameter used here
-		rel = update_relevance()
+		rel = update_relevance(eta, a_rel, b_rel)
 
 		mu_hist[it] 		= mu
 		beta_hist[it] 		= beta
@@ -175,7 +175,7 @@ def update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior):
 	return shape, rate
 
 def update_relevance(filt, a_rel, b_rel):
-	""" Automatic relevance determination step. 
+	""" Automatic relevance determination step.
 	"""
 	J = filt.shape[0] # num filter components
 	return (1/2 * np.sum(filt ** 2) - b_rel)/(J/2 + a_rel + 1)
