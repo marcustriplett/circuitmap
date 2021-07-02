@@ -24,77 +24,17 @@ class Model:
 
 		self.priors.setdefault('alpha', 1/2 * _ones)
 		self.priors.setdefault('shape', 1.)
-		self.priors.setdefault('rate', 1.)
-
-		if variational_model == 'factorised':
-			self.priors.setdefault('mu', np.zeros(self.n_presynaptic))
-			self.priors.setdefault('beta', 3 * _ones)
-			self.priors.setdefault('phi_map', np.c_[1e-1 * _ones, 1e1 * _ones])
-			self.priors.setdefault('phi_cov', np.array([np.array([[1e-1, 0], [0, 5e0]]) 
-				for _ in range(self.n_presynaptic)]))
-			self.priors.setdefault('omega', 1e-2 * _ones)
-
-			# Set initial state to prior
-			self.state = self.priors.copy()
-			self.state['phi_0'] = self.state['phi_map'][:, 0]
-			self.state['phi_1'] = self.state['phi_map'][:, 1]
-
-		elif variational_model == 'joint':
-			self.priors.setdefault('mu', np.c_[1e-1 * _ones, 1e1 * _ones, np.zeros(self.n_presynaptic)])
-			self.priors.setdefault('Lam', np.array([np.array([[1e-1, 0, 0], [0, 5e0, 0], [0, 0, 3]]) 
-				for _ in range(self.n_presynaptic)]))
-			self.priors.setdefault('omega', 1e-2 * _ones)
-
-			# Set initial state to prior
-			self.state = self.priors.copy()
-
-		elif variational_model == 'spike-noise':
-			self.priors.setdefault('mu', np.zeros(self.n_presynaptic))
-			self.priors.setdefault('beta', 3 * _ones)
-			self.priors.setdefault('phi_map', np.c_[1e-1 * _ones, 1e1 * _ones])
-			self.priors.setdefault('phi_cov', np.array([np.array([[1e-1, 0], [0, 5e0]]) 
-				for _ in range(self.n_presynaptic)]))
-			self.priors.setdefault('omega', 1e-2 * _ones)
-
-			self.priors.setdefault('rho', 1e-3)
-			self.priors.setdefault('sigma', 1)
-
-			# Set initial state to prior
-			self.state = self.priors.copy()
-			self.state['phi_0'] = self.state['phi_map'][:, 0]
-			self.state['phi_1'] = self.state['phi_map'][:, 1]
-			self.state['zeta'] = []
-			self.state['eta'] = []
-
-		elif variational_model == 'omega-3d':
-			self.priors.setdefault('mu', np.zeros(self.n_presynaptic))
-			self.priors.setdefault('beta', 3 * _ones)
-			self.priors.setdefault('phi_map',  np.c_[0.03203156 * _ones, 5.216092 * _ones])
-			self.priors.setdefault('phi_cov', np.array([np.array([[1e-1, 0], [0, 5e0]]) 
-				for _ in range(self.n_presynaptic)]))
-			self.priors.setdefault('Omega', np.array([np.diag([0.00389425, 0.00391111, 0.00074478]) for n in range(self.n_presynaptic)]))	
-			# self.priors.setdefault('Omega', np.array([np.diag([0.0548741, 0.09744828, 0.00685001]) for n in range(self.n_presynaptic)]))
-
-			# Set initial state to prior
-			self.state = self.priors.copy()
-			self.state['phi_0'] = self.state['phi_map'][:, 0]
-			self.state['phi_1'] = self.state['phi_map'][:, 1]
-
-		elif variational_model == 'laplace-3d':
-			self.priors.setdefault('mu', np.zeros(self.n_presynaptic))
-			self.priors.setdefault('beta', 2 * _ones)
-			self.priors.setdefault('phi_map',  np.c_[0.05319851 * _ones, 5.5563254 * _ones])
-			self.priors.setdefault('phi_cov', np.array([np.array([[1e-1, 0], [0, 5e0]]) 
-				for _ in range(self.n_presynaptic)]))
-			self.priors.setdefault('omega', [np.array([18.209957, 14.667394, 47.966736]) for _ in range(self.n_presynaptic)])
-
-			# Set initial state to prior
-			self.state = self.priors.copy()
-			self.state['phi_0'] = self.state['phi_map'][:, 0]
-			self.state['phi_1'] = self.state['phi_map'][:, 1]
-
-		else:
-			raise Exception
+		self.priors.setdefault('rate', 1.)	
+		self.priors.setdefault('mu', np.zeros(self.n_presynaptic))
+		self.priors.setdefault('beta', 3 * _ones)
+		self.priors.setdefault('phi', np.c_[1e-1 * _ones, 1e1 * _ones])
+		self.priors.setdefault('phi_cov', np.array([np.array([[1e-1, 0], [0, 5e0]]) 
+			for _ in range(self.n_presynaptic)]))
+		
+		# Set initial state to prior
+		self.state = self.priors.copy()
+		self.state['phi_0'] = self.state['phi'][:, 0]
+		self.state['phi_1'] = self.state['phi'][:, 1]
 
 		self.state['lam'] = []
 
@@ -128,6 +68,8 @@ class Model:
 			self._fit_cavi_spike_and_slab(obs, stimuli, fit_options)
 		elif method == 'cavi_offline_spike_and_slab_3d_omega':
 			self._fit_cavi_offline_spike_and_slab_3d_omega(obs, stimuli, fit_options)
+		elif method == 'cavi_offline_spike_and_slab_NOTS_jax':
+			self._fit_cavi_offline_spike_and_slab_NOTS_jax(obs, stimuli, fit_options)
 		else:
 			raise Exception
 
@@ -430,6 +372,41 @@ class Model:
 			'shape': shape_hist,
 			'rate': rate_hist,
 			'phi_map': phi_map_hist,
+			'phi_cov': phi_cov_hist
+		}
+
+	def _fit_cavi_offline_spike_and_slab_NOTS_jax(self, obs, stimuli, fit_options):
+		"""Run CAVI in offline mode with spike-and-slab synapse prior.
+		"""
+		result = optimise.cavi_offline_spike_and_slab_NOTS_jax(
+			obs, stimuli, self.state['mu'], self.state['beta'], self.state['alpha'], self.state['shape'], 
+			self.state['rate'], self.state['phi'], self.state['phi_cov'], **fit_options 
+		)
+
+		mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+		phi_hist, phi_cov_hist = result
+
+		self.state['mu'] 		= mu
+		self.state['beta'] 		= beta
+		self.state['alpha']		= alpha
+		self.state['shape'] 	= shape
+		self.state['rate'] 		= rate
+		self.state['phi'] 		= phi
+		self.state['phi_0'] 	= phi[:, 0]
+		self.state['phi_1'] 	= phi[:, 1]
+		self.state['phi_cov'] 	= phi_cov
+		self.state['lam'] 		= list(lam.T)
+		self.trial_count 		= obs.shape[0]
+
+		# Set up history dict.
+		self.history = {
+			'mu': mu_hist,
+			'beta': beta_hist,
+			'alpha': alpha_hist,
+			'lam': lam_hist,
+			'shape': shape_hist,
+			'rate': rate_hist,
+			'phi': phi_hist,
 			'phi_cov': phi_cov_hist
 		}
 
