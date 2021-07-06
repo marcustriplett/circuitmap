@@ -1,5 +1,4 @@
 import numpy as np
-from .utils import get_mask
 
 # Jax imports
 import jax
@@ -38,8 +37,8 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	for it in range(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
 		mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior)
-		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, mask)
-		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, mask, key, num_mc_samples=num_mc_samples)
+		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior)
+		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples=num_mc_samples)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
@@ -61,11 +60,12 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior):
 	return mu
 
 @jit
-def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, mask):
+def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior):
 	N = mu.shape[0]
 	for n in range(N):
-		arg = -2 * mu[n] * jnp.dot(y, lam[n]) + 2 * mu[n] * jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[mask[n]] * alpha[mask[n]], 1) \
-			* lam[mask[n]], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(lam[n])
+		mask = jnp.append(jnp.arange(n), jnp.arange(n + 1, N))
+		arg = -2 * mu[n] * jnp.dot(y, lam[n]) + 2 * mu[n] * jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[mask] * alpha[mask], 1) \
+			* lam[mask], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(lam[n])
 		alpha = index_update(alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * arg))
 	return alpha
 
@@ -77,7 +77,7 @@ def get_trunc_norm_sampler(n_samples=10):
 	return jit(_sampler)
 
 @jit
-def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, mask, key, num_mc_samples=10):
+def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples=10):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	
@@ -86,7 +86,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, mask, key,
 
 	N = mu.shape[0]
 	for n in range(N):
-		arg = -2 * y * mu[n] * alpha[n] + 2 * mu[n] * alpha[n] * jnp.sum(jnp.expand_dims(mu[mask[n]] * alpha[mask[n]], 1) * lam[mask[n]], 0) \
+		arg = -2 * y * mu[n] * alpha[n] + 2 * mu[n] * alpha[n] * jnp.sum(jnp.expand_dims(mu[mask] * alpha[mask], 1) * lam[mask], 0) \
 		+ (mu[n]**2 + beta[n]**2) * alpha[n]
 		mc_samps, key = sample_phi_independent_truncated_normals(key, phi[n], phi_cov[n]) # samples of phi for neuron n
 		num_mc_samples = mc_samps.shape[0]
