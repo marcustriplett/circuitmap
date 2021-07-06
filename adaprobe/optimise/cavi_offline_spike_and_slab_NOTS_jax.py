@@ -113,7 +113,8 @@ def update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior):
 def update_phi(lam, I, phi_prior, phi_cov_prior, key):
 	"""Returns updated sigmoid coefficients estimated using a log-barrier penalty with backtracking Newton's method
 	"""
-	return laplace_approx(lam, phi_prior, phi_cov_prior, I, key)
+	phi, keys = laplace_approx(lam, phi_prior, phi_cov_prior, I, key) # N keys returned due to vmapped LAs
+	return phi, keys[-1]
 	
 def _laplace_approx(y, phi_prior, phi_cov, I, key, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
 	"""Laplace approximation to sigmoid coefficient posteriors $phi$.
