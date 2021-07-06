@@ -51,7 +51,7 @@ def update_beta(alpha, lam, shape, rate, beta_prev):
 	return 1/jnp.sqrt(shape/rate * alpha * jnp.sum(lam, 1) + 1/(beta_prev**2))
 
 @jit # in-place index_updates fast enough?
-def update_mu(y, mu, beta, alpha, lamk, shape, rate, mu_prev, beta_prev, mask):
+def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prev, beta_prev, mask):
 	N = mu.shape[0]
 	sig = shape/rate
 	for n in range(N):
@@ -86,7 +86,8 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, mask, key,
 
 	N = mu.shape[0]
 	for n in range(N):
-		arg = -2 * y * mu[n] * alpha[n] + 2 * mu[n] * alpha[n] * jnp.sum(mu[mask[n]] * alpha[mask[n]] * lamk[mask[n]]) + (mu[n]**2 + beta[n]**2) * alpha[n]
+		arg = -2 * y * mu[n] * alpha[n] + 2 * mu[n] * alpha[n] * jnp.sum(jnp.expand_dims(mu[mask[n]] * alpha[mask[n]], 1) * lam[mask[n]], 0) \
+		+ (mu[n]**2 + beta[n]**2) * alpha[n]
 		mc_samps, key = sample_phi_independent_truncated_normals(key, phi[n], phi_cov[n]) # samples of phi for neuron n
 		num_mc_samples = mc_samps.shape[0]
 		mcE = 0 # monte carlo approximation of expectation
