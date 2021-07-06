@@ -73,7 +73,7 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior):
 def get_trunc_norm_sampler(n_samples):
 	def _sampler(key, mean, sdev):
 		key, key_next = jax.random.split(key)
-		u = jax.random.uniform(key, [n_samples, 1])
+		u = jax.random.uniform(key, [n_samples, 2])
 		return ndtri(ndtr(-mean/sdev) + u * (1 - ndtr(-mean/sdev))) * sdev + mean, key_next
 	return jit(_sampler)
 
@@ -90,7 +90,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_m
 		mask = jnp.append(jnp.arange(n), jnp.arange(n + 1, N))
 		arg = -2 * y * mu[n] * alpha[n] + 2 * mu[n] * alpha[n] * jnp.sum(jnp.expand_dims(mu[mask] * alpha[mask], 1) * lam[mask], 0) \
 		+ (mu[n]**2 + beta[n]**2) * alpha[n]
-		mc_samps, key = sample_phi_independent_truncated_normals(key, phi[n], phi_cov[n]) # samples of phi for neuron n
+		mc_samps, key = sample_phi_independent_truncated_normals(key, phi[n], jnp.diag(phi_cov[n])) # samples of phi for neuron n
 		num_mc_samples = mc_samps.shape[0]
 		mcE = 0 # monte carlo approximation of expectation
 		for indx in range(num_mc_samples): ## ### can potentially vectorise this ######
