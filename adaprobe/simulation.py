@@ -80,8 +80,8 @@ class Simulation3d:
 		self.tars = np.array(self.tars)
 		self.I = np.array(self.I)
 		self.y = np.array(self.y)
-		self.fr = np.array(self.fr)
-		self.spks = np.array(self.spks)
+		self.fr = np.array(self.fr).T
+		self.spks = np.array(self.spks).T
 		return
 
 	def next_trial_multistim(self, L, I):
