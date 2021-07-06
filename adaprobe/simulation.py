@@ -47,7 +47,7 @@ class Simulation3d:
 		""" Simulate next trial at neuron n with power I.
 		"""
 		cell_inds = np.arange(self.N)
-		fr = _sigmoid(np.array([self.phi_0[n] * I * (cell_inds == tar) - self.phi_1[n] for n in range(self.N)]))
+		fr = _sigmoid(self.phi_0 * I * (cell_inds == tar) - self.phi_1)
 		spks = np.random.rand(self.N) <= fr
 		y = np.random.normal(self.w @ spks, self.sigma)
 
