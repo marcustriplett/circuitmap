@@ -165,7 +165,7 @@ def _laplace_approx(y, phi_prior, phi_cov, I, key, t=1e1, backtrack_alpha=0.25, 
 		phi += step * v
 		return (phi, cov), lhs
 
-	key, key_next = jax.random.PRNGKey(key)
+	key, key_next = jax.random.split(key)
 	phi = jnp.array(phi_prior, copy=True)
 	prior_prec = jnp.linalg.inv(phi_cov)
 	phi_carry = (phi, jnp.zeros((phi.shape[0], phi.shape[0])))
