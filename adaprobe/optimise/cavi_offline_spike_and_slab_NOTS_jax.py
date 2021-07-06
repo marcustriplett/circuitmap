@@ -46,11 +46,11 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov
 
 @jit
-def update_beta(alpha, lam, shape, rate, beta_prev):
-	return 1/jnp.sqrt(shape/rate * alpha * jnp.sum(lam, 1) + 1/(beta_prev**2))
+def update_beta(alpha, lam, shape, rate, beta_prior):
+	return 1/jnp.sqrt(shape/rate * alpha * jnp.sum(lam, 1) + 1/(beta_prior**2))
 
 @jit # in-place index_updates fast enough?
-def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prev, beta_prev):
+def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior):
 	N = mu.shape[0]
 	sig = shape/rate
 	for n in range(N):
