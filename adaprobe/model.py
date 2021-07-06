@@ -383,8 +383,10 @@ class Model:
 			self.state['rate'], self.state['phi'], self.state['phi_cov'], **fit_options 
 		)
 
-		mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
-		phi_hist, phi_cov_hist = result
+		# mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+		# phi_hist, phi_cov_hist = result
+
+		mu, beta, alpha, lam, shape, rate, phi, phi_cov = result
 
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta
@@ -399,16 +401,18 @@ class Model:
 		self.trial_count 		= obs.shape[0]
 
 		# Set up history dict.
-		self.history = {
-			'mu': mu_hist,
-			'beta': beta_hist,
-			'alpha': alpha_hist,
-			'lam': lam_hist,
-			'shape': shape_hist,
-			'rate': rate_hist,
-			'phi': phi_hist,
-			'phi_cov': phi_cov_hist
-		}
+		# self.history = {
+		# 	'mu': mu_hist,
+		# 	'beta': beta_hist,
+		# 	'alpha': alpha_hist,
+		# 	'lam': lam_hist,
+		# 	'shape': shape_hist,
+		# 	'rate': rate_hist,
+		# 	'phi': phi_hist,
+		# 	'phi_cov': phi_cov_hist
+		# }
+
+		return
 
 	def _fit_cavi_offline_spike_and_slab_3d_omega(self, obs, stimuli, fit_options):
 		"""Run CAVI in offline mode in three dimensions with a spike-and-slab synapse prior.

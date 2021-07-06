@@ -42,8 +42,6 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		print(phi)
-		print(phi_cov)
 
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov
 
