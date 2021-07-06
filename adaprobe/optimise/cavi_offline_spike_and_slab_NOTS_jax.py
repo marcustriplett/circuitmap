@@ -42,6 +42,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
+		print(phi.shape, phi_cov.shape)
 
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov
 
@@ -83,7 +84,6 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_m
 	"""
 	
 	# Truncated normal sampler
-	print(key)
 	trunc_norm_sampler = get_trunc_norm_sampler(num_mc_samples) # regenerated every function call
 
 	N = mu.shape[0]
@@ -113,8 +113,8 @@ def update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior):
 def update_phi(lam, I, phi_prior, phi_cov_prior, key):
 	"""Returns updated sigmoid coefficients estimated using a log-barrier penalty with backtracking Newton's method
 	"""
-	phi, keys = laplace_approx(lam, phi_prior, phi_cov_prior, I, key) # N keys returned due to vmapped LAs
-	return phi, keys[-1]
+	posterior, keys = laplace_approx(lam, phi_prior, phi_cov_prior, I, key) # N keys returned due to vmapped LAs
+	return posterior, keys[-1]
 	
 def _laplace_approx(y, phi_prior, phi_cov, I, key, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
 	"""Laplace approximation to sigmoid coefficient posteriors $phi$.
