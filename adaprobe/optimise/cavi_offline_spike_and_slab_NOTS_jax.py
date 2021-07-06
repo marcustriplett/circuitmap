@@ -90,7 +90,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, mask, key,
 		num_mc_samples = mc_samps.shape[0]
 		mcE = 0 # monte carlo approximation of expectation
 		for indx in range(num_mc_samples): ## ### can potentially vectorise this ######
-			fn = sigmoid(mc_samps[indx, 0] * I - mc_samps[indx, 1])
+			fn = sigmoid(mc_samps[indx, 0] * I[n] - mc_samps[indx, 1])
 			mcE = mcE + jnp.log(fn/(1 - fn))
 		mcE = mcE/num_mc_samples
 		lam = index_update(lam, n, sigmoid(mcE - shape/(2 * rate) * arg))
