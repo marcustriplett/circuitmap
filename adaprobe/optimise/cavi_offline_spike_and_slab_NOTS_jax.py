@@ -29,7 +29,6 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	phi = phi_prior.copy()
 	phi_cov = phi_cov_prior.copy()
 
-	mask = get_mask(N)
 	lam = jnp.zeros((N, K))
 
 	# init key
@@ -50,10 +49,10 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 def update_beta(alpha, lam, shape, rate, beta_prev):
 	return 1/jnp.sqrt(shape/rate * alpha * jnp.sum(lam, 1) + 1/(beta_prev**2))
 
-# @jit # in-place index_updates fast enough?
-@jax.partial(jit, static_argnums=(-1,))
-def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prev, beta_prev, mask):
+@jit # in-place index_updates fast enough?
+def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prev, beta_prev):
 	N = mu.shape[0]
+	mask = get_mask(N)
 	sig = shape/rate
 	for n in range(N):
 		mu = index_update(mu, n, (beta[n]**2) * (sig * alpha[n] * jnp.dot(y, lam[n]) - sig * alpha[n] \
