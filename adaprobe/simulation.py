@@ -35,7 +35,7 @@ class Simulation3d:
 	def reset(self):
 		"""Reset trials.
 		"""
-		self.L = []
+		self.tars = []
 		self.I = []
 		self.fr = []
 		self.spks = []
@@ -52,7 +52,7 @@ class Simulation3d:
 		y = np.random.normal(self.w @ spks, self.sigma)
 
 		# Save simulation result to object
-		self.L += [L]
+		self.tars += [tar]
 		self.I += [I]
 		self.fr += [fr]
 		self.spks += [spks]
@@ -77,8 +77,7 @@ class Simulation3d:
 			power = np.random.choice(powers)
 			self.next_trial(tar, power)
 
-		# Convert to arrays for Numba compilation
-		self.L = np.array(self.L)
+		self.tars = np.array(self.tars)
 		self.I = np.array(self.I)
 		self.y = np.array(self.y)
 		return
