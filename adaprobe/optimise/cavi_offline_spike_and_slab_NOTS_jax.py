@@ -34,6 +34,8 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	# init key
 	key = jax.random.PRNGKey(0)
 
+	mask = get_mask(N)
+
 	# Iterate CAVI updates
 	for it in range(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
