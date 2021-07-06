@@ -46,7 +46,7 @@ class Simulation3d:
 	def next_trial(self, tar, I):
 		""" Simulate next trial at neuron n with power I.
 		"""
-		cell_inds = np.arange(N)
+		cell_inds = np.arange(self.N)
 		fr = _sigmoid(np.array([self.phi_0[n] * I * (cell_inds == tar) - self.phi_1[n] for n in range(self.N)]))
 		spks = np.random.rand(self.N) <= fr
 		y = np.random.normal(self.w @ spks, self.sigma)
@@ -73,7 +73,7 @@ class Simulation3d:
 
 		# Run trials
 		for k in range(trials):
-			tar = self.cell_locs[np.mod(k, self.N)] + np.random.normal(0, jitter, 3)
+			tar = np.mod(k, self.N)
 			power = np.random.choice(powers)
 			self.next_trial(tar, power)
 
