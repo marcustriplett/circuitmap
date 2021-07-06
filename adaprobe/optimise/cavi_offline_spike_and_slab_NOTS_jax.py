@@ -58,7 +58,7 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prev, beta_prev):
 	for n in range(N):
 		mask = jnp.where(_cids != n, _trues, False)
 		mu = index_update(mu, n, (beta[n]**2) * (sig * alpha[n] * jnp.dot(y, lam[n]) - sig * alpha[n] \
-			* jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[mask[n]] * alpha[mask[n]], 1) * lam[mask[n]], 0)) \
+			* jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[mask] * alpha[mask], 1) * lam[mask], 0)) \
 			+ mu_prior[n]/(beta_prior[n]**2)))
 	return mu
 
