@@ -5,7 +5,7 @@ DEFAULT_OMEGA = np.array([0.00389425, 0.00391111, 0.00074478])
 DEFAULT_PHI = np.array([0.03203156, 5.216092])
 
 class Simulation3d:
-	def __init__(self, dimx=125, dimy=125, dimz=100, spacing=10, grid_density=5, N=16, a=0.5, sigma=3, Omega=None, phi_0=None,
+	def __init__(self, dimx=125, dimy=125, dimz=100, spacing=10, grid_density=5, N=16, a=0.5, sigma=3, phi_0=None,
 		phi_1=None, min_w=3, max_w=20, mode='online'):
 		""" Initialise a 3d adaprobe simulation object.
 		"""
@@ -30,11 +30,6 @@ class Simulation3d:
 		else:
 			self.phi_1 = phi_1
 
-		if Omega is None:
-			self.Omega = np.array([np.diag(DEFAULT_OMEGA) for n in range(N)])
-		else:
-			self.Omega = Omega
-
 		self.reset()
 
 	def reset(self):
@@ -48,10 +43,11 @@ class Simulation3d:
 		self.trials = 0
 		return
 
-	def next_trial(self, L, I):
-		""" Simulate next trial at location L with power I.
+	def next_trial(self, tar, I):
+		""" Simulate next trial at neuron n with power I.
 		"""
-		fr = _sigmoid(np.array([self.phi_0[n] * I * np.exp(-(L - self.cell_locs[n]) @ self.Omega[n] @ (L - self.cell_locs[n])) - self.phi_1[n] for n in range(self.N)]))
+		cell_inds = np.arange(N)
+		fr = _sigmoid(np.array([self.phi_0[n] * I * (cell_inds == tar) - self.phi_1[n] for n in range(self.N)]))
 		spks = np.random.rand(self.N) <= fr
 		y = np.random.normal(self.w @ spks, self.sigma)
 
