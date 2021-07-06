@@ -18,6 +18,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	"""
 	# Initialise new params
 	N = mu_prior.shape[0]
+	K = y.shape[0]
 
 	mu = mu_prior.copy()
 	beta = beta_prior.copy()
@@ -29,7 +30,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	phi_cov = phi_cov_prior.copy()
 
 	mask = get_mask(N)
-	lam = jnp.zeros(N)
+	lam = jnp.zeros((N, K))
 
 	# init key
 	key = jax.random.PRNGKey(0)
