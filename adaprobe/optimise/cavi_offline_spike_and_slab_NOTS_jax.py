@@ -7,6 +7,7 @@ from jax import jit, vmap
 from jax.lax import scan, while_loop
 from jax.ops import index_update
 from jax.nn import sigmoid
+from jax.scipy.special import ndtr, ndtri
 
 EPS = 1e-10
 
@@ -69,20 +70,20 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior):
 		alpha = index_update(alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * arg))
 	return alpha
 
-def get_trunc_norm_sampler(n_samples=10):
+def get_trunc_norm_sampler(n_samples):
 	def _sampler(key, mean, sdev):
 		key, key_next = jax.random.split(key)
 		u = jax.random.uniform(key, [n_samples, 1])
 		return ndtri(ndtr(-mean/sdev) + u * (1 - ndtr(-mean/sdev))) * sdev + mean, key_next
 	return jit(_sampler)
 
-@jit
+@jax.partial(jit, static_argnums=(11,))
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples=10):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	
 	# Truncated normal sampler
-	sample_phi_independent_truncated_normals = get_trunc_norm_sampler(num_mc_samples)
+	sample_phi_independent_truncated_normals = get_trunc_norm_sampler(num_mc_samples) # regenerated every function call
 
 	N = mu.shape[0]
 	for n in range(N):
