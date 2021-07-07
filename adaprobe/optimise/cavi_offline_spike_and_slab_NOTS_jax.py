@@ -94,7 +94,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_m
 
 		# sample truncated normals
 		key, key_next = jax.random.split(key)
-		u = jax.random.uniform(key, [n_samples, 2])
+		u = jax.random.uniform(key, [num_mc_samples, 2])
 		mean, sdev = phi[n], jnp.diag(phi_cov[n])
 		mc_samps = ndtri(ndtr(-mean/sdev) + u * (1 - ndtr(-mean/sdev))) * sdev + mean
 
