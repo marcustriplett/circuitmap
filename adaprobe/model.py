@@ -59,7 +59,7 @@ class Model:
 		else:
 			raise Exception("""[__Update exception__] Kwarg 'method' is invalid.""")
 
-	def fit(self, obs, stimuli, method='cavi', fit_options=dict()):
+	def fit(self, obs, stimuli, method='cavi', fit_options=dict({'iters': 10, 'num_mc_samples': 10})):
 		"""Fit posterior distributions in offline mode.
 		"""
 		if method == 'cavi':

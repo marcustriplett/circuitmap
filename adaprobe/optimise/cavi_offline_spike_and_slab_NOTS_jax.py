@@ -13,7 +13,7 @@ EPS = 1e-10
 
 @jax.partial(jit, static_argnums=(9, 10))
 def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters=10, num_mc_samples=10):
+	iters, num_mc_samples):
 	"""Online-mode coordinate ascent variational inference for the adaprobe model.
 
 	"""
