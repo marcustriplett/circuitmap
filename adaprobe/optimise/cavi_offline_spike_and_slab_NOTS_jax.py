@@ -89,7 +89,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_m
 
 		# monte carlo approximation of expectation
 		mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], mc_samps[:, 0], mc_samps[:, 1]), 0)
-		lam = index_update(lam, n, sigmoid(mcE - shape/(2 * rate) * arg) * (I[n] > 0)) # require spiking cells to be targeted
+		lam = index_update(lam, n, sigmoid(mcE - shape/(2 * rate) * arg * (I[n] > 0))) # require spiking cells to be targeted
 	return lam, key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
