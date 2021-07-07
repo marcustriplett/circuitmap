@@ -71,21 +71,10 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior):
 		alpha = index_update(alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * arg))
 	return alpha
 
-# def get_trunc_norm_sampler(n_samples):
-# 	def _sampler(key, mean, sdev):
-# 		key, key_next = jax.random.split(key)
-# 		u = jax.random.uniform(key, [n_samples, 2])
-# 		return ndtri(ndtr(-mean/sdev) + u * (1 - ndtr(-mean/sdev))) * sdev + mean, key_next
-# 	return jit(_sampler)
-
 @jax.partial(jit, static_argnums=(11,))
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
-	
-	# Truncated normal sampler
-	# trunc_norm_sampler = get_trunc_norm_sampler(num_mc_samples) # regenerated every function call
-
 	N = mu.shape[0]
 	for n in range(N):
 		mask = jnp.append(jnp.arange(n), jnp.arange(n + 1, N))
@@ -100,8 +89,8 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_m
 
 		# monte carlo approximation of expectation
 		mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], mc_samps[:, 0], mc_samps[:, 1]), 0)
-		lam = index_update(lam, n, sigmoid(mcE - shape/(2 * rate) * arg))
-	return lam, key
+		lam = index_update(lam, n, sigmoid(mcE - shape/(2 * rate) * arg) * (I[n] > 0)) # require spiking cells to be targeted
+	return lam, key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
 	fn = sigmoid(phi_0 * I - phi_1)
