@@ -59,7 +59,7 @@ class Model:
 		else:
 			raise Exception("""[__Update exception__] Kwarg 'method' is invalid.""")
 
-	def fit(self, obs, stimuli, method='cavi', fit_options=dict({'iters': 10, 'num_mc_samples': 10})):
+	def fit(self, obs, stimuli, method='cavi', fit_options=dict()):
 		"""Fit posterior distributions in offline mode.
 		"""
 		if method == 'cavi':
@@ -380,7 +380,7 @@ class Model:
 		"""
 		result = optimise.cavi_offline_spike_and_slab_NOTS_jax(
 			obs, stimuli, self.state['mu'], self.state['beta'], self.state['alpha'], self.state['shape'], 
-			self.state['rate'], self.state['phi'], self.state['phi_cov'], fit_options['iters'], fit_options['num_mc_samples'] 
+			self.state['rate'], self.state['phi'], self.state['phi_cov'], **fit_options 
 		)
 
 		# mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
