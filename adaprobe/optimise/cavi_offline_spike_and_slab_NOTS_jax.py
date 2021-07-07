@@ -84,7 +84,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_m
 	"""
 	
 	# Truncated normal sampler
-	trunc_norm_sampler = get_trunc_norm_sampler(num_mc_samples) # regenerated every function call
+	# trunc_norm_sampler = get_trunc_norm_sampler(num_mc_samples) # regenerated every function call
 
 	N = mu.shape[0]
 	for n in range(N):
