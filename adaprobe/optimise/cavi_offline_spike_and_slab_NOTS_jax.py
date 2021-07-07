@@ -21,14 +21,14 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	N = mu_prior.shape[0]
 	K = y.shape[0]
 
-	mu = mu_prior.copy()
-	beta = beta_prior.copy()
+	mu = jnp.array(mu_prior)
+	beta = jnp.array(beta_prior)
 
-	alpha = alpha_prior.copy()
+	alpha = jnp.array(alpha_prior)
 	shape = shape_prior
 	rate = rate_prior
-	phi = phi_prior.copy()
-	phi_cov = phi_cov_prior.copy()
+	phi = jnp.array(phi_prior)
+	phi_cov = jnp.array(phi_cov_prior)
 
 	lam = jnp.zeros((N, K))
 
