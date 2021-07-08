@@ -41,7 +41,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	# Iterate CAVI updates
 	for it in range(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
-		mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior)
+		mu = update_mu(N, y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior)
 		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior)
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
@@ -53,9 +53,9 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 def update_beta(alpha, lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(shape/rate * alpha * jnp.sum(lam, 1) + 1/(beta_prior**2))
 
-@jit
+@jax.partial(jit, static_argnums=(0))
 def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior):
-	N = mu.shape[0]
+	# N = mu.shape[0]
 	sig = shape/rate
 	# for n in range(N):
 	with loops.Scope() as scope:
