@@ -85,18 +85,19 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
+	K = I.shape[1]
 	with loops.Scope() as scope:
 		
 		# declare within-scope types
 		scope.lam = lam
 		scope.all_ids = jnp.arange(N)
 		scope.mask = jnp.zeros(N - 1, dtype=int)
-		scope.arg = 0.
+		scope.arg = jnp.zeros(K, dtype=float)
 		scope.key, scope.key_next = key, key
 		scope.u = jnp.zeros((num_mc_samples, 2))
 		scope.mean, scope.sdev = jnp.zeros(2, dtype=float), jnp.zeros(2, dtype=float)
 		scope.mc_samps = jnp.zeros(2, dtype=float)
-		scope.mcE = jnp.zeros(I.shape[1])
+		scope.mcE = jnp.zeros(K)
 
 		for n in scope.range(N):
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
