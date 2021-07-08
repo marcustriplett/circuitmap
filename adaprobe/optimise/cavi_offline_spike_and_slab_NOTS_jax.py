@@ -54,7 +54,7 @@ def update_beta(alpha, lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(shape/rate * alpha * jnp.sum(lam, 1) + 1/(beta_prior**2))
 
 @jax.partial(jit, static_argnums=(0))
-def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior):
+def update_mu(N, y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior):
 	# N = mu.shape[0]
 	sig = shape/rate
 	# for n in range(N):
