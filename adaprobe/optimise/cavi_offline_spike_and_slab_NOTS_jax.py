@@ -58,7 +58,7 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior):
 	N = mu.shape[0]
 	sig = shape/rate
 	# for n in range(N):
-	with loops.Scope as scope:
+	with loops.Scope() as scope:
 		scope.mu = mu
 		for n in scope.range(N):
 			scope.mask = jnp.append(jnp.arange(n), jnp.arange(n + 1, N))
