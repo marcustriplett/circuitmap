@@ -60,7 +60,7 @@ class Simulation3d:
 		self.trials += 1
 		return
 
-	def simulate(self, trials=1000, powers=None, jitter=3):
+	def simulate(self, trials=1000, powers=None):
 		"""Simulate fixed number of trials.
 		"""
 
@@ -69,7 +69,7 @@ class Simulation3d:
 
 		# Configure available laser powers
 		if powers is None:
-			powers = np.arange(60, 91, 10)
+			powers = np.arange(10, 51, 10) # default power range
 
 		# Run trials
 		for k in range(trials):
@@ -84,7 +84,44 @@ class Simulation3d:
 		self.spks = np.array(self.spks).T
 		return
 
-	def next_trial_multistim(self, L, I):
+	def next_trial_multistim(self, tars, I):
+		""" Simulate next trial at set of neurons tars with power I.
+		"""
+		cell_inds = np.arange(self.N)
+		I_multi = np.zeros(self.N)
+		I_multi[tars] = I
+		fr = _sigmoid(self.phi_0 * I_multi - self.phi_1)
+		spks = np.random.rand(self.N) <= fr
+		y = np.random.normal(self.w @ spks, self.sigma)
+
+		# Save simulation result to object
+		self.tars += [tars]
+		self.I += [I]
+		self.fr += [fr]
+		self.spks += [spks]
+		self.y += [y]
+		self.trials += 1
+		return
+
+	def simulate_multistim(self, trials=1000, num_targets=4, powers=None):
+		# Reset sim
+		self.reset()
+
+		# Configure available laser powers
+		if powers is None:
+			powers = np.arange(10, 51, 10) # default power range
+
+		# Run trials
+		for k in range(trials):
+			tars = np.random.choice(self.N, num_targets, replace=False)
+			power = np.random.choice(powers)
+			self.next_trial(tars, power)
+
+		self.tars = np.array(self.tars)
+		self.I = np.array(self.I)
+		self.y = np.array(self.y)
+		self.fr = np.array(self.fr).T
+		self.spks = np.array(self.spks).T
 		return
 
 class Simulation2d:
