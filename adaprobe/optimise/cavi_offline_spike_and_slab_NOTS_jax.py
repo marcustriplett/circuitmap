@@ -24,30 +24,31 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	N = mu_prior.shape[0]
 	K = y.shape[0]
 
-	mu = jnp.array(mu_prior)
-	beta = jnp.array(beta_prior)
+	with loops.Scope() as scope:
 
-	alpha = jnp.array(alpha_prior)
-	shape = shape_prior
-	rate = rate_prior
-	phi = jnp.array(phi_prior)
-	phi_cov = jnp.array(phi_cov_prior)
+		# Declare scope types
+		scope.mu = jnp.array(mu_prior)
+		scope.beta = jnp.array(beta_prior)
+		scope.alpha = jnp.array(alpha_prior)
+		scope.shape = shape_prior
+		scope.rate = rate_prior
+		scope.phi = jnp.array(phi_prior)
+		scope.phi_cov = jnp.array(phi_cov_prior)
+		scope.lam = jnp.zeros((N, K))
 
-	lam = jnp.zeros((N, K))
+		# init key
+		scope.key = jax.random.PRNGKey(0)
 
-	# init key
-	key = jax.random.PRNGKey(0)
+		# Iterate CAVI updates
+		for it in scope.range(iters):
+			scope.beta = update_beta(scope.alpha, scope.lam, scope.shape, scope.rate, beta_prior)
+			scope.mu = update_mu(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, mu_prior, beta_prior, N)
+			scope.alpha = update_alpha(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, alpha_prior, N)
+			scope.lam, scope.key = update_lam(y, I, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov, scope.key, num_mc_samples, N)
+			shape, rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
+			(phi, phi_cov), key = update_phi(scope.lam, I, scope.phi_prior, scope.phi_cov_prior, key)
 
-	# Iterate CAVI updates
-	for it in range(iters):
-		beta = update_beta(alpha, lam, shape, rate, beta_prior)
-		mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
-		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
-		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples, N)
-		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
-		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-
-	return mu, beta, alpha, lam, shape, rate, phi, phi_cov
+	return scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov
 
 @jit
 def update_beta(alpha, lam, shape, rate, beta_prior):
