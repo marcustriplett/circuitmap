@@ -115,7 +115,7 @@ class Simulation3d:
 		for k in range(trials):
 			tars = np.random.choice(self.N, num_targets, replace=False)
 			power = np.random.choice(powers)
-			self.next_trial(tars, power)
+			self.next_trial_multistim(tars, power)
 
 		self.tars = np.array(self.tars)
 		self.I = np.array(self.I)
