@@ -60,7 +60,7 @@ def update_mu(N, y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior):
 	# for n in range(N):
 	with loops.Scope() as scope:
 		scope.mu = mu
-		for n in scope.range(N):
+		for n in jnp.arange(N):
 			scope.mask = jnp.append(jnp.arange(n), jnp.arange(n + 1, N))
 			scope.mu = index_update(scope.mu, n, (beta[n]**2) * (sig * alpha[n] * jnp.dot(y, lam[n]) - sig * alpha[n] \
 				* jnp.dot(lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask] * alpha[scope.mask], 1) * lam[scope.mask], 0)) \
