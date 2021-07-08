@@ -96,7 +96,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_m
 		scope.key, scope.key_next = key, key
 		scope.u = jnp.zeros((num_mc_samples, 2))
 		scope.mean, scope.sdev = jnp.zeros(2, dtype=float), jnp.zeros(2, dtype=float)
-		scope.mc_samps = jnp.zeros(2, dtype=float)
+		scope.mc_samps = jnp.zeros((N, 2), dtype=float)
 		scope.mcE = jnp.zeros(K)
 
 		for n in scope.range(N):
