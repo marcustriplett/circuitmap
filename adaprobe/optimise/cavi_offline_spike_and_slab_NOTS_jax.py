@@ -58,7 +58,7 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 	sig = shape/rate
 	with loops.Scope() as scope:
 		scope.mu = mu
-		scope.mask = jnp.zeros(N - 1)
+		scope.mask = jnp.zeros(N - 1, dtype=int)
 		scope.all_ids = jnp.arange(N)
 		for n in scope.range(N):
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
@@ -71,7 +71,7 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
 	with loops.Scope() as scope:
 		scope.alpha = alpha
-		scope.mask = jnp.zeros(N - 1)
+		scope.mask = jnp.zeros(N - 1, dtype=int)
 		scope.all_ids = jnp.arange(N)
 		for n in scope.range(N):
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
@@ -87,7 +87,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_m
 	with loops.Scope() as scope:
 		# declare scope types
 		scope.lam = lam
-		scope.mask = jnp.zeros(N - 1)
+		scope.mask = jnp.zeros(N - 1, dtype=int)
 		scope.all_ids = jnp.arange(N)
 		scope.key, scope.key_next = key, key
 		scope.u = jnp.zeros((num_mc_samples, 2))
