@@ -9,6 +9,9 @@ from jax.ops import index_update
 from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
 
+# Experimental loops
+from jax.experimental import loops
+
 EPS = 1e-10
 
 # @jax.partial(jit, static_argnums=(9, 10))
@@ -54,12 +57,15 @@ def update_beta(alpha, lam, shape, rate, beta_prior):
 def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior):
 	N = mu.shape[0]
 	sig = shape/rate
-	for n in range(N):
-		mask = jnp.append(jnp.arange(n), jnp.arange(n + 1, N))
-		mu = index_update(mu, n, (beta[n]**2) * (sig * alpha[n] * jnp.dot(y, lam[n]) - sig * alpha[n] \
-			* jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[mask] * alpha[mask], 1) * lam[mask], 0)) \
-			+ mu_prior[n]/(beta_prior[n]**2)))
-	return mu
+	# for n in range(N):
+	with loops.Scope as scope:
+		scope.mu = mu
+		for n in scope.range(N):
+			scope.mask = jnp.append(jnp.arange(n), jnp.arange(n + 1, N))
+			scope.mu = index_update(scope.mu, n, (beta[n]**2) * (sig * alpha[n] * jnp.dot(y, lam[n]) - sig * alpha[n] \
+				* jnp.dot(lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask] * alpha[scope.mask], 1) * lam[scope.mask], 0)) \
+				+ mu_prior[n]/(beta_prior[n]**2)))
+	return scope.mu
 
 @jit
 def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior):
