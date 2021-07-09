@@ -32,14 +32,12 @@ class Model:
 			for _ in range(self.n_presynaptic)]))
 		
 		# Set initial state to prior
-		self.state = self.priors.copy()
-		self.state['phi_0'] = self.state['phi'][:, 0]
-		self.state['phi_1'] = self.state['phi'][:, 1]
-
-		self.state['lam'] = []
+		self.reset()
 
 	def reset(self):
 		self.state = self.priors.copy()
+		self.state['lam'] = []
+		return
 
 	def update(self, obs, stimuli, method='cavi_online_spike_and_slab', 
 		return_params=False, fit_options=dict()):
