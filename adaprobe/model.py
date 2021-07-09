@@ -38,6 +38,9 @@ class Model:
 
 		self.state['lam'] = []
 
+	def reset(self):
+		self.state = self.priors.copy()
+
 	def update(self, obs, stimuli, method='cavi_online_spike_and_slab', 
 		return_params=False, fit_options=dict()):
 		"""Update posterior distributions given new (observation, stimulus) pair.
