@@ -17,8 +17,7 @@ EPS = 1e-10
 @jax.partial(jit, static_argnums=(9, 10))
 def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples):
-	"""Online-mode coordinate ascent variational inference for the adaprobe model.
-
+	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	# Initialise new params
 	N = mu_prior.shape[0]
@@ -27,14 +26,27 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	with loops.Scope() as scope:
 
 		# Declare scope types
-		scope.mu = jnp.array(mu_prior)
-		scope.beta = jnp.array(beta_prior)
-		scope.alpha = jnp.array(alpha_prior)
-		scope.shape = shape_prior
-		scope.rate = rate_prior
-		scope.phi = jnp.array(phi_prior)
-		scope.phi_cov = jnp.array(phi_cov_prior)
-		scope.lam = jnp.zeros((N, K))
+		scope.mu 		= jnp.array(mu_prior)
+		scope.beta 		= jnp.array(beta_prior)
+		scope.alpha 	= jnp.array(alpha_prior)
+		scope.shape 	= shape_prior
+		scope.rate 		= rate_prior
+		scope.phi 		= jnp.array(phi_prior)
+		scope.phi_cov 	= jnp.array(phi_cov_prior)
+		scope.lam 		= jnp.zeros((N, K))
+
+		# Define history arrays
+		scope.mu_hist 		= jnp.zeros((iters, N))
+		scope.beta_hist 	= jnp.zeros((iters, N))
+		scope.alpha_hist 	= jnp.zeros((iters, N))
+		scope.lam_hist 		= jnp.zeros((iters, N, K))
+		scope.shape_hist 	= jnp.zeros(iters)
+		scope.rate_hist 	= jnp.zeros(iters)
+		scope.phi_hist  	= jnp.zeros((iters, N, 2))
+		scope.phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
+		
+		scope.hist_arrs = [scope.mu_hist, scope.beta_hist, scope.alpha_hist, scope.lam_hist, scope.shape_hist, scope.rate_hist, \
+			scope.phi_hist, scope.phi_cov_hist]
 
 		# init key
 		scope.key = jax.random.PRNGKey(0)
@@ -44,11 +56,17 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 			scope.beta = update_beta(scope.alpha, scope.lam, scope.shape, scope.rate, beta_prior)
 			scope.mu = update_mu(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, mu_prior, beta_prior, N)
 			scope.alpha = update_alpha(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, alpha_prior, N)
-			scope.lam, scope.key = update_lam(y, I, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov, scope.key, num_mc_samples, N)
+			scope.lam, scope.key = update_lam(y, I, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, \
+				scope.phi, scope.phi_cov, scope.key, num_mc_samples, N)
 			scope.shape, scope.rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
 			(scope.phi, scope.phi_cov), scope.key = update_phi(scope.lam, I, phi_prior, phi_cov_prior, scope.key)
 
-	return scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov
+			for ha, pa in zip(scope.hist_arrs, [scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
+				ha = index_update(ha, it, pa)
+
+	return scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov, *scope.hist_arrs
+
+# vmap_cavi_offline_spike_and_slab_NOTS_jax = jit(vmap(cavi_offline_spike_and_slab_NOTS_jax, in_axes=(0, 0, *[None]*9)))
 
 @jit
 def update_beta(alpha, lam, shape, rate, beta_prior):
@@ -199,4 +217,3 @@ laplace_approx = jit(vmap(_laplace_approx, (0, 0, 0, 0, None))) # parallel LAs a
 def negloglik_with_barrier(y, phi, phi_prior, prec, I, t):
 	lam = sigmoid(phi[0] * I - phi[1])
 	return -jnp.sum(jnp.nan_to_num(y * jnp.log(lam) + (1 - y) * jnp.log(1 - lam))) - jnp.sum(jnp.log(phi))/t + 1/2 * (phi - phi_prior) @ prec @ (phi - phi_prior)
-
