@@ -49,7 +49,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 			scope.phi_hist, scope.phi_cov_hist]
 
 		# init key
-		scope.key = jax.random.PRNGKey(0)
+		scope.key = jax.random.PRNGKey(seed)
 
 		# Iterate CAVI updates
 		for it in scope.range(iters):
@@ -131,7 +131,8 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_m
 
 			# monte carlo approximation of expectation
 			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
-			scope.lam = index_update(scope.lam, n, sigmoid(scope.mcE - shape/(2 * rate) * scope.arg * (I[n] > 0))) # require spiking cells to be targeted
+			# scope.lam = index_update(scope.lam, n, sigmoid(scope.mcE - shape/(2 * rate) * scope.arg * (I[n] > 0))) # require spiking cells to be targeted
+			scope.lam = index_update(scope.lam, n, sigmoid(scope.mcE - shape/(2 * rate) * scope.arg))
 	return scope.lam, scope.key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
