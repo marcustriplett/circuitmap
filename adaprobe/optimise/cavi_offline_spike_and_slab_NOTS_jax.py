@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.linear_model import Lasso
 
 # Jax imports
 import jax
@@ -14,7 +15,7 @@ from jax.experimental import loops
 
 EPS = 1e-10
 
-@jax.partial(jit, static_argnums=(9, 10, 11))
+# @jax.partial(jit, static_argnums=(9, 10, 11))
 def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
@@ -23,29 +24,20 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	N = mu_prior.shape[0]
 	K = y.shape[0]
 
+	lasso = Lasso(alpha=1e-4, fit_intercept=False, max_iter=100)
+
 	with loops.Scope() as scope:
-
-
-		# init key
-		scope.key = jax.random.PRNGKey(seed)
 
 		# Declare scope types
 
-		# random init
-		
-		# scope.mu 		= jnp.array(mu_prior)
-		scope.alpha 	= jnp.array(alpha_prior)
+		scope.mu 		= jnp.array(mu_prior)
 		scope.beta 		= jnp.array(beta_prior)
-		scope.mu 		= jax.random.uniform(scope.key, shape=[N])
+		scope.alpha 	= jnp.array(alpha_prior)
 		scope.shape 	= shape_prior
 		scope.rate 		= rate_prior
 		scope.phi 		= jnp.array(phi_prior)
 		scope.phi_cov 	= jnp.array(phi_cov_prior)
-		
-		scope.key, scope.subkey = jax.random.split(scope.key)
-		scope.lam 		= jax.random.uniform(scope.subkey, shape=[N, K])
-
-		# scope.lam 		= jnp.zeros((N, K))
+		scope.lam 		= jnp.zeros((N, K))
 
 		# Define history arrays
 		scope.mu_hist 		= jnp.zeros((iters, N))
@@ -60,11 +52,14 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 		scope.hist_arrs = [scope.mu_hist, scope.beta_hist, scope.alpha_hist, scope.lam_hist, scope.shape_hist, scope.rate_hist, \
 			scope.phi_hist, scope.phi_cov_hist]
 
+		# init key
+		scope.key = jax.random.PRNGKey(seed)
 
 		# Iterate CAVI updates
 		for it in scope.range(iters):
 			scope.beta = update_beta(scope.alpha, scope.lam, scope.shape, scope.rate, beta_prior)
-			scope.mu = update_mu(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, mu_prior, beta_prior, N)
+			# scope.mu = update_mu(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, mu_prior, beta_prior, N)
+			scope.mu = update_mu_lasso(y, alpha, lam, lasso)
 			scope.alpha = update_alpha(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, alpha_prior, N)
 			scope.lam, scope.key = update_lam(y, I, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, \
 				scope.phi, scope.phi_cov, scope.key, num_mc_samples, N)
@@ -97,6 +92,9 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 				* jnp.dot(lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask] * alpha[scope.mask], 1) * lam[scope.mask], 0)) \
 				+ mu_prior[n]/(beta_prior[n]**2)))
 	return scope.mu
+
+def update_mu_lasso(y, alpha, lam, lasso):
+	return lasso.fit(lam.T, y).coef_ * alpha
 
 @jax.partial(jit, static_argnums=(8))
 def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
