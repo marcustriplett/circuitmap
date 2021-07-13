@@ -82,7 +82,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	N = mu_prior.shape[0]
 	K = y.shape[0]
 
-	lasso = Lasso(alpha=1e-4, fit_intercept=False, max_iter=100)
+	lasso = Lasso(alpha=1e-4, fit_intercept=False, max_iter=1000)
 
 	# Declare scope types
 

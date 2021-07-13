@@ -90,7 +90,7 @@ class Simulation3d:
 		cell_inds = np.arange(self.N)
 		I_multi = np.zeros(self.N)
 		I_multi[tars] = I
-		fr = _sigmoid(self.phi_0 * I_multi - self.phi_1)
+		fr = _sigmoid(self.phi_0 * I_multi - self.phi_1) * (I_multi > 0)
 		spks = np.random.rand(self.N) <= fr
 		y = np.random.normal(self.w @ spks, self.sigma)
 
