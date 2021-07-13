@@ -16,6 +16,64 @@ from jax.experimental import loops
 EPS = 1e-10
 
 # @jax.partial(jit, static_argnums=(9, 10, 11))
+# def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
+# 	iters, num_mc_samples, seed):
+# 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
+# 	"""
+# 	# Initialise new params
+# 	N = mu_prior.shape[0]
+# 	K = y.shape[0]
+
+# 	lasso = Lasso(alpha=1e-4, fit_intercept=False, max_iter=100)
+
+# 	with loops.Scope() as scope:
+
+# 		# Declare scope types
+
+# 		scope.mu 		= jnp.array(mu_prior)
+# 		scope.beta 		= jnp.array(beta_prior)
+# 		scope.alpha 	= jnp.array(alpha_prior)
+# 		scope.shape 	= shape_prior
+# 		scope.rate 		= rate_prior
+# 		scope.phi 		= jnp.array(phi_prior)
+# 		scope.phi_cov 	= jnp.array(phi_cov_prior)
+# 		scope.lam 		= jnp.zeros((N, K))
+
+# 		# Define history arrays
+# 		scope.mu_hist 		= jnp.zeros((iters, N))
+# 		scope.beta_hist 	= jnp.zeros((iters, N))
+# 		scope.alpha_hist 	= jnp.zeros((iters, N))
+# 		scope.lam_hist 		= jnp.zeros((iters, N, K))
+# 		scope.shape_hist 	= jnp.zeros(iters)
+# 		scope.rate_hist 	= jnp.zeros(iters)
+# 		scope.phi_hist  	= jnp.zeros((iters, N, 2))
+# 		scope.phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
+		
+# 		scope.hist_arrs = [scope.mu_hist, scope.beta_hist, scope.alpha_hist, scope.lam_hist, scope.shape_hist, scope.rate_hist, \
+# 			scope.phi_hist, scope.phi_cov_hist]
+
+# 		# init key
+# 		scope.key = jax.random.PRNGKey(seed)
+
+# 		# Iterate CAVI updates
+# 		for it in scope.range(iters):
+# 			scope.beta = update_beta(scope.alpha, scope.lam, scope.shape, scope.rate, beta_prior)
+# 			# scope.mu = update_mu(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, mu_prior, beta_prior, N)
+# 			scope.mu = update_mu_lasso(y, scope.alpha, scope.lam, lasso)
+# 			scope.alpha = update_alpha(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, alpha_prior, N)
+# 			scope.lam, scope.key = update_lam(y, I, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, \
+# 				scope.phi, scope.phi_cov, scope.key, num_mc_samples, N)
+# 			scope.shape, scope.rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
+# 			(scope.phi, scope.phi_cov), scope.key = update_phi(scope.lam, I, phi_prior, phi_cov_prior, scope.key)
+
+# 			for hindx, pa in enumerate([scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
+# 				scope.hist_arrs[hindx] = index_update(scope.hist_arrs[hindx], it, pa)
+
+# 	return scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov, *scope.hist_arrs
+
+# vmap_cavi_offline_spike_and_slab_NOTS_jax = jit(vmap(cavi_offline_spike_and_slab_NOTS_jax, in_axes=(0, 0, *[None]*9)))
+
+
 def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
@@ -26,52 +84,49 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 
 	lasso = Lasso(alpha=1e-4, fit_intercept=False, max_iter=100)
 
-	with loops.Scope() as scope:
+	# Declare scope types
 
-		# Declare scope types
+	mu 		= jnp.array(mu_prior)
+	beta 		= jnp.array(beta_prior)
+	alpha 	= jnp.array(alpha_prior)
+	shape 	= shape_prior
+	rate 		= rate_prior
+	phi 		= jnp.array(phi_prior)
+	phi_cov 	= jnp.array(phi_cov_prior)
+	lam 		= jnp.zeros((N, K))
 
-		scope.mu 		= jnp.array(mu_prior)
-		scope.beta 		= jnp.array(beta_prior)
-		scope.alpha 	= jnp.array(alpha_prior)
-		scope.shape 	= shape_prior
-		scope.rate 		= rate_prior
-		scope.phi 		= jnp.array(phi_prior)
-		scope.phi_cov 	= jnp.array(phi_cov_prior)
-		scope.lam 		= jnp.zeros((N, K))
+	# Define history arrays
+	mu_hist 		= jnp.zeros((iters, N))
+	beta_hist 	= jnp.zeros((iters, N))
+	alpha_hist 	= jnp.zeros((iters, N))
+	lam_hist 		= jnp.zeros((iters, N, K))
+	shape_hist 	= jnp.zeros(iters)
+	rate_hist 	= jnp.zeros(iters)
+	phi_hist  	= jnp.zeros((iters, N, 2))
+	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
+	
+	hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+		phi_hist, phi_cov_hist]
 
-		# Define history arrays
-		scope.mu_hist 		= jnp.zeros((iters, N))
-		scope.beta_hist 	= jnp.zeros((iters, N))
-		scope.alpha_hist 	= jnp.zeros((iters, N))
-		scope.lam_hist 		= jnp.zeros((iters, N, K))
-		scope.shape_hist 	= jnp.zeros(iters)
-		scope.rate_hist 	= jnp.zeros(iters)
-		scope.phi_hist  	= jnp.zeros((iters, N, 2))
-		scope.phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
-		
-		scope.hist_arrs = [scope.mu_hist, scope.beta_hist, scope.alpha_hist, scope.lam_hist, scope.shape_hist, scope.rate_hist, \
-			scope.phi_hist, scope.phi_cov_hist]
+	# init key
+	key = jax.random.PRNGKey(seed)
 
-		# init key
-		scope.key = jax.random.PRNGKey(seed)
+	# Iterate CAVI updates
+	for it in range(iters):
+		beta = update_beta(alpha, lam, shape, rate, beta_prior)
+		# mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
+		mu = update_mu_lasso(y, alpha, lam, lasso)
+		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
+		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
+			phi, phi_cov, key, num_mc_samples, N)
+		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
+		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
-		# Iterate CAVI updates
-		for it in scope.range(iters):
-			scope.beta = update_beta(scope.alpha, scope.lam, scope.shape, scope.rate, beta_prior)
-			# scope.mu = update_mu(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, mu_prior, beta_prior, N)
-			scope.mu = update_mu_lasso(y, scope.alpha, scope.lam, lasso)
-			scope.alpha = update_alpha(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, alpha_prior, N)
-			scope.lam, scope.key = update_lam(y, I, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, \
-				scope.phi, scope.phi_cov, scope.key, num_mc_samples, N)
-			scope.shape, scope.rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
-			(scope.phi, scope.phi_cov), scope.key = update_phi(scope.lam, I, phi_prior, phi_cov_prior, scope.key)
+		for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov]):
+			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
-			for hindx, pa in enumerate([scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
-				scope.hist_arrs[hindx] = index_update(scope.hist_arrs[hindx], it, pa)
+	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, *hist_arrs
 
-	return scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov, *scope.hist_arrs
-
-# vmap_cavi_offline_spike_and_slab_NOTS_jax = jit(vmap(cavi_offline_spike_and_slab_NOTS_jax, in_axes=(0, 0, *[None]*9)))
 
 @jit
 def update_beta(alpha, lam, shape, rate, beta_prior):
