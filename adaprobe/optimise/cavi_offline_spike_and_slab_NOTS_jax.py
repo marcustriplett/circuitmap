@@ -75,14 +75,14 @@ EPS = 1e-10
 
 
 def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed):
+	iters, num_mc_samples, seed, penalty=1e-3):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	# Initialise new params
 	N = mu_prior.shape[0]
 	K = y.shape[0]
 
-	lasso = Lasso(alpha=1e-4, fit_intercept=False, max_iter=1000)
+	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=1000)
 
 	# Declare scope types
 
@@ -94,8 +94,8 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
-	lam 		= jnp.zeros((N, K))
-	# lam = jnp.array(np.random.rand(N, K))
+	# lam 		= jnp.zeros((N, K))
+	lam = jnp.array(np.random.rand(N, K))
 
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
@@ -159,6 +159,7 @@ def update_mu_lasso(y, alpha, lam, lasso):
 def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
 	with loops.Scope() as scope:
 		scope.alpha = alpha
+		scope.alpha_new = jnp.zeros(N)
 		scope.arg = 0.
 		scope.mask = jnp.zeros(N - 1, dtype=int)
 		scope.all_ids = jnp.arange(N)
@@ -166,8 +167,9 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
 			scope.arg = -2 * mu[n] * jnp.dot(y, lam[n]) + 2 * mu[n] * jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[scope.mask] * scope.alpha[scope.mask], 1) \
 				* lam[scope.mask], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(lam[n])
-			scope.alpha = index_update(scope.alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
-	return scope.alpha
+			# scope.alpha = index_update(scope.alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
+			scope.alpha_new = index_update(scope.alpha_new, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
+	return scope.alpha_new
 
 @jax.partial(jit, static_argnums=(11, 12))
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples, N):
