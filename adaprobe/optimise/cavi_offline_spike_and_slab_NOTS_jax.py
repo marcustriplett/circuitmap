@@ -86,16 +86,16 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 
 	# Declare scope types
 
-	# mu 		= jnp.array(mu_prior)
-	mu = jnp.array(np.random.rand(N))
+	mu 		= jnp.array(mu_prior)
+	# mu = jnp.array(np.random.rand(N))
 	beta 		= jnp.array(beta_prior)
 	alpha 	= jnp.array(alpha_prior)
 	shape 	= shape_prior
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
-	# lam 		= jnp.zeros((N, K))
-	lam = jnp.array(np.random.rand(N, K))
+	lam 		= jnp.zeros((N, K))
+	# lam = jnp.array(np.random.rand(N, K))
 
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
@@ -120,7 +120,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 			mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		else:
 			mu = update_mu_lasso(y, alpha, lam, lasso)
-		# alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
+		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 			phi, phi_cov, key, num_mc_samples, N)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
