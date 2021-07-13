@@ -116,11 +116,12 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	# Iterate CAVI updates
 	for it in range(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
-		if it < int(0.75 * iters):
-			mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
-		else:
-			mu = update_mu_lasso(y, alpha, lam, lasso)
-		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
+		# if it < int(0.75 * iters):
+		# 	mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
+		# else:
+		mu = update_mu_lasso(y, alpha, lam, lasso)
+		if it > iters//2:
+			alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 			phi, phi_cov, key, num_mc_samples, N)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
