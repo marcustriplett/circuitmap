@@ -25,15 +25,27 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 
 	with loops.Scope() as scope:
 
+
+		# init key
+		scope.key = jax.random.PRNGKey(seed)
+
 		# Declare scope types
-		scope.mu 		= jnp.array(mu_prior)
+
+		# random init
+		
+		# scope.mu 		= jnp.array(mu_prior)
+		# scope.alpha 	= jnp.array(alpha_prior)
 		scope.beta 		= jnp.array(beta_prior)
-		scope.alpha 	= jnp.array(alpha_prior)
+		scope.mu 		= jnp.random.uniform(scope.key, shape=[N])
 		scope.shape 	= shape_prior
 		scope.rate 		= rate_prior
 		scope.phi 		= jnp.array(phi_prior)
 		scope.phi_cov 	= jnp.array(phi_cov_prior)
-		scope.lam 		= jnp.zeros((N, K))
+		
+		scope.key, subkey = jax.random.split(scope.key)
+		scope.lam 		= jnp.random.uniform(subkey, shape=[N, K])
+
+		# scope.lam 		= jnp.zeros((N, K))
 
 		# Define history arrays
 		scope.mu_hist 		= jnp.zeros((iters, N))
@@ -48,8 +60,6 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 		scope.hist_arrs = [scope.mu_hist, scope.beta_hist, scope.alpha_hist, scope.lam_hist, scope.shape_hist, scope.rate_hist, \
 			scope.phi_hist, scope.phi_cov_hist]
 
-		# init key
-		scope.key = jax.random.PRNGKey(seed)
 
 		# Iterate CAVI updates
 		for it in scope.range(iters):
@@ -74,6 +84,8 @@ def update_beta(alpha, lam, shape, rate, beta_prior):
 
 @jax.partial(jit, static_argnums=(9))
 def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
+	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
+
 	sig = shape/rate
 	with loops.Scope() as scope:
 		scope.mu = mu
