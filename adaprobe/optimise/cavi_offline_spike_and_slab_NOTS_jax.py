@@ -94,7 +94,7 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 	return scope.mu
 
 def update_mu_lasso(y, alpha, lam, lasso):
-	return lasso.fit(lam.T, y).coef_ * alpha
+	return jnp.array(lasso.fit(np.array(lam).T, np.array(y)).coef_ * np.array(alpha))
 
 @jax.partial(jit, static_argnums=(8))
 def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
