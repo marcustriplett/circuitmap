@@ -34,7 +34,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 		# random init
 		
 		# scope.mu 		= jnp.array(mu_prior)
-		# scope.alpha 	= jnp.array(alpha_prior)
+		scope.alpha 	= jnp.array(alpha_prior)
 		scope.beta 		= jnp.array(beta_prior)
 		scope.mu 		= jax.random.uniform(scope.key, shape=[N])
 		scope.shape 	= shape_prior
