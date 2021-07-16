@@ -1,10 +1,11 @@
 import numpy as np
 from sklearn.linear_model import Lasso
+from scipy.optimize import minimize
 
 # Jax imports
 import jax
 import jax.numpy as jnp
-from jax import jit, vmap
+from jax import jit, vmap, grad
 from jax.lax import scan, while_loop
 from jax.ops import index_update
 from jax.nn import sigmoid
@@ -157,21 +158,37 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 def update_mu_lasso(y, alpha, lam, lasso):
 	return jnp.array(lasso.fit(np.array(lam).T, np.array(y)).coef_) #* np.array(alpha))
 
-@jax.partial(jit, static_argnums=(8))
-def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
-	with loops.Scope() as scope:
-		scope.alpha = alpha
-		scope.alpha_new = jnp.zeros(N)
-		scope.arg = 0.
-		scope.mask = jnp.zeros(N - 1, dtype=int)
-		scope.all_ids = jnp.arange(N)
-		for n in scope.range(N):
-			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
-			scope.arg = -2 * mu[n] * jnp.dot(y, lam[n]) + 2 * mu[n] * jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[scope.mask] * scope.alpha[scope.mask], 1) \
-				* lam[scope.mask], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(lam[n])
-			# scope.alpha = index_update(scope.alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
-			scope.alpha_new = index_update(scope.alpha_new, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
-	return scope.alpha_new
+@jit
+def _QP_box_alpha(x, args):
+	y, A, a = args
+	return jnp.sum(jnp.square(y - A @ x)) - jnp.sum(x * jnp.log(a) + (1 - x) * jnp.log(1 - a))
+
+_grad_QP_box_alpha = grad(_QP_box_alpha)
+grad_QP_box_alpha = lambda x, args: np.array(_grad_QP_box_alpha(x, args))
+
+def update_alpha(y, lam, mu, a):
+	N = lam.shape[0]
+	alpha_init = np.random.rand(N)
+	args = [y, (lam * mu[:, None]).T, a]
+	bounds = [(0, 1)]*N
+	return minimize(_QP_box_alpha, alpha_init, args=args, method='L-BFGS-B', jac=grad_QP_box_alpha, 
+		bounds=bounds, options={'maxiter': 100}).x
+
+# @jax.partial(jit, static_argnums=(8))
+# def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
+# 	with loops.Scope() as scope:
+# 		scope.alpha = alpha
+# 		scope.alpha_new = jnp.zeros(N)
+# 		scope.arg = 0.
+# 		scope.mask = jnp.zeros(N - 1, dtype=int)
+# 		scope.all_ids = jnp.arange(N)
+# 		for n in scope.range(N):
+# 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
+# 			scope.arg = -2 * mu[n] * jnp.dot(y, lam[n]) + 2 * mu[n] * jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[scope.mask] * scope.alpha[scope.mask], 1) \
+# 				* lam[scope.mask], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(lam[n])
+# 			# scope.alpha = index_update(scope.alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
+# 			scope.alpha_new = index_update(scope.alpha_new, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
+# 	return scope.alpha_new
 
 @jax.partial(jit, static_argnums=(11, 12))
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples, N):
