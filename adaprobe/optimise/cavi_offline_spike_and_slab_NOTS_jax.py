@@ -10,6 +10,8 @@ from jax.ops import index_update
 from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
 
+from jax.config import config; config.update("jax_enable_x64", True)
+
 # Experimental loops
 from jax.experimental import loops
 
@@ -75,7 +77,7 @@ EPS = 1e-10
 
 
 def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, penalty=1e-3):
+	iters, num_mc_samples, seed, penalty=1e-3, learn_alpha=True):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	# Initialise new params
@@ -95,7 +97,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
 	# lam 		= jnp.zeros((N, K))
-	lam = jnp.array(np.random.rand(N, K))
+	lam = jnp.array(0.1 * np.random.rand(N, K))
 
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
@@ -120,7 +122,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 		# 	mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		# else:
 		mu = update_mu_lasso(y, alpha, lam, lasso)
-		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
+		if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 			phi, phi_cov, key, num_mc_samples, N)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
