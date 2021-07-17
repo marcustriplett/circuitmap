@@ -120,8 +120,8 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	for it in range(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
 		mu = update_mu_lasso(y, alpha, lam, lasso)
-		# if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
-		if learn_alpha: alpha = update_alpha(y, lam, mu, alpha_prior)
+		if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
+		# if learn_alpha: alpha = update_alpha(y, lam, mu, alpha_prior)
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 			phi, phi_cov, key, num_mc_samples, N)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
