@@ -186,7 +186,7 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
 				* lam[scope.mask], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(lam[n])
 			scope.alpha = index_update(scope.alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
 			# scope.alpha_new = index_update(scope.alpha_new, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
-	return scope.alpha_new
+	return scope.alpha
 
 @jax.partial(jit, static_argnums=(11, 12))
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples, N):
