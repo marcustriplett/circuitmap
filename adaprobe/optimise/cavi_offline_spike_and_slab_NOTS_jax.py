@@ -129,7 +129,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 		if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
 		# if learn_alpha: alpha = update_alpha(y, lam, mu, alpha_prior)
 		if lam_update_method == 'bfgs':
-			lam = update_lam_bfgs(I, phi, phi_cov, num_mc_samples=10)
+			lam = update_lam_bfgs(y, mu, I, phi, phi_cov, num_mc_samples=10)
 		else:
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 				phi, phi_cov, key, num_mc_samples, N)
@@ -211,12 +211,13 @@ def _loss_fn_jax(lam, args):
 _grad_loss_fn_jax = grad(_loss_fn_jax)
 _grad_loss_fn = lambda x, args: np.array(_grad_loss_fn_jax(x, args))
 
-def update_lam_bfgs(stim_matrix, phi, phi_cov, num_mc_samples=10):
+def update_lam_bfgs(y, w, stim_matrix, phi, phi_cov, num_mc_samples=10):
 	N, K = stim_matrix.shape
 	unif_samples = np.random.uniform(0, 1, [N, 2, num_mc_samples])
 	phi_samples = np.array([[ndtri(ndtr(-phi[n][i]/phi_cov[n][i,i]) + unif_samples[n, i] * (1 - ndtr(-phi[n][i]/phi_cov[n][i,i]))) * phi_cov[n][i,i] \
 					  + phi[n][i] for i in range(2)] for n in range(N)])
 	lam_prior = np.mean([sigmoid(phi_samples[:, 0, i][:, None] * stim_matrix - phi_samples[:, 1, i][:, None]) for i in range(num_mc_samples)], axis=0)
+	args = [y, w, lam_prior.T]
 	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
 	return res.x.reshape([K, N]).T
 
