@@ -78,7 +78,7 @@ EPS = 1e-10
 
 
 def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, penalty=1e-3, learn_alpha=True, mu_update_method='lasso'):
+	iters, num_mc_samples, seed, penalty=1e-3, learn_alpha=True, mu_update_method='lasso', lam_update_method='variational'):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -128,8 +128,11 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 			mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
 		# if learn_alpha: alpha = update_alpha(y, lam, mu, alpha_prior)
-		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
-			phi, phi_cov, key, num_mc_samples, N)
+		if lam_update_method == 'bfgs':
+			lam = update_lam_bfgs(I, phi, phi_cov, num_mc_samples=10)
+		else:
+			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
+				phi, phi_cov, key, num_mc_samples, N)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
@@ -193,6 +196,29 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
 			scope.alpha = index_update(scope.alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
 			# scope.alpha_new = index_update(scope.alpha_new, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
 	return scope.alpha
+
+
+def _loss_fn(lam, args):
+	lam = lam.reshape([K, N])
+	y, w, lam_prior = args
+	return np.sum(np.square(y - lam @ w)) - np.sum(lam * np.log(lam_prior) + (1 - lam) * np.log(1 - lam_prior))
+
+def _loss_fn_jax(lam, args):
+	lam = lam.reshape([K, N])
+	y, w, lam_prior = args
+	return jnp.sum(jnp.square(y - lam @ w)) - jnp.sum(lam * jnp.log(lam_prior) + (1 - lam) * jnp.log(1 - lam_prior))
+
+_grad_loss_fn_jax = grad(_loss_fn_jax)
+_grad_loss_fn = lambda x, args: np.array(_grad_loss_fn_jax(x, args))
+
+def update_lam_bfgs(stim_matrix, phi, phi_cov, num_mc_samples=10):
+	N, K = stim_matrix.shape
+	unif_samples = np.random.uniform(0, 1, [N, 2, num_mc_samples])
+	phi_samples = np.array([[ndtri(ndtr(-phi[n][i]/phi_cov[n][i,i]) + unif_samples[n, i] * (1 - ndtr(-phi[n][i]/phi_cov[n][i,i]))) * phi_cov[n][i,i] \
+					  + phi[n][i] for i in range(2)] for n in range(N)])
+	lam_prior = np.mean([sigmoid(phi_samples[:, 0, i][:, None] * stim_matrix - phi_samples[:, 1, i][:, None]) for i in range(num_mc_samples)], axis=0)
+	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
+	return res.x.reshape([K, N]).T
 
 @jax.partial(jit, static_argnums=(11, 12))
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples, N):
