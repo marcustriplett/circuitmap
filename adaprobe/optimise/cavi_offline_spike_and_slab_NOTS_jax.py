@@ -199,13 +199,15 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
 
 
 def _loss_fn(lam, args):
-	lam = lam.reshape([K, N])
 	y, w, lam_prior = args
+	K, N = lam_prior.shape
+	lam = lam.reshape([K, N])
 	return np.sum(np.square(y - lam @ w)) - np.sum(lam * np.log(lam_prior) + (1 - lam) * np.log(1 - lam_prior))
 
 def _loss_fn_jax(lam, args):
-	lam = lam.reshape([K, N])
 	y, w, lam_prior = args
+	K, N = lam_prior.shape
+	lam = lam.reshape([K, N])
 	return jnp.sum(jnp.square(y - lam @ w)) - jnp.sum(lam * jnp.log(lam_prior) + (1 - lam) * jnp.log(1 - lam_prior))
 
 _grad_loss_fn_jax = grad(_loss_fn_jax)
