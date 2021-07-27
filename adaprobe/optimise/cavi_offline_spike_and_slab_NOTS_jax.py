@@ -77,12 +77,14 @@ EPS = 1e-10
 # vmap_cavi_offline_spike_and_slab_NOTS_jax = jit(vmap(cavi_offline_spike_and_slab_NOTS_jax, in_axes=(0, 0, *[None]*9)))
 
 
-def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, penalty=1e-3, learn_alpha=True, mu_update_method='lasso', lam_update_method='variational'):
+def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
+	iters, num_mc_samples, seed, y_xcorr_thresh=0.05, penalty=1e-3, learn_alpha=True, mu_update_method='lasso', lam_update_method='variational'):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
 	assert mu_update_method in ['lasso', 'variational']
+
+	y, y_psc = obs
 
 	# Initialise new params
 	N = mu_prior.shape[0]
@@ -91,7 +93,6 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=1000)
 
 	# Declare scope types
-
 	mu 		= jnp.array(mu_prior)
 	# mu = jnp.array(np.random.rand(N))
 	beta 		= jnp.array(beta_prior)
@@ -102,6 +103,9 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 	phi_cov 	= jnp.array(phi_cov_prior)
 	# lam 		= jnp.zeros((N, K))
 	lam = jnp.array(0.1 * np.random.rand(N, K))
+
+	# Setup lam mask
+	lam_mask = jnp.array([jnp.correlate(y_psc[n], y_psc[n]) for n in range(N)]).squeeze() > y_xcorr_thresh
 
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
@@ -127,12 +131,11 @@ def cavi_offline_spike_and_slab_NOTS_jax(y, I, mu_prior, beta_prior, alpha_prior
 		else:
 			mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
-		# if learn_alpha: alpha = update_alpha(y, lam, mu, alpha_prior)
 		if lam_update_method == 'bfgs':
 			lam = update_lam_bfgs(y, mu, I, phi, phi_cov, num_mc_samples=10)
 		else:
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
-				phi, phi_cov, key, num_mc_samples, N)
+				phi, phi_cov, key, num_mc_samples, N, lam_mask)
 		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
@@ -223,8 +226,8 @@ def update_lam_bfgs(y, w, stim_matrix, phi, phi_cov, num_mc_samples=10):
 	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
 	return res.x.reshape([K, N]).T
 
-@jax.partial(jit, static_argnums=(11, 12))
-def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples, N):
+@jax.partial(jit, static_argnums=(11, 12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_mc_samples, N, lam_mask):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	K = I.shape[1]
@@ -255,6 +258,8 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, key, num_m
 			# monte carlo approximation of expectation
 			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
 			scope.lam = index_update(scope.lam, n, sigmoid(scope.mcE - shape/(2 * rate) * scope.arg * (I[n] > 0))) # require spiking cells to be targeted
+			# scope.corr = 
+			scope.lam = index_update(scope.lam, n, scope.lam[n] * lam_mask)
 	return scope.lam, scope.key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
