@@ -105,7 +105,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 	lam = jnp.array(0.1 * np.random.rand(N, K))
 
 	# Setup lam mask
-	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for n in range(K)]).squeeze() > y_xcorr_thresh
+	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
 
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
