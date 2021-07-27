@@ -75,7 +75,7 @@ class Model:
 		self.state['phi_1'] 	= phi[:, 1]
 		self.state['phi_cov'] 	= phi_cov
 		self.state['lam'] 		= list(lam.T)
-		self.trial_count 		= obs.shape[0]
+		self.trial_count 		= obs[0].shape[0]
 
 		# Set up history dict
 		self.history = {
