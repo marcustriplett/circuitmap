@@ -100,8 +100,6 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 	# Initialise new params
 	N = mu_prior.shape[0]
 
-	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=1000)
-
 	# Declare scope types
 	mu 		= jnp.array(mu_prior)
 	# mu = jnp.array(np.random.rand(N))
@@ -134,7 +132,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 	for it in range(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
 		if mu_update_method == 'lasso':
-			mu = update_mu_lasso(y, alpha, lam, lasso)
+			mu = update_mu_constr_l1(y, lam, shape, rate, penalty=penalty)
 		else:
 			mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
@@ -172,8 +170,30 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 				+ mu_prior[n]/(beta_prior[n]**2)))
 	return scope.mu
 
-def update_mu_lasso(y, alpha, lam, lasso):
-	return jnp.array(lasso.fit(np.array(lam).T, np.array(y)).coef_) #* np.array(alpha))
+def update_mu_constr_l1(y, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100):
+	N, K = Lam.shape
+	sigma = np.sqrt(rate/shape)
+	constr = sigma * np.sqrt(K)
+	LamT = Lam.T
+	coef = np.zeros(N)
+	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters)
+	for it in range(max_penalty_iters):
+		print('penalty iter: ', it)
+		print('current penalty: ', penalty)
+		lasso.fit(LamT, y)
+		coef = lasso.coef_
+		err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
+		if err <= constr:
+			print(' ==== converged on iteration: %i ===='%it)
+			break
+		else:
+			penalty *= scale_factor # exponential backoff
+			lasso.penalty = penalty
+			if it == 0:
+				lasso.warm_start = True
+		print('lasso err: ', err)
+		print('')
+	return coef
 
 # @jit
 # def _QP_box_alpha(x, args):
