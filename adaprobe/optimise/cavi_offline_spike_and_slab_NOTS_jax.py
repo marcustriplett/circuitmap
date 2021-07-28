@@ -178,8 +178,8 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
 	warm_start_lasso=False, constrain_weights=True, verbose=False):
 	N, K = Lam.shape
-	# sigma = np.sqrt(rate/shape)
-	sigma = 1
+	sigma = np.sqrt(rate/shape)
+	# sigma = 1
 	constr = sigma * np.sqrt(K)
 	LamT = Lam.T
 	# err_prev = np.sqrt(np.sum(np.square(y - LamT @ mu)))
