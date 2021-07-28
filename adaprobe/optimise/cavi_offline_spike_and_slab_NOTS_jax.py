@@ -170,7 +170,7 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 				+ mu_prior[n]/(beta_prior[n]**2)))
 	return scope.mu
 
-def update_mu_constr_l1(y, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100):
+def update_mu_constr_l1(y, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=1000):
 	N, K = Lam.shape
 	# sigma = np.sqrt(rate/shape)
 	sigma = 1
