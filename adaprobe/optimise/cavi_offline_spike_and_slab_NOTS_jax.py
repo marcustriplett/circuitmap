@@ -79,7 +79,7 @@ EPS = 1e-10
 
 def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed, y_xcorr_thresh=0.05, penalty=1e0, learn_alpha=True, mu_update_method='lasso', lam_update_method='variational', 
-	lam_masking=False, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=False):
+	lam_masking=False, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=False, constrain_weights=True, verbose=False):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -135,7 +135,8 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 		if mu_update_method == 'lasso':
 			mu = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, \
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, \
-				warm_start_lasso=warm_start_lasso)
+				warm_start_lasso=warm_start_lasso, constrain_weights=constrain_weights, \
+				verbose=verbose)
 		else:
 			mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
@@ -174,32 +175,43 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 	return scope.mu
 
 def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
-	warm_start_lasso=False):
+	warm_start_lasso=False, constrain_weights=True, verbose=False):
 	N, K = Lam.shape
 	# sigma = np.sqrt(rate/shape)
 	sigma = 1
 	constr = sigma * np.sqrt(K)
 	LamT = Lam.T
-	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso)
-	lasso.coef_ = np.array(mu)
+	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=constrain_weights)
+	
+	if constrain_weights:
+		# make sensing matrix and weight warm-start negative
+		LamT = -LamT 
+		lasso.coef_ = -np.array(mu)
+
 	for it in range(max_penalty_iters):
-		print('penalty iter: ', it)
-		print('current penalty: ', lasso.alpha)
+		if verbose:
+			print('penalty iter: ', it)
+			print('current penalty: ', lasso.alpha)
 		lasso.fit(LamT, y)
 		coef = lasso.coef_
 		err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
 		if err <= constr:
-			print(' ==== converged on iteration: %i ===='%it)
+			if verbose:
+				print(' ==== converged on iteration: %i ===='%it)
 			break
 		else:
 			penalty *= scale_factor # exponential backoff
 			lasso.alpha = penalty
 			if it == 0:
 				lasso.warm_start = True
-		print('lasso err: ', err)
-		print('constr: ', constr)
-		print('')
-	return coef
+		if verbose:
+			print('lasso err: ', err)
+			print('constr: ', constr)
+			print('')
+	if constrain_weights:
+		return -coef
+	else:
+		return coef
 
 # @jit
 # def _QP_box_alpha(x, args):
