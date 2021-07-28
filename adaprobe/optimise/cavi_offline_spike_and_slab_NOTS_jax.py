@@ -188,8 +188,8 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	if constrain_weights:
 		# make sensing matrix and weight warm-start negative
 		LamT = -LamT
-		mu = -np.array(mu) 
-	lasso.coef_ = mu
+		mu = -mu
+	lasso.coef_ = np.array(mu)
 
 	for it in range(max_penalty_iters):
 		if verbose:
