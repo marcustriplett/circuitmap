@@ -172,7 +172,8 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 
 def update_mu_constr_l1(y, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100):
 	N, K = Lam.shape
-	sigma = np.sqrt(rate/shape)
+	# sigma = np.sqrt(rate/shape)
+	sigma = 1
 	constr = sigma * np.sqrt(K)
 	LamT = Lam.T
 	coef = np.zeros(N)
