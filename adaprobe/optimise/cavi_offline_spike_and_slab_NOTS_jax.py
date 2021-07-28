@@ -193,6 +193,7 @@ def update_mu_constr_l1(y, Lam, shape, rate, penalty=1, scale_factor=0.5, max_pe
 			if it == 0:
 				lasso.warm_start = True
 		print('lasso err: ', err)
+		print('constr: ', constr)
 		print('')
 	return coef
 
