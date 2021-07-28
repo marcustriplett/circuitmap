@@ -180,7 +180,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	constr = sigma * np.sqrt(K)
 	LamT = Lam.T
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso)
-	lasso.coef_ = mu
+	lasso.coef_ = np.array(mu)
 	for it in range(max_penalty_iters):
 		print('penalty iter: ', it)
 		print('current penalty: ', lasso.alpha)
