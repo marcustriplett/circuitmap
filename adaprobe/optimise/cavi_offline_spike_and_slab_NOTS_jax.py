@@ -146,7 +146,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 		else:
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 				phi, phi_cov, lam_mask, key, num_mc_samples, N)
-		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
+		# shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov]):
