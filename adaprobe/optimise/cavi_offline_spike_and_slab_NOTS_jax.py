@@ -78,17 +78,27 @@ EPS = 1e-10
 
 
 def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, y_xcorr_thresh=0.05, penalty=1e-3, learn_alpha=True, mu_update_method='lasso', lam_update_method='variational'):
+	iters, num_mc_samples, seed, y_xcorr_thresh=0.05, penalty=1e-3, learn_alpha=True, mu_update_method='lasso', lam_update_method='variational', 
+	lam_masking=False):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
 	assert mu_update_method in ['lasso', 'variational']
 
-	y, y_psc = obs
+	if lam_masking:
+		y, y_psc = obs
+		K = y.shape[0]
+
+		# Setup lam mask
+		lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
+
+	else:
+		y = obs
+		K = y.shape[0]
+		lam_mask = jnp.ones(K)
 
 	# Initialise new params
 	N = mu_prior.shape[0]
-	K = y.shape[0]
 
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=1000)
 
@@ -103,10 +113,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 	phi_cov 	= jnp.array(phi_cov_prior)
 	# lam 		= jnp.zeros((N, K))
 	lam = jnp.array(0.1 * np.random.rand(N, K))
-
-	# Setup lam mask
-	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
-
+	
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
 	beta_hist 	= jnp.zeros((iters, N))
@@ -257,9 +264,8 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, 
 
 			# monte carlo approximation of expectation
 			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
-			scope.lam = index_update(scope.lam, n, sigmoid(scope.mcE - shape/(2 * rate) * scope.arg * (I[n] > 0))) # require spiking cells to be targeted
-			# scope.corr = 
-			scope.lam = index_update(scope.lam, n, scope.lam[n] * lam_mask)
+			scope.lam = index_update(scope.lam, n, lam_mask * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg * (I[n] > 0))) # require spiking cells to be targeted
+			# scope.lam = index_update(scope.lam, n, scope.lam[n] * lam_mask)
 	return scope.lam, scope.key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
