@@ -180,7 +180,7 @@ def update_mu_constr_l1(y, Lam, shape, rate, penalty=1, scale_factor=0.5, max_pe
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters)
 	for it in range(max_penalty_iters):
 		print('penalty iter: ', it)
-		print('current penalty: ', lasso.penalty)
+		print('current penalty: ', lasso.alpha)
 		lasso.fit(LamT, y)
 		coef = lasso.coef_
 		err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
@@ -189,7 +189,7 @@ def update_mu_constr_l1(y, Lam, shape, rate, penalty=1, scale_factor=0.5, max_pe
 			break
 		else:
 			penalty *= scale_factor # exponential backoff
-			lasso.penalty = penalty
+			lasso.alpha = penalty
 			if it == 0:
 				lasso.warm_start = True
 		print('lasso err: ', err)
