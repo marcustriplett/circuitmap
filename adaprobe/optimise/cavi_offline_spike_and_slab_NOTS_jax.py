@@ -111,7 +111,8 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 	phi_cov 	= jnp.array(phi_cov_prior)
 	# lam 		= jnp.zeros((N, K))
 	# lam = jnp.array(0.1 * np.random.rand(N, K))
-	lam = jnp.array(0.1 * np.ones((N, K)))
+	lam = np.zeros_like(I) # spike initialisation
+	lam[I > 0] = 0.5
 	
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
