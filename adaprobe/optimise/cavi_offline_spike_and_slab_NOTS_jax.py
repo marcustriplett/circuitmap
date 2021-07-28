@@ -78,8 +78,8 @@ EPS = 1e-10
 
 
 def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, y_xcorr_thresh=0.05, penalty=1e-3, learn_alpha=True, mu_update_method='lasso', lam_update_method='variational', 
-	lam_masking=False, scale_factor=0.5, max_penalty_iters=5, max_lasso_iters=100):
+	iters, num_mc_samples, seed, y_xcorr_thresh=0.05, penalty=1e0, learn_alpha=True, mu_update_method='lasso', lam_update_method='variational', 
+	lam_masking=False, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -132,7 +132,8 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 	for it in range(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
 		if mu_update_method == 'lasso':
-			mu = update_mu_constr_l1(y, lam, shape, rate, penalty=penalty, scale_factor=0.5, max_penalty_iters=5, max_lasso_iters=100)
+			mu = update_mu_constr_l1(y, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, \
+				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters)
 		else:
 			mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
