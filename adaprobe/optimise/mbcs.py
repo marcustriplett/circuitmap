@@ -87,7 +87,7 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 def update_beta(lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(shape/rate * jnp.sum(lam, 1) + 1/(beta_prior**2))
 
-@jax.partial(jit, static_argnums=(9))
+@jax.partial(jit, static_argnums=(8))
 def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
 
@@ -171,7 +171,7 @@ def update_lam_bfgs(y, w, stim_matrix, phi, phi_cov, num_mc_samples=10):
 	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
 	return res.x.reshape([K, N]).T
 
-@jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@jax.partial(jit, static_argnums=(11, 12)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
@@ -288,4 +288,5 @@ laplace_approx = jit(vmap(_laplace_approx, (0, 0, 0, 0, None))) # parallel LAs a
 @jit
 def negloglik_with_barrier(y, phi, phi_prior, prec, I, t):
 	lam = sigmoid(phi[0] * I - phi[1])
-	return -jnp.sum(jnp.nan_to_num(y * jnp.log(lam) + (1 - y) * jnp.log(1 - lam))) - jnp.sum(jnp.log(phi))/t + 1/2 * (phi - phi_prior) @ prec @ (phi - phi_prior)
+	return -jnp.sum(jnp.nan_to_num(y * jnp.log(lam) + (1 - y) * jnp.log(1 - lam))) - jnp.sum(jnp.log(phi))/t \
+		+ 1/2 * (phi - phi_prior) @ prec @ (phi - phi_prior)
