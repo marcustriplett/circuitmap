@@ -220,8 +220,8 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	if ols_adj:
 		linreg = LinearRegression(fit_intercept=False, positive=constrain_weights)
 		nonzero_locs = coef != 0
-		Lam_sub = Lam[nonzero_locs]
-		linreg.fit(Lam_sub.T, y)
+		Lam_sub = LamT[:, nonzero_locs]
+		linreg.fit(Lam_sub, y)
 		coef[nonzero_locs] = linreg.coef_
 
 	if constrain_weights:
