@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.linear_model import Lasso, LinearRegression
+from sklearn.linear_model import Lasso
 from scipy.optimize import minimize
 
 # Jax imports
@@ -80,7 +80,7 @@ EPS = 1e-10
 def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed, y_xcorr_thresh=0.05, penalty=1e0, learn_alpha=True, mu_update_method='lasso', lam_update_method='variational', 
 	lam_masking=False, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=False, constrain_weights=True, 
-	ols_adj=True, verbose=False):
+	verbose=False):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -102,28 +102,26 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 	N = mu_prior.shape[0]
 
 	# Declare scope types
-	mu 		= jnp.array(mu_prior)
-	# mu = jnp.array(np.random.rand(N))
+	mu 			= jnp.array(mu_prior)
 	beta 		= jnp.array(beta_prior)
-	alpha 	= jnp.array(alpha_prior)
-	shape 	= shape_prior
+	alpha 		= jnp.array(alpha_prior)
+	shape 		= shape_prior
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
-	# lam 		= jnp.zeros((N, K))
-	# lam = jnp.array(0.1 * np.random.rand(N, K))
-	lam = np.zeros_like(I) # spike initialisation
-	lam[I > 0] = 0.5
+	lam 		= np.zeros_like(I) # spike initialisation
+	lam[I > 0] 	= 0.5
+	lam 		= jnp.array(lam)
 
 	
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
-	beta_hist 	= jnp.zeros((iters, N))
-	alpha_hist 	= jnp.zeros((iters, N))
+	beta_hist 		= jnp.zeros((iters, N))
+	alpha_hist 		= jnp.zeros((iters, N))
 	lam_hist 		= jnp.zeros((iters, N, K))
-	shape_hist 	= jnp.zeros(iters)
-	rate_hist 	= jnp.zeros(iters)
-	phi_hist  	= jnp.zeros((iters, N, 2))
+	shape_hist 		= jnp.zeros(iters)
+	rate_hist 		= jnp.zeros(iters)
+	phi_hist  		= jnp.zeros((iters, N, 2))
 	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
 	
 	hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
@@ -139,12 +137,12 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 			mu = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, \
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, \
 				warm_start_lasso=warm_start_lasso, constrain_weights=constrain_weights, \
-				verbose=verbose, ols_adj=ols_adj)
+				verbose=verbose)
 		else:
 			mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
 		if lam_update_method == 'bfgs':
-			lam = update_lam_bfgs(y, mu, I, phi, phi_cov, num_mc_samples=10)
+			lam = update_lam_bfgs(y, mu, I, phi, phi_cov, num_mc_samples=num_mc_samples)
 		else:
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 				phi, phi_cov, lam_mask, key, num_mc_samples, N)
@@ -178,7 +176,7 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 	return scope.mu
 
 def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
-	warm_start_lasso=False, constrain_weights=True, verbose=False, ols_adj=True):
+	warm_start_lasso=False, constrain_weights=True, verbose=False):
 	""" Constrained L1 solver with iterative penalty shrinking and optional unconstrained OLS adjustment
 	"""
 	N, K = Lam.shape
@@ -214,15 +212,6 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 			print('lasso err: ', err)
 			print('constr: ', constr)
 			print('')
-
-
-	# penalty-free OLS adjustment following sparsification of connections
-	if ols_adj:
-		linreg = LinearRegression(fit_intercept=False, positive=constrain_weights)
-		nonzero_locs = coef != 0
-		Lam_sub = LamT[:, nonzero_locs]
-		linreg.fit(Lam_sub, y)
-		coef[nonzero_locs] = linreg.coef_
 
 	if constrain_weights:
 		return -coef

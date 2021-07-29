@@ -1,10 +1,2 @@
-# from .cavi_online_spike_and_slab import cavi_online_spike_and_slab
-# from .cavi_offline_spike_and_slab import cavi_offline_spike_and_slab
-# from .cavi_online_spike_and_slab_multistim import cavi_online_spike_and_slab_multistim
-# from .cavi_online_spike_and_slab_joint_vi import cavi_online_spike_and_slab_joint_vi
-# from .cavi_online_spike_and_slab_no_ots import cavi_online_spike_and_slab_no_ots
-# from .cavi_online_spike_and_slab_spike_noise import cavi_online_spike_and_slab_spike_noise
-# from .cavi_online_spike_and_slab_3d_omega import cavi_online_spike_and_slab_3d_omega
-# from .cavi_online_spike_and_slab_3d_laplace import cavi_online_spike_and_slab_3d_laplace
-# from .cavi_offline_spike_and_slab_3d_omega import cavi_offline_spike_and_slab_3d_omega
-from .cavi_offline_spike_and_slab_NOTS_jax import cavi_offline_spike_and_slab_NOTS_jax
+from .cavi_sns import cavi_sns
+from .mbcs import mbcs
