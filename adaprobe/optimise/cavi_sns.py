@@ -26,11 +26,11 @@ def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior,
 		lam_mask = jnp.ones(y.shape[0])
 
 	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, lam_mask)
+	lam_mask, iters, num_mc_samples, seed)
 
-@jax.partial(jit, static_argnums=(9, 10, 11, 12))
+@jax.partial(jit, static_argnums=(10, 11, 12))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, lam_mask):
+	lam_mask, iters, num_mc_samples, seed):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
