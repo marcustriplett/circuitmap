@@ -16,27 +16,27 @@ from jax.experimental import loops
 
 EPS = 1e-10
 
-@jax.partial(jit, static_argnums=(9, 10, 11))
-def cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
+def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed, lam_masking=False, y_xcorr_thresh=0.05):
+	if lam_masking:
+		y, y_psc = obs
+		lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
+	else:
+		y = obs
+		lam_mask = jnp.ones(y.shape[0])
+
+	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
+	iters, num_mc_samples, seed, lam_mask, N, K)
+
+@jax.partial(jit, static_argnums=(9, 10, 11, 12))
+def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
+	iters, num_mc_samples, seed, lam_mask):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
 	# Initialise new params
 	N = mu_prior.shape[0]
 	K = y.shape[0]
-
-	if lam_masking:
-		y, y_psc = obs
-		K = y.shape[0]
-
-		# Setup lam mask
-		lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
-
-	else:
-		y = obs
-		K = y.shape[0]
-		lam_mask = jnp.ones(K)
 
 	with loops.Scope() as scope:
 
