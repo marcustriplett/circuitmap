@@ -110,10 +110,8 @@ class Model:
 			self.state['phi'], self.state['phi_cov'], **fit_options 
 		)
 
-		mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+		mu, beta, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist = result
-
-		# mu, beta, alpha, lam, shape, rate, phi, phi_cov = result
 
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta
