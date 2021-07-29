@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.linear_model import Lasso
+from sklearn.linear_model import Lasso, LinearRegression
 from scipy.optimize import minimize
 
 # Jax imports
@@ -79,7 +79,8 @@ EPS = 1e-10
 
 def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed, y_xcorr_thresh=0.05, penalty=1e0, learn_alpha=True, mu_update_method='lasso', lam_update_method='variational', 
-	lam_masking=False, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=False, constrain_weights=True, verbose=False):
+	lam_masking=False, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=False, constrain_weights=True, 
+	ols_adj=True, verbose=False):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -113,6 +114,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 	# lam = jnp.array(0.1 * np.random.rand(N, K))
 	lam = np.zeros_like(I) # spike initialisation
 	lam[I > 0] = 0.5
+
 	
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
@@ -137,7 +139,7 @@ def cavi_offline_spike_and_slab_NOTS_jax(obs, I, mu_prior, beta_prior, alpha_pri
 			mu = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, \
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, \
 				warm_start_lasso=warm_start_lasso, constrain_weights=constrain_weights, \
-				verbose=verbose)
+				verbose=verbose, ols_adj=ols_adj)
 		else:
 			mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		if learn_alpha: alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
@@ -176,13 +178,13 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 	return scope.mu
 
 def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
-	warm_start_lasso=False, constrain_weights=True, verbose=False):
+	warm_start_lasso=False, constrain_weights=True, verbose=False, ols_adj=True):
+	""" Constrained L1 solver with iterative penalty shrinking and optional unconstrained OLS adjustment
+	"""
 	N, K = Lam.shape
 	sigma = np.sqrt(rate/shape)
-	# sigma = 1
 	constr = sigma * np.sqrt(K)
 	LamT = Lam.T
-	# err_prev = np.sqrt(np.sum(np.square(y - LamT @ mu)))
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=constrain_weights)
 	
 	if constrain_weights:
@@ -192,6 +194,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	lasso.coef_ = np.array(mu)
 
 	for it in range(max_penalty_iters):
+		# iteratively shrink penalty until constraint is met
 		if verbose:
 			print('penalty iter: ', it)
 			print('current penalty: ', lasso.alpha)
@@ -212,9 +215,13 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 			print('constr: ', constr)
 			print('')
 
-	# if err_prev < err:
-	# 	# if new estimate is worse than prev, keep prev
-	# 	coef = mu
+
+	# penalty-free OLS adjustment following sparsification of connections
+	if ols_adj:
+		linreg = LinearRegression(fit_intercept=False, positive=constrain_weights)
+		lam_sub = lam[coef != 0]
+		linreg.fit(lam_sub.T, y)
+		coef = linreg.coef_
 
 	if constrain_weights:
 		return -coef
