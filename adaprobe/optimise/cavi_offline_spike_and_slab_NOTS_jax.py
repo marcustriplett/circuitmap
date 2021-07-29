@@ -219,8 +219,8 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	# penalty-free OLS adjustment following sparsification of connections
 	if ols_adj:
 		linreg = LinearRegression(fit_intercept=False, positive=constrain_weights)
-		lam_sub = lam[coef != 0]
-		linreg.fit(lam_sub.T, y)
+		Lam_sub = Lam[coef != 0]
+		linreg.fit(Lam_sub.T, y)
 		coef = linreg.coef_
 
 	if constrain_weights:
