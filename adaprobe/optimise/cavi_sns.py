@@ -17,7 +17,7 @@ from jax.experimental import loops
 EPS = 1e-10
 
 def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, lam_masking=False, y_xcorr_thresh=0.05):
+	iters, num_mc_samples, seed, lam_masking=False, y_xcorr_thresh=0.05, learn_noise=False):
 	if lam_masking:
 		y, y_psc = obs
 		lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
@@ -26,11 +26,11 @@ def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior,
 		lam_mask = jnp.ones(y.shape[0])
 
 	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed)
+	lam_mask, iters, num_mc_samples, seed, learn_noise)
 
-@jax.partial(jit, static_argnums=(10, 11, 12))
+@jax.partial(jit, static_argnums=(10, 11, 12, 13))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed):
+	lam_mask, iters, num_mc_samples, seed, learn_noise):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -73,7 +73,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 			scope.alpha = update_alpha(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, alpha_prior, N)
 			scope.lam, scope.key = update_lam(y, I, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, \
 				scope.phi, scope.phi_cov, lam_mask, scope.key, num_mc_samples, N)
-			scope.shape, scope.rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
+			if learn_noise:
+				scope.shape, scope.rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
 			(scope.phi, scope.phi_cov), scope.key = update_phi(scope.lam, I, phi_prior, phi_cov_prior, scope.key)
 
 			for hindx, pa in enumerate([scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
