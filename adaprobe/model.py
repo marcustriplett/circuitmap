@@ -4,11 +4,6 @@ from adaprobe import optimise
 class Model:
 	def __init__(self, N, model_type='mbcs', priors=dict()):
 		"""Initialise adaprobe model.
-
-		Args:
-			cell_locs: 
-			priors:
-
 		"""
 
 		assert model_type in ['mbcs', 'variational_sns']
