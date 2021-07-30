@@ -76,7 +76,26 @@ class Model:
 		mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist = result
 
-		# mu, beta, alpha, lam, shape, rate, phi, phi_cov = result
+		# move from GPU back to CPU
+		## param vectors
+		mu 			= np.array(mu)
+		beta 		= np.array(beta)
+		alpha 		= np.array(alpha)
+		lam 		= np.array(lam)
+		shape 		= np.array(shape)
+		rate 		= np.array(rate)
+		phi 		= np.array(phi)
+		phi_cov 	= np.array(phi_cov)
+
+		## history vectors
+		mu_hist 		= np.array(mu_hist)
+		beta_hist 		= np.array(beta_hist)
+		alpha_hist 		= np.array(alpha_hist)
+		lam_hist 		= np.array(lam_hist)
+		shape_hist 		= np.array(shape_hist)
+		rate_hist 		= np.array(rate_hist)
+		phi_hist 		= np.array(phi_hist)
+		phi_cov_hist 	= np.array(phi_cov_hist)		
 
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta
@@ -112,6 +131,25 @@ class Model:
 
 		mu, beta, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist = result
+
+		# move from GPU back to CPU
+		## param vectors
+		mu 			= np.array(mu)
+		beta 		= np.array(beta)
+		lam 		= np.array(lam)
+		shape 		= np.array(shape)
+		rate 		= np.array(rate)
+		phi 		= np.array(phi)
+		phi_cov 	= np.array(phi_cov)
+
+		## history vectors
+		mu_hist 		= np.array(mu_hist)
+		beta_hist 		= np.array(beta_hist)
+		lam_hist 		= np.array(lam_hist)
+		shape_hist 		= np.array(shape_hist)
+		rate_hist 		= np.array(rate_hist)
+		phi_hist 		= np.array(phi_hist)
+		phi_cov_hist 	= np.array(phi_cov_hist)
 
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta

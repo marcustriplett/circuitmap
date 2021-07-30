@@ -106,7 +106,6 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
 	with loops.Scope() as scope:
 		scope.alpha = alpha
-		scope.alpha_new = jnp.zeros(N)
 		scope.arg = 0.
 		scope.mask = jnp.zeros(N - 1, dtype=int)
 		scope.all_ids = jnp.arange(N)
