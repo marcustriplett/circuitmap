@@ -21,15 +21,16 @@ EPS = 1e-10
 def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, iters=50, 
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, lam_masking=False, scale_factor=0.5, 
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=True, 
-	verbose=False, learn_noise=False):
+	verbose=False, learn_noise=False, shape_model=True):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
-	if lam_masking:
+	if lam_masking or shape_model:
 		y, y_psc = obs
 		K = y.shape[0]
 
 		# Setup lam mask
-		lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
+		lam_mask = (jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh) \
+			* lam_masking + (1 - lam_masking) * jnp.ones(K)
 
 	else:
 		y = obs
@@ -72,7 +73,10 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 		mu = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
-		lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
+		if shape_model:
+			lam, key = update_lam_with_psc_shape(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
+		else:
+			lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
@@ -192,6 +196,43 @@ def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, nu
 		for n in scope.range(N):
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
 			scope.arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[scope.mask], 1) * scope.lam[scope.mask], 0) \
+			+ (mu[n]**2 + beta[n]**2)
+
+			# sample truncated normals
+			scope.key, scope.key_next = jax.random.split(scope.key)
+			scope.u = jax.random.uniform(scope.key, [num_mc_samples, 2])
+			scope.mean, scope.sdev = phi[n], jnp.diag(phi_cov[n])
+			scope.mc_samps = ndtri(ndtr(-scope.mean/scope.sdev) + scope.u * (1 - ndtr(-scope.mean/scope.sdev))) * scope.sdev + scope.mean
+
+			# monte carlo approximation of expectation
+			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
+			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg)) # require spiking cells to be targeted
+			# scope.lam = index_update(scope.lam, n, scope.lam[n] * lam_mask)
+	return scope.lam, scope.key_next
+
+@jax.partial(jit, static_argnums=(11, 12)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+def update_lam_with_psc_shape(y_psc, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N):
+	""" Infer latent spike rates w/ PSC shape model
+	"""
+	K = I.shape[1]
+	lam_avg = jnp.nan_to_num(lam/jnp.sum(lam, 1)[:, None])
+	c = (lam_avg @ y_psc)
+	with loops.Scope() as scope:
+		
+		# declare within-scope types
+		scope.lam = lam
+		scope.all_ids = jnp.arange(N)
+		scope.mask = jnp.zeros(N - 1, dtype=int)
+		scope.arg = jnp.zeros(K, dtype=float)
+		scope.key, scope.key_next = key, key
+		scope.u = jnp.zeros((num_mc_samples, 2))
+		scope.mean, scope.sdev = jnp.zeros(2, dtype=float), jnp.zeros(2, dtype=float)
+		scope.mc_samps = jnp.zeros((num_mc_samples, 2), dtype=float)
+		scope.mcE = jnp.zeros(K)
+
+		for n in scope.range(N):
+			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
+			scope.arg = -2 * jnp.sum(y * c[n]) + 2 * np.sum(c[n] * jnp.sum(jnp.expand_dims(mu[scope.mask], 1) * scope.lam[scope.mask], 0) \
 			+ (mu[n]**2 + beta[n]**2)
 
 			# sample truncated normals
