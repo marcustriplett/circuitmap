@@ -1,5 +1,6 @@
 import numpy as np
 from adaprobe import optimise
+import time
 
 class Model:
 	def __init__(self, N, model_type='mbcs', priors=dict()):
@@ -63,10 +64,13 @@ class Model:
 	def _fit_cavi_sns(self, obs, stimuli, fit_options):
 		"""Run CAVI with spike-and-slab synapse prior.
 		"""
+		t_start = time.time()
+
 		result = optimise.cavi_sns(
 			obs, stimuli, self.state['mu'], self.state['beta'], self.state['alpha'], self.state['shape'], 
 			self.state['rate'], self.state['phi'], self.state['phi_cov'], **fit_options 
 		)
+		t_end = time.time()
 
 		mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist = result
@@ -101,6 +105,7 @@ class Model:
 		self.state['phi_cov'] 	= phi_cov
 		self.state['lam'] 		= lam.T
 		self.trial_count 		= lam.shape[1]
+		self.time 				= t_end - t_start
 
 		# Set up history dict
 		self.history = {
@@ -119,10 +124,13 @@ class Model:
 	def _fit_mbcs(self, obs, stimuli, fit_options):
 		"""Run MBCS with .
 		"""
+		t_start = time.time()
 		result = optimise.mbcs(
 			obs, stimuli, self.state['mu'], self.state['beta'], self.state['shape'], self.state['rate'], 
 			self.state['phi'], self.state['phi_cov'], **fit_options 
 		)
+
+		t_end = time.time()
 
 		mu, beta, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist = result
@@ -154,6 +162,7 @@ class Model:
 		self.state['phi_cov'] 	= phi_cov
 		self.state['lam'] 		= lam.T
 		self.trial_count 		= lam.shape[1]
+		self.time 				= t_end - t_start
 
 		# Set up history dict
 		self.history = {

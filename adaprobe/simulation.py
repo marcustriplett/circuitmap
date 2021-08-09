@@ -26,7 +26,7 @@ class Simulation3d:
 			self.phi_0 = phi_0
 
 		if phi_1 is None:
-			self.phi_1 = np.random.uniform(4, 10, N)
+			self.phi_1 = np.random.uniform(2.5, 5.5, N)
 		else:
 			self.phi_1 = phi_1
 

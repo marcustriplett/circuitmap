@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 def cosamp(A, y, k, tol=1e-8, maxiter=500, x=None):
     '''Compressive sampling matching pursuit (CoSaMP) algorithm.
@@ -48,6 +49,7 @@ def cosamp(A, y, k, tol=1e-8, maxiter=500, x=None):
         for the original implementation. ****
     
     '''
+    t_start = time.time()
 
     # length of measurement vector and original signal
     _n, N = A.shape[:]
@@ -89,4 +91,6 @@ def cosamp(A, y, k, tol=1e-8, maxiter=500, x=None):
         if stop_criteria < tol:
             break
 
-    return x_hat
+    t_end = time.time()
+
+    return x_hat, t_end - t_start
