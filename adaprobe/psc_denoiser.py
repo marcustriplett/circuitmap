@@ -54,35 +54,6 @@ class NeuralDenoiser():
 		self.train_loss = train_loss
 		self.test_loss = test_loss
 
-	def _train_loop(self, dataloader, model, loss_fn, optimizer):
-		n_batches = len(dataloader)
-		train_loss = 0
-		for batch, (X, y) in enumerate(dataloader):
-			# Compute prediction and loss
-			pred = model(X)
-			loss = loss_fn(pred, y)
-			train_loss += loss
-
-			# Backpropagation
-			optimizer.zero_grad()
-			loss.backward()
-			optimizer.step()
-
-		train_loss /= n_batches
-		return train_loss
-			
-	def _test_loop(self, dataloader, model, loss_fn):
-		n_batches = len(dataloader)
-		test_loss = 0
-
-		with torch.no_grad():
-			for X, y in dataloader:
-				pred = model(X)
-				test_loss += loss_fn(pred, y).item()
-
-		test_loss /= n_batches
-		return test_loss
-
 	def generate_training_data(self, trial_dur=800, size=1000, training_fraction=0.9, lp_cutoff=500, 
 		srate=2000, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, tau_diff_upper=150, 
 		min_delta=100, delta_lower=0, delta_upper=400, n_kernel_samples=1, 
@@ -125,27 +96,6 @@ class NeuralDenoiser():
 				training_inputs=inputs[:training_trials], training_targets=targets[:training_trials], 
 				test_inputs=inputs[training_trials:], test_targets=inputs[training_trials:])
 
-	def _sample_gp(self, trial_dur=800, gp_lengthscale=25, gp_scale=0.01, n_samples=1):
-		D = np.array([[i - j for i in range(trial_dur)] for j in range(trial_dur)])
-		K = np.exp(-D**2/(2 * gp_lengthscale**2))
-		mean = np.zeros(trial_dur)
-		return gp_scale * np.random.multivariate_normal(mean, K, size=n_samples)
-
-	def _kernel_func(self, tau_r, tau_d, delta):
-		return lambda x: (np.exp(-(x - delta)/tau_d) - np.exp(-(x - delta)/tau_r)) * (x >= delta)
-
-	def _sample_psc_kernel(self, trial_dur=800, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, 
-		tau_diff_upper=150, min_delta=100, delta_lower=0, delta_upper=200, n_samples=1):
-		'''Sample PSCs with random time constants and onset times.
-		'''
-		tau_r_samples = np.random.uniform(tau_r_lower, tau_r_upper, n_samples)
-		tau_diff_samples = np.random.uniform(tau_diff_lower, tau_diff_upper, n_samples)
-		tau_d_samples = tau_r_samples + tau_diff_samples
-		delta_samples = min_delta + np.random.uniform(delta_lower, delta_upper, n_samples)
-		xeval = np.arange(trial_dur)
-		return np.array([_kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(xeval) 
-			for i in range(n_samples)])
-
 class PSCData(Dataset):
 	"""Torch training dataset.
 	"""
@@ -183,5 +133,55 @@ class DenoisingNetwork(torch.nn.Module):
 		for layer in self.layers:
 			x = self.relu(layer(x))
 		return x
+
+def _sample_gp(trial_dur=800, gp_lengthscale=25, gp_scale=0.01, n_samples=1):
+	D = np.array([[i - j for i in range(trial_dur)] for j in range(trial_dur)])
+	K = np.exp(-D**2/(2 * gp_lengthscale**2))
+	mean = np.zeros(trial_dur)
+	return gp_scale * np.random.multivariate_normal(mean, K, size=n_samples)
+
+def _kernel_func(tau_r, tau_d, delta):
+	return lambda x: (np.exp(-(x - delta)/tau_d) - np.exp(-(x - delta)/tau_r)) * (x >= delta)
+
+def _sample_psc_kernel(trial_dur=800, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, 
+	tau_diff_upper=150, min_delta=100, delta_lower=0, delta_upper=200, n_samples=1):
+	'''Sample PSCs with random time constants and onset times.
+	'''
+	tau_r_samples = np.random.uniform(tau_r_lower, tau_r_upper, n_samples)
+	tau_diff_samples = np.random.uniform(tau_diff_lower, tau_diff_upper, n_samples)
+	tau_d_samples = tau_r_samples + tau_diff_samples
+	delta_samples = min_delta + np.random.uniform(delta_lower, delta_upper, n_samples)
+	xeval = np.arange(trial_dur)
+	return np.array([_kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(xeval) 
+		for i in range(n_samples)])
+
+def _train_loop(self, dataloader, model, loss_fn, optimizer):
+	n_batches = len(dataloader)
+	train_loss = 0
+	for batch, (X, y) in enumerate(dataloader):
+		# Compute prediction and loss
+		pred = model(X)
+		loss = loss_fn(pred, y)
+		train_loss += loss
+
+		# Backpropagation
+		optimizer.zero_grad()
+		loss.backward()
+		optimizer.step()
+
+	train_loss /= n_batches
+	return train_loss
+		
+def _test_loop(self, dataloader, model, loss_fn):
+	n_batches = len(dataloader)
+	test_loss = 0
+
+	with torch.no_grad():
+		for X, y in dataloader:
+			pred = model(X)
+			test_loss += loss_fn(pred, y).item()
+
+	test_loss /= n_batches
+	return test_loss
 
 
