@@ -130,7 +130,6 @@ class DenoisingNetwork(nn.Module):
 			layers.append(nn.ReLU())
 
 		self.layers = nn.Sequential(*layers)
-		self.relu = torch.nn.ReLU()
 
 	def forward(self, x):
 		return self.layers(x)
@@ -156,7 +155,7 @@ def _sample_psc_kernel(trial_dur=800, tau_r_lower=10, tau_r_upper=80, tau_diff_l
 	return np.array([_kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(xeval) 
 		for i in range(n_samples)])
 
-def _train_loop(self, dataloader, model, loss_fn, optimizer):
+def _train_loop(dataloader, model, loss_fn, optimizer):
 	n_batches = len(dataloader)
 	train_loss = 0
 	for batch, (X, y) in enumerate(dataloader):
@@ -173,7 +172,7 @@ def _train_loop(self, dataloader, model, loss_fn, optimizer):
 	train_loss /= n_batches
 	return train_loss
 		
-def _test_loop(self, dataloader, model, loss_fn):
+def _test_loop(dataloader, model, loss_fn):
 	n_batches = len(dataloader)
 	test_loss = 0
 
