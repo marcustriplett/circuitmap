@@ -9,9 +9,9 @@ print('CUDA device available: ', torch.cuda.is_available())
 print('CUDA device: ', torch.cuda.get_device_name())
 
 class NeuralDenoiser():
-	def __init__(self, n_layers=3, kernel_size=99, padding=49, stride=1):
+	def __init__(self, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
 		self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
-			padding=padding, stride=stride)
+			padding=padding, stride=stride, channels=channels)
 
 	def __call__(self, traces):
 		# Run denoiser over PSC trace batch
