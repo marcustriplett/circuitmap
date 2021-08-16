@@ -10,13 +10,13 @@ print('CUDA device: ', torch.cuda.get_device_name())
 
 class NeuralDenoiser():
 	def __init__(self):
-		self.denoiser = DenoisingNetwork(n_layers=3, kernel_size=99, padding=49)
+		self.denoiser = DenoisingNetwork(n_layers=3, kernel_size=99, padding=49, stride=1)
 
 	def __call__(self, traces):
 		# Run denoiser over PSC trace batch
-		return self.denoiser(torch.Tensor(traces[:, None, :])).detach().numpy().squeeze()
+		return self.denoiser(torch.Tensor(traces.copy()[:, None, :])).detach().numpy().squeeze()
 
-	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, stride=1, data_path=None):
+	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None):
 		'''Run pytorch training loop.
 		'''
 		if data_path is not None:
@@ -32,7 +32,7 @@ class NeuralDenoiser():
 			test_data = PSCData(test_inputs, test_targets)
 		else:
 			print('Attempting to load data from NeuralDenoiser object')
-			training_data = PSCData(self.training_data[0], self.training_Data[1])
+			training_data = PSCData(self.training_data[0], self.training_data[1])
 			test_data = PSCData(self.test_data[0], self.test_data[1])
 
 		train_dataloader = DataLoader(training_data, batch_size=batch_size)
