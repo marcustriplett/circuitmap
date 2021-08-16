@@ -16,7 +16,7 @@ class NeuralDenoiser():
 		# Run denoiser over PSC trace batch
 		return self.denoiser(torch.Tensor(traces[:, None, :])).detach().numpy().squeeze()
 
-	def train(epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None):
+	def train(epochs=1000, batch_size=64, learning_rate=1e-2, stride=1, data_path=None):
 		'''Run pytorch training loop.
 		'''
 		if data_path is not None:
@@ -164,16 +164,17 @@ class PSCData(Dataset):
 		return self.len
 
 class DenoisingNetwork(torch.nn.Module):
-	def __init__(self, n_layers=3, kernel_size=99, padding=49, channels=[16, 8, 1]):
+	def __init__(self, n_layers=3, kernel_size=99, padding=49, channels=[16, 8, 1], stride=1):
 		super(DenoisingNetwork, self).__init__()
 		assert n_layers >= 2, 'Neural network must have at least one input layer and one output layer.'
 		assert channels[-1] == 1, 'Output layer must have exactly one output channel'
 
 		layers = [None for l in range(n_layers)]
-		layers[0] = torch.nn.Conv1d(in_channels=1, out_channels=channels[0])
+		layers[0] = torch.nn.Conv1d(in_channels=1, out_channels=channels[0], kernel_size=kernel_size, 
+			stride=stride, padding=padding)
 		for l in range(1, n_layers):
 			layers[l] = torch.nn.Conv1d(in_channels=channels[l - 1], out_channels=channels[l], 
-			kernel_size=kernel_size, stride=stride, padding=padding, dilation=1)
+			kernel_size=kernel_size, stride=stride, padding=padding)
 
 		self.layers = layers
 		self.relu = torch.nn.ReLU()
