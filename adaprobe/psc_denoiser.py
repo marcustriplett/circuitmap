@@ -16,7 +16,7 @@ class NeuralDenoiser():
 		# Run denoiser over PSC trace batch
 		return self.denoiser(torch.Tensor(traces[:, None, :])).detach().numpy().squeeze()
 
-	def train(epochs=1000, batch_size=64, learning_rate=1e-2, stride=1, data_path=None):
+	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, stride=1, data_path=None):
 		'''Run pytorch training loop.
 		'''
 		if data_path is not None:
@@ -54,7 +54,7 @@ class NeuralDenoiser():
 		self.train_loss = train_loss
 		self.test_loss = test_loss
 
-	def _train_loop(dataloader, model, loss_fn, optimizer):
+	def _train_loop(self, dataloader, model, loss_fn, optimizer):
 		n_batches = len(dataloader)
 		train_loss = 0
 		for batch, (X, y) in enumerate(dataloader):
@@ -71,7 +71,7 @@ class NeuralDenoiser():
 		train_loss /= n_batches
 		return train_loss
 			
-	def _test_loop(dataloader, model, loss_fn):
+	def _test_loop(self, dataloader, model, loss_fn):
 		n_batches = len(dataloader)
 		test_loss = 0
 
@@ -83,7 +83,7 @@ class NeuralDenoiser():
 		test_loss /= n_batches
 		return test_loss
 
-	def generate_training_data(trial_dur=800, size=1000, training_fraction=0.9, lp_cutoff=500, 
+	def generate_training_data(self, trial_dur=800, size=1000, training_fraction=0.9, lp_cutoff=500, 
 		srate=2000, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, tau_diff_upper=150, 
 		min_delta=100, delta_lower=0, delta_upper=400, n_kernel_samples=1, 
 		mode_probs=[0.3, 0.5, 0.1, 0.1], noise_std_lower=0.01, noise_std_upper=0.1, 
@@ -91,8 +91,8 @@ class NeuralDenoiser():
 		'''Simulate data for training a PSC denoiser. 
 		'''
 
-		n_modes, n_modes_prev = np.random.choice(max_nodes, size, p=mode_probs), \
-			np.random.choice(max_nodes, size, p=mode_probs)
+		n_modes = np.random.choice(max_nodes, size, p=mode_probs)
+		n_modes_prev = np.random.choice(max_nodes, size, p=mode_probs)
 		targets, prev_pscs = np.zeros((size, trial_dur)), np.zeros((size, trial_dur))
 		noise_stds = np.random.uniform(noise_std_lower, noise_std_upper)
 		iid_noise = np.zeros((size, trial_dur))
@@ -125,16 +125,16 @@ class NeuralDenoiser():
 				training_inputs=inputs[:training_trials], training_targets=targets[:training_trials], 
 				test_inputs=inputs[training_trials:], test_targets=inputs[training_trials:])
 
-	def _sample_gp(trial_dur=800, gp_lengthscale=25, gp_scale=0.01, n_samples=1):
+	def _sample_gp(self, trial_dur=800, gp_lengthscale=25, gp_scale=0.01, n_samples=1):
 		D = np.array([[i - j for i in range(trial_dur)] for j in range(trial_dur)])
 		K = np.exp(-D**2/(2 * gp_lengthscale**2))
 		mean = np.zeros(trial_dur)
 		return gp_scale * np.random.multivariate_normal(mean, K, size=n_samples)
 
-	def _kernel_func(tau_r, tau_d, delta):
+	def _kernel_func(self, tau_r, tau_d, delta):
 		return lambda x: (np.exp(-(x - delta)/tau_d) - np.exp(-(x - delta)/tau_r)) * (x >= delta)
 
-	def _sample_psc_kernel(trial_dur=800, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, 
+	def _sample_psc_kernel(self, trial_dur=800, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, 
 		tau_diff_upper=150, min_delta=100, delta_lower=0, delta_upper=200, n_samples=1):
 		'''Sample PSCs with random time constants and onset times.
 		'''
