@@ -65,7 +65,7 @@ class NeuralDenoiser():
 		n_modes = np.random.choice(max_nodes, size, p=mode_probs)
 		n_modes_prev = np.random.choice(max_nodes, size, p=mode_probs)
 		targets, prev_pscs = np.zeros((size, trial_dur)), np.zeros((size, trial_dur))
-		noise_stds = np.random.uniform(noise_std_lower, noise_std_upper)
+		noise_stds = np.random.uniform(noise_std_lower, noise_std_upper, size)
 		iid_noise = np.zeros((size, trial_dur))
 		gp_noise = _sample_gp(n_samples=size, trial_dur=trial_dur, gp_lengthscale=gp_lengthscale,
 			gp_scale=gp_scale)
