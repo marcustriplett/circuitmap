@@ -10,11 +10,11 @@ print('CUDA device: ', torch.cuda.get_device_name())
 
 class NeuralDenoiser():
 	def __init__(self):
-		self.denoiser = DenoisingNetwork()
+		self.denoiser = DenoisingNetwork(n_layers=3, kernel_size=99, padding=49)
 
-	def __call__(self):
-
-		return
+	def __call__(self, traces):
+		# Run denoiser over PSC trace batch
+		return self.denoiser(torch.Tensor(traces[:, None, :])).detach().numpy().squeeze()
 
 	def train(epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None):
 		'''Run pytorch training loop.
@@ -164,15 +164,18 @@ class PSCData(Dataset):
 		return self.len
 
 class DenoisingNetwork(torch.nn.Module):
-	def __init__(self, kernel_size=99, padding=):
+	def __init__(self, n_layers=3, kernel_size=99, padding=49, channels=[16, 8, 1]):
 		super(PSCDenoiser, self).__init__()
-		self.layer1 = torch.nn.Conv1d(in_channels=1, out_channels=16, kernel_size=kernel_size, 
-			stride=stride, padding=padding, dilation=1)
-		self.layer2 = torch.nn.Conv1d(in_channels=16, out_channels=8, kernel_size=kernel_size, 
-			stride=stride, padding=padding, dilation=1)
-		self.layer3 = torch.nn.Conv1d(in_channels=8, out_channels=1, kernel_size=kernel_size, 
-			stride=stride, padding=padding, dilation=1)
-		self.layers = [self.layer1, self.layer2, self.layer3]
+		assert n_layers >= 2, 'Neural network must have at least one input layer and one output layer.'
+		assert channels[-1] == 1, 'Output layer must have exactly one output channel'
+
+		layers = [None for l in range(n_layers)]
+		layers[0] = torch.nn.Conv1d(in_channels=1, out_channels=channels[0])
+		for l in range(1, n_layers):
+			layers[l] = torch.nn.Conv1d(in_channels=channels[l - 1], out_channels=channels[l], 
+			kernel_size=kernel_size, stride=stride, padding=padding, dilation=1)
+
+		self.layers = layers
 		self.relu = torch.nn.ReLU()
 
 	def forward(self, x):
