@@ -165,7 +165,7 @@ class PSCData(Dataset):
 
 class DenoisingNetwork(torch.nn.Module):
 	def __init__(self, n_layers=3, kernel_size=99, padding=49, channels=[16, 8, 1]):
-		super(PSCDenoiser, self).__init__()
+		super(DenoisingNetwork, self).__init__()
 		assert n_layers >= 2, 'Neural network must have at least one input layer and one output layer.'
 		assert channels[-1] == 1, 'Output layer must have exactly one output channel'
 
