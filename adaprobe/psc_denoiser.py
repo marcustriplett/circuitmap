@@ -114,26 +114,26 @@ class PSCData(Dataset):
 	def __len__(self):
 		return self.len
 
-class DenoisingNetwork(torch.nn.Module):
+class DenoisingNetwork(nn.Module):
 	def __init__(self, n_layers=3, kernel_size=99, padding=49, channels=[16, 8, 1], stride=1):
 		super(DenoisingNetwork, self).__init__()
 		assert n_layers >= 2, 'Neural network must have at least one input layer and one output layer.'
 		assert channels[-1] == 1, 'Output layer must have exactly one output channel'
 
-		layers = [None for l in range(n_layers)]
-		layers[0] = torch.nn.Conv1d(in_channels=1, out_channels=channels[0], kernel_size=kernel_size, 
-			stride=stride, padding=padding)
-		for l in range(1, n_layers):
-			layers[l] = torch.nn.Conv1d(in_channels=channels[l - 1], out_channels=channels[l], 
-			kernel_size=kernel_size, stride=stride, padding=padding)
+		layers = [nn.Conv1d(in_channels=1, out_channels=channels[0], kernel_size=kernel_size, 
+			stride=stride, padding=padding)]
+		layers.append(nn.ReLU())
 
-		self.layers = layers
+		for l in range(1, n_layers):
+			layers.append(nn.Conv1d(in_channels=channels[l - 1], out_channels=channels[l], 
+			kernel_size=kernel_size, stride=stride, padding=padding))
+			layers.append(nn.ReLU())
+
+		self.layers = nn.Sequential(*layers)
 		self.relu = torch.nn.ReLU()
 
 	def forward(self, x):
-		for layer in self.layers:
-			x = self.relu(layer(x))
-		return x
+		return self.layers(x)
 
 def _sample_gp(trial_dur=800, gp_lengthscale=25, gp_scale=0.01, n_samples=1):
 	D = np.array([[i - j for i in range(trial_dur)] for j in range(trial_dur)])
