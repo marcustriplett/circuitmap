@@ -9,15 +9,19 @@ print('CUDA device available: ', torch.cuda.is_available())
 print('CUDA device: ', torch.cuda.get_device_name())
 
 class NeuralDenoiser():
-	def __init__(self, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
-		self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
-			padding=padding, stride=stride, channels=channels)
+	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
+		if path is not None:
+			self.denoiser = torch.load(path)
+		else:
+			self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
+				padding=padding, stride=stride, channels=channels)
 
 	def __call__(self, traces):
 		# Run denoiser over PSC trace batch
 		return self.denoiser(torch.Tensor(traces.copy()[:, None, :])).detach().numpy().squeeze()
 
-	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None):
+	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None, save_every=500, 
+		save_path=None):
 		'''Run pytorch training loop.
 		'''
 		if data_path is not None:
@@ -49,6 +53,9 @@ class NeuralDenoiser():
 		    train_loss[t] = _train_loop(train_dataloader, self.denoiser, loss_fn, optimizer)
 		    test_loss[t] = _test_loop(test_dataloader, self.denoiser, loss_fn)
 		    print('Epoch %i/%i Train loss: %.8f.  Test loss: %.8f'%(t+1, epochs, train_loss[t], test_loss[t]))
+
+		    if (t % save_every == 0) and (save_path is not None):
+			    torch.save(self.denoiser, save_path + 'chkpt_%i.pt'%t)
 		print("Training complete.")
 
 		# Save training loss
@@ -175,7 +182,6 @@ def _train_loop(dataloader, model, loss_fn, optimizer):
 def _test_loop(dataloader, model, loss_fn):
 	n_batches = len(dataloader)
 	test_loss = 0
-
 	with torch.no_grad():
 		for X, y in dataloader:
 			pred = model(X)
