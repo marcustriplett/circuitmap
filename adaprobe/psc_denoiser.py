@@ -26,22 +26,22 @@ class NeuralDenoiser():
 		print('CUDA device: ', torch.cuda.get_device_name())
 
 		if data_path is not None:
-			print('Attempting to load data at', data_path, '...', end='')
+			print('Attempting to load data at', data_path, '... ', end='')
 			_data = np.load(data_path)
 			training_inputs = _data['training_inputs']
 			training_targets = _data['training_targets']
 			test_inputs = _data['test_inputs']
 			test_targets = _data['test_targets']
-			print('Found.')
+			print('found.')
 			
 			# Torch format
 			training_data = PSCData(training_inputs, training_targets)
 			test_data = PSCData(test_inputs, test_targets)
 		else:
-			print('Attempting to load data from NeuralDenoiser object...', end='')
+			print('Attempting to load data from NeuralDenoiser object... ', end='')
 			training_data = PSCData(self.training_data[0], self.training_data[1])
 			test_data = PSCData(self.test_data[0], self.test_data[1])
-			print('Found.')
+			print('found.')
 
 		train_dataloader = DataLoader(training_data, batch_size=batch_size)
 		test_dataloader = DataLoader(test_data, batch_size=batch_size)
@@ -55,7 +55,7 @@ class NeuralDenoiser():
 		for t in range(epochs):
 		    self.train_loss.append(_train_loop(train_dataloader, self.denoiser, loss_fn, optimizer))
 		    self.test_loss.append(_test_loop(test_dataloader, self.denoiser, loss_fn))
-		    print('Epoch %i/%i Train loss: %.8f.  Test loss: %.8f'%(t+1, epochs, train_loss[t], test_loss[t]))
+		    print('Epoch %i/%i Train loss: %.8f.  Test loss: %.8f'%(t+1, epochs, self.train_loss[t], self.test_loss[t]))
 
 		    if (t % save_every == 0) and (save_path is not None):
 			    torch.save(self.denoiser, save_path + '_chkpt_%i.pt'%t)
