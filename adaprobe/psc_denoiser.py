@@ -5,9 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sg
 
-print('CUDA device available: ', torch.cuda.is_available())
-print('CUDA device: ', torch.cuda.get_device_name())
-
 class NeuralDenoiser():
 	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
 		if path is not None:
@@ -24,47 +21,50 @@ class NeuralDenoiser():
 		save_path=None):
 		'''Run pytorch training loop.
 		'''
+
+		print('CUDA device available: ', torch.cuda.is_available())
+		print('CUDA device: ', torch.cuda.get_device_name())
+
 		if data_path is not None:
-			print('Attempting to load data at', data_path)
+			print('Attempting to load data at', data_path, '...', end='')
 			_data = np.load(data_path)
 			training_inputs = _data['training_inputs']
 			training_targets = _data['training_targets']
 			test_inputs = _data['test_inputs']
 			test_targets = _data['test_targets']
+			print('Found.')
 			
 			# Torch format
 			training_data = PSCData(training_inputs, training_targets)
 			test_data = PSCData(test_inputs, test_targets)
 		else:
-			print('Attempting to load data from NeuralDenoiser object')
+			print('Attempting to load data from NeuralDenoiser object...', end='')
 			training_data = PSCData(self.training_data[0], self.training_data[1])
 			test_data = PSCData(self.test_data[0], self.test_data[1])
+			print('Found.')
 
 		train_dataloader = DataLoader(training_data, batch_size=batch_size)
 		test_dataloader = DataLoader(test_data, batch_size=batch_size)
 
 		loss_fn = nn.MSELoss()
-		train_loss, test_loss = np.zeros(epochs), np.zeros(epochs)
+		self.train_loss, self.test_loss = [], []
 		optimizer = torch.optim.SGD(self.denoiser.parameters(), lr=learning_rate)
 
 		# Run torch update loops
 		print('Initiating neural net training...')
 		for t in range(epochs):
-		    train_loss[t] = _train_loop(train_dataloader, self.denoiser, loss_fn, optimizer)
-		    test_loss[t] = _test_loop(test_dataloader, self.denoiser, loss_fn)
+		    self.train_loss.append(_train_loop(train_dataloader, self.denoiser, loss_fn, optimizer))
+		    self.test_loss.append(_test_loop(test_dataloader, self.denoiser, loss_fn))
 		    print('Epoch %i/%i Train loss: %.8f.  Test loss: %.8f'%(t+1, epochs, train_loss[t], test_loss[t]))
 
 		    if (t % save_every == 0) and (save_path is not None):
-			    torch.save(self.denoiser, save_path + 'chkpt_%i.pt'%t)
+			    torch.save(self.denoiser, save_path + '_chkpt_%i.pt'%t)
 		print("Training complete.")
-
-		# Save training loss
-		self.train_loss = train_loss
-		self.test_loss = test_loss
 
 	def generate_training_data(self, trial_dur=800, size=1000, training_fraction=0.9, lp_cutoff=500, 
 		srate=2000, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, tau_diff_upper=150, 
-		min_delta=100, delta_lower=0, delta_upper=400, n_kernel_samples=1, 
+		min_delta=100, delta_lower=0, delta_upper=200, n_kernel_samples=1, 
+		next_min_delta=300, next_delta_lower=0, next_delta_upper=500,
 		mode_probs=[0.3, 0.5, 0.1, 0.1], noise_std_lower=0.01, noise_std_upper=0.1, 
 		gp_lengthscale=25, gp_scale=0.01, max_nodes=4, save_path=None):
 		'''Simulate data for training a PSC denoiser. 
@@ -72,7 +72,10 @@ class NeuralDenoiser():
 
 		n_modes = np.random.choice(max_nodes, size, p=mode_probs)
 		n_modes_prev = np.random.choice(max_nodes, size, p=mode_probs)
-		targets, prev_pscs = np.zeros((size, trial_dur)), np.zeros((size, trial_dur))
+		n_modes_next = np.random.choice(max_nodes, size, p=mode_probs)
+		targets = np.zeros((size, trial_dur))
+		prev_pscs = np.zeros((size, trial_dur))
+		next_pscs = np.zeros((size, trial_dur))
 		noise_stds = np.random.uniform(noise_std_lower, noise_std_upper, size)
 		iid_noise = np.zeros((size, trial_dur))
 		gp_noise = _sample_gp(n_samples=size, trial_dur=trial_dur, gp_lengthscale=gp_lengthscale,
@@ -80,18 +83,25 @@ class NeuralDenoiser():
 
 		# generate PSC traces
 		for i in range(size):
+			# target PSCs initiate between 100 and 300 frames (5-15ms after trial onset)
 			targets[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-				min_delta=min_delta, delta_lower=delta_lower, delta_upper=delta_upper, 
-				n_samples=n_modes[i]), 0)
+				min_delta=min_delta, delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i]), 0)
+
+			next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
+				min_delta=next_min_delta, delta_lower=next_delta_lower, delta_upper=next_delta_upper, 
+				n_samples=n_modes_next[i]), 0)
+
 			prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-				min_delta=min_delta, delta_lower=-400, delta_upper=-100, n_samples=n_modes[i]), 0)
+				min_delta=min_delta, delta_lower=-400, delta_upper=-100, n_samples=n_modes_prev[i]), 0)
+			
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
 		# lowpass filter inputs as with experimental data
 		b_lp, a_lp = sg.butter(4, lp_cutoff, btype='low', fs=srate)
-		inputs = sg.filtfilt(b_lp, a_lp, prev_pscs + targets + gp_noise + iid_noise, axis=-1)
+		inputs = sg.filtfilt(b_lp, a_lp, prev_pscs + targets + next_pscs + gp_noise + iid_noise, axis=-1)
 
 		# save training data in object
 		training_trials = int(training_fraction * size)
