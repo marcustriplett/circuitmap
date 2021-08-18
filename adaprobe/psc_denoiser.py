@@ -4,6 +4,7 @@ import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sg
+import time
 
 class NeuralDenoiser():
 	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
@@ -17,7 +18,7 @@ class NeuralDenoiser():
 		# Run denoiser over PSC trace batch
 		return self.denoiser(torch.Tensor(traces.copy()[:, None, :])).detach().numpy().squeeze()
 
-	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None, save_every=500, 
+	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None, save_every=50, 
 		save_path=None):
 		'''Run pytorch training loop.
 		'''
@@ -52,14 +53,16 @@ class NeuralDenoiser():
 
 		# Run torch update loops
 		print('Initiating neural net training...')
+		t_start = time.time()
 		for t in range(epochs):
 		    self.train_loss.append(_train_loop(train_dataloader, self.denoiser, loss_fn, optimizer))
 		    self.test_loss.append(_test_loop(test_dataloader, self.denoiser, loss_fn))
-		    print('Epoch %i/%i Train loss: %.8f.  Test loss: %.8f'%(t+1, epochs, self.train_loss[t], self.test_loss[t]))
+		    print('Epoch %i/%i  Train loss: %.8f  Test loss: %.8f'%(t+1, epochs, self.train_loss[t], self.test_loss[t]))
 
-		    if (t % save_every == 0) and (save_path is not None):
+		    if (save_every is not None) and (t % save_every == 0) and (save_path is not None):
 			    torch.save(self.denoiser, save_path + '_chkpt_%i.pt'%t)
-		print("Training complete.")
+		t_stop = time.time()
+		print("Training complete. Elapsed time: %.2f min."%((t_stop-t_start)/60))
 
 	def generate_training_data(self, trial_dur=800, size=1000, training_fraction=0.9, lp_cutoff=500, 
 		srate=2000, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, tau_diff_upper=150, 
