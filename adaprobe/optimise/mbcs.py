@@ -21,7 +21,7 @@ EPS = 1e-10
 def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, iters=50, 
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, lam_masking=False, scale_factor=0.5, 
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=True, 
-	verbose=False, learn_noise=False):
+	verbose=False, learn_noise=False, init_lam=None):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -46,13 +46,17 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
-	lam 		= np.zeros_like(I) # spike initialisation
-
-	if lam_masking:
-		lam[I > 0] = 0.95
-		lam = lam * lam_mask
+	
+	if init_lam is not None:
+		lam = np.zeros_like(I) # spike initialisation
+		if lam_masking:
+			lam[I > 0] = 0.95
+			lam = lam * lam_mask
+		else:
+			lam[I > 0] = 0.5
 	else:
-		lam[I > 0] = 0.5
+		lam = init_lam
+
 	lam = jnp.array(lam)
 
 	
