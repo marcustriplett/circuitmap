@@ -49,7 +49,7 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 	lam 		= np.zeros_like(I) # spike initialisation
 
 	if lam_masking:
-		lam[I > 0] = 0.95
+		lam[I > 0] = 0.75
 		lam = lam * lam_mask
 	else:
 		lam[I > 0] = 0.5
