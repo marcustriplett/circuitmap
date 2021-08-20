@@ -190,7 +190,7 @@ def _train_loop(dataloader, model, loss_fn, optimizer):
 		optimizer.step()
 
 	train_loss /= n_batches
-	return train_loss
+	return train_loss.detach().numpy()
 		
 def _test_loop(dataloader, model, loss_fn):
 	n_batches = len(dataloader)

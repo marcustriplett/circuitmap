@@ -2,8 +2,8 @@ import yaml
 import sys
 import os
 
-# from adaprobe.psc_denoiser import NeuralDenoiser
-from psc_denoiser import NeuralDenoiser
+from adaprobe.psc_denoiser import NeuralDenoiser
+# from psc_denoiser import NeuralDenoiser
 
 if __name__ == '__main__':
 	with open(sys.argv[1]) as file:
@@ -23,6 +23,9 @@ if __name__ == '__main__':
 
 	if not os.path.isdir(config['save_path']):
 		os.mkdir(config['save_path'])
+
+	if config['save_path'][-1] != '/':
+		config['save_path'] += '/'
 
 	# Train
 	denoiser.train(

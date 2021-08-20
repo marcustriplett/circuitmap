@@ -5,4 +5,4 @@ padding: 199
 epochs: 3000
 size: 5000
 save_every: 50
-save_path: 'denoisers/nl3_ch8_4_1_ks399_pad199/'
+save_path: 'results/denoisers/nl3_ch8_4_1_ks399_pad199'

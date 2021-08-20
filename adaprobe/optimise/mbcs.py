@@ -47,8 +47,13 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
 	lam 		= np.zeros_like(I) # spike initialisation
-	lam[I > 0] 	= 0.5
-	lam 		= jnp.array(lam)
+
+	if lam_masking:
+		lam[I > 0] = 0.95
+		lam = lam * lam_mask
+	else:
+		lam[I > 0] = 0.5
+	lam = jnp.array(lam)
 
 	
 	# Define history arrays
