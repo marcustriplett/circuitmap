@@ -47,7 +47,7 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
 	
-	if init_lam is not None:
+	if init_lam is None:
 		lam = np.zeros_like(I) # spike initialisation
 		if lam_masking:
 			lam[I > 0] = 0.95
