@@ -7,7 +7,8 @@ import scipy.signal as sg
 import time
 
 class NeuralDenoiser():
-	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
+	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1], 
+		monotone_filter_start=500, inplace_monotone_filter=True):
 		if path is not None:
 			self.denoiser = torch.load(path)
 		else:
@@ -15,8 +16,11 @@ class NeuralDenoiser():
 				padding=padding, stride=stride, channels=channels)
 
 	def __call__(self, traces):
-		# Run denoiser over PSC trace batch
-		return self.denoiser(torch.Tensor(traces.copy()[:, None, :])).detach().numpy().squeeze()
+		''' Run denoiser over PSC trace batch and apply monotone decay filter.
+		'''
+		den = self.denoiser(torch.Tensor(traces.copy()[:, None, :])).detach().numpy().squeeze()
+		return _monotone_decay_filter(den, inplace=inplace_monotone_filter, 
+			monotone_start=monotone_filter_start)
 
 	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None, save_every=50, 
 		save_path=None):
@@ -174,6 +178,19 @@ def _sample_psc_kernel(trial_dur=800, tau_r_lower=10, tau_r_upper=80, tau_diff_l
 	xeval = np.arange(trial_dur)
 	return np.array([_kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(xeval) 
 		for i in range(n_samples)])
+
+def _monotone_decay_filter(arr, monotone_start=500, inplace=True):
+	'''Enforce monotone decay beyond kwarg monotone_start. Performed in-place by default.
+	'''
+    if inplace:
+        for t in range(start_monotone, arr.shape[1]):
+            arr[:, t] = np.min([arr[:, t], arr[:, t-1]], axis=0)
+        return arr
+    else:
+        _arr = np.copy(arr)
+        for t in range(start_monotone, arr.shape[1]):
+            _arr[:, t] = np.min([arr[:, t], _arr[:, t-1]], axis=0)
+    return _arr
 
 def _train_loop(dataloader, model, loss_fn, optimizer):
 	n_batches = len(dataloader)
