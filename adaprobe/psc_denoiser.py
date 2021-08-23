@@ -7,23 +7,19 @@ import scipy.signal as sg
 import time
 
 class NeuralDenoiser():
-	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1], 
-		monotone_filter_start=500, inplace_monotone_filter=True):
+	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
 		if path is not None:
 			self.denoiser = torch.load(path)
 		else:
 			self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
 				padding=padding, stride=stride, channels=channels)
 
-		self.inplace_monotone_filter = inplace_monotone_filter
-		self.monotone_filter_start = monotone_filter_start
-
-	def __call__(self, traces):
+	def __call__(self, traces, monotone_filter_start=500, monotone_filter_inplace=True):
 		''' Run denoiser over PSC trace batch and apply monotone decay filter.
 		'''
 		den = self.denoiser(torch.Tensor(traces.copy()[:, None, :])).detach().numpy().squeeze()
-		return _monotone_decay_filter(den, inplace=self.inplace_monotone_filter, 
-			monotone_start=self.monotone_filter_start)
+		return _monotone_decay_filter(den, inplace=monotone_filter_inplace, 
+			monotone_start=monotone_filter_start)
 
 	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None, save_every=50, 
 		save_path=None):
