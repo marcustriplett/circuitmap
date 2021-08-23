@@ -46,7 +46,7 @@ def mbcs_sparse_outliers(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, 
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
-	z 			= jnp.zeros(K)
+	z 			= np.zeros(K)
 	
 	if init_lam is None:
 		lam = np.zeros_like(I) # spike initialisation
