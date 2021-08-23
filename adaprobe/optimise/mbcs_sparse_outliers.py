@@ -166,37 +166,39 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 		return coef
 
 def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, verbose=False):
-	""" Constrained L1 solver with iterative penalty shrinking
+	""" Soft thresholding with iterative penalty shrinkage
 	"""
 	N, K = Lam.shape
 	sigma = np.sqrt(rate/shape)
 	constr = sigma * np.sqrt(K)
 	resid = np.array(y - Lam.T @ mu) # copy to np array, possible memory overhead problem here
 
-	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, positive=True)
-	I_K = np.eye(K)
-
 	for it in range(max_penalty_iters):
 		# iteratively shrink penalty until constraint is met
 		if verbose:
 			print('penalty iter: ', it)
-			print('current penalty: ', lasso.alpha)
-		lasso.fit(I_K, resid)
-		err = np.sqrt(np.sum(np.square(resid - I_K @ lasso.coef_)))
+			print('current penalty: ', penalty)
+		
+		z = np.zeros(K)
+		hard_thresh_locs = np.where(resid < penalty)[0]
+		soft_thresh_locs = np.where(resid >= penalty)[0]
+		z[hard_thresh_locs] = 0
+		z[soft_thresh_locs] = resid[soft_thresh_locs] - penalty
+		z[z < 0] = 0
+
+		err = np.sqrt(np.sum(np.square(resid - z)))
 		if err <= constr:
 			if verbose:
 				print(' ==== converged on iteration: %i ===='%it)
 			break
 		else:
 			penalty *= scale_factor # exponential backoff
-			lasso.alpha = penalty
-			if it == 0:
-				lasso.warm_start = True
+
 		if verbose:
-			print('lasso err: ', err)
+			print('soft thresh err: ', err)
 			print('constr: ', constr)
 			print('')
-	return lasso.coef_
+	return z
 
 def _loss_fn(lam, args):
 	y, w, lam_prior = args
