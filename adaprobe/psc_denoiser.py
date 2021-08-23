@@ -186,12 +186,12 @@ def _monotone_decay_filter(arr, monotone_start=500, inplace=True):
 	'''Enforce monotone decay beyond kwarg monotone_start. Performed in-place by default.
 	'''
 	if inplace:
-		for t in range(start_monotone, arr.shape[1]):
+		for t in range(monotone_start, arr.shape[1]):
 			arr[:, t] = np.min([arr[:, t], arr[:, t-1]], axis=0)
 		return arr
 	else:
 		_arr = np.copy(arr)
-		for t in range(start_monotone, arr.shape[1]):
+		for t in range(monotone_start, arr.shape[1]):
 			_arr[:, t] = np.min([arr[:, t], _arr[:, t-1]], axis=0)
 	return _arr
 
