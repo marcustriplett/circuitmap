@@ -90,8 +90,7 @@ def mbcs_sparse_outliers(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, 
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		z = update_z_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor,
-			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
-			constrain_weights=constrain_weights, verbose=verbose)
+			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
@@ -166,8 +165,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	else:
 		return coef
 
-def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
-	warm_start_lasso=False, verbose=False):
+def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, verbose=False):
 	""" Constrained L1 solver with iterative penalty shrinking
 	"""
 	N, K = Lam.shape
@@ -175,7 +173,7 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max
 	constr = sigma * np.sqrt(K)
 	resid = y - Lam.T @ mu
 
-	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=True)
+	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, positive=True)
 	I_K = np.eye(K)
 
 	for it in range(max_penalty_iters):
