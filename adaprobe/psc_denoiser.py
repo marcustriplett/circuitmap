@@ -59,12 +59,12 @@ class NeuralDenoiser():
 		print('Initiating neural net training...')
 		t_start = time.time()
 		for t in range(epochs):
-		    self.train_loss.append(_train_loop(train_dataloader, self.denoiser, loss_fn, optimizer))
-		    self.test_loss.append(_test_loop(test_dataloader, self.denoiser, loss_fn))
-		    print('Epoch %i/%i  Train loss: %.8f  Test loss: %.8f'%(t+1, epochs, self.train_loss[t], self.test_loss[t]))
+			self.train_loss.append(_train_loop(train_dataloader, self.denoiser, loss_fn, optimizer))
+			self.test_loss.append(_test_loop(test_dataloader, self.denoiser, loss_fn))
+			print('Epoch %i/%i  Train loss: %.8f  Test loss: %.8f'%(t+1, epochs, self.train_loss[t], self.test_loss[t]))
 
-		    if (save_every is not None) and (t % save_every == 0) and (save_path is not None):
-			    torch.save(self.denoiser, save_path + '_chkpt_%i.pt'%t)
+			if (save_every is not None) and (t % save_every == 0) and (save_path is not None):
+				torch.save(self.denoiser, save_path + '_chkpt_%i.pt'%t)
 		t_stop = time.time()
 		print("Training complete. Elapsed time: %.2f min."%((t_stop-t_start)/60))
 
@@ -182,15 +182,15 @@ def _sample_psc_kernel(trial_dur=800, tau_r_lower=10, tau_r_upper=80, tau_diff_l
 def _monotone_decay_filter(arr, monotone_start=500, inplace=True):
 	'''Enforce monotone decay beyond kwarg monotone_start. Performed in-place by default.
 	'''
-    if inplace:
-        for t in range(start_monotone, arr.shape[1]):
-            arr[:, t] = np.min([arr[:, t], arr[:, t-1]], axis=0)
-        return arr
-    else:
-        _arr = np.copy(arr)
-        for t in range(start_monotone, arr.shape[1]):
-            _arr[:, t] = np.min([arr[:, t], _arr[:, t-1]], axis=0)
-    return _arr
+	if inplace:
+		for t in range(start_monotone, arr.shape[1]):
+			arr[:, t] = np.min([arr[:, t], arr[:, t-1]], axis=0)
+		return arr
+	else:
+		_arr = np.copy(arr)
+		for t in range(start_monotone, arr.shape[1]):
+			_arr[:, t] = np.min([arr[:, t], _arr[:, t-1]], axis=0)
+	return _arr
 
 def _train_loop(dataloader, model, loss_fn, optimizer):
 	n_batches = len(dataloader)
