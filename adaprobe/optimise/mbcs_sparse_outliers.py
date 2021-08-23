@@ -62,14 +62,14 @@ def mbcs_sparse_outliers(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, 
 
 	
 	# Define history arrays
-	mu_hist 		= jnp.zeros((iters, N))
-	beta_hist 		= jnp.zeros((iters, N))
-	lam_hist 		= jnp.zeros((iters, N, K))
-	shape_hist 		= jnp.zeros(iters)
-	rate_hist 		= jnp.zeros(iters)
-	phi_hist  		= jnp.zeros((iters, N, 2))
-	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
-	z_hist 			= jnp.zeros((iters, K))
+	mu_hist 		= np.zeros((iters, N))
+	beta_hist 		= np.zeros((iters, N))
+	lam_hist 		= np.zeros((iters, N, K))
+	shape_hist 		= np.zeros(iters)
+	rate_hist 		= np.zeros(iters)
+	phi_hist  		= np.zeros((iters, N, 2))
+	phi_cov_hist 	= np.zeros((iters, N, 2, 2))
+	z_hist 			= np.zeros((iters, K))
 	
 	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist, z_hist]
@@ -95,7 +95,7 @@ def mbcs_sparse_outliers(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, 
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
-			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
+			hist_arrs[hindx][it] = np.array(pa)
 
 	if phi_thresh is not None:
 		# Filter connection vector via opsin expression threshold
