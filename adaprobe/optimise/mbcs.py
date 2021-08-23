@@ -91,7 +91,7 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
-	if phi_filter is not None:
+	if phi_thresh is not None:
 		# Filter connection vector via opsin expression threshold
 		mu[phi[:, 0] < phi_thresh] = 0
 
