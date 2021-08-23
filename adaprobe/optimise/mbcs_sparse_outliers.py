@@ -89,8 +89,9 @@ def mbcs_sparse_outliers(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, 
 			shape, rate = update_sigma(y - z, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
-		z = update_z_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor,
-			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
+		if it > 3:
+			z = update_z_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor,
+				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
