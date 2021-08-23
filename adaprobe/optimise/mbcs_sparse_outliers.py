@@ -171,7 +171,7 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max
 	N, K = Lam.shape
 	sigma = np.sqrt(rate/shape)
 	constr = sigma * np.sqrt(K)
-	resid = y - Lam.T @ mu
+	resid = np.array(y - Lam.T @ mu) # copy to np array, possible memory overhead problem here
 
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, positive=True)
 	I_K = np.eye(K)
