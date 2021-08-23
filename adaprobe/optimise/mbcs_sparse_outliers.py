@@ -20,7 +20,7 @@ EPS = 1e-10
 
 def mbcs_sparse_outliers(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, iters=50, 
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, lam_masking=False, scale_factor=0.5, 
-	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=True, verbose=False, 
+	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=False, verbose=False, 
 	learn_noise=False, init_lam=None, learn_lam=True, phi_thresh=None):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
