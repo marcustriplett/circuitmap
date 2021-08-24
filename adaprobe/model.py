@@ -244,7 +244,7 @@ class Model:
 
 		return
 
-	def _fit_mbcs_multiplicative_noise(obs, stimuli, fit_options):
+	def _fit_mbcs_multiplicative_noise(self, obs, stimuli, fit_options):
 		"""
 		"""
 		t_start = time.time()
