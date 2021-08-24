@@ -255,8 +255,7 @@ class Model:
 
 		t_end = time.time()
 
-		mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
-		phi_hist, phi_cov_hist = result
+		mu, beta, lam, shape, rate, phi, phi_cov, xi, rho = result
 
 		# move from GPU back to CPU
 		## param vectors
@@ -270,15 +269,6 @@ class Model:
 		xi 			= np.array(xi)
 		rho 		= np.array(rho)
 
-		## history vectors
-		mu_hist 		= np.array(mu_hist)
-		beta_hist 		= np.array(beta_hist)
-		lam_hist 		= np.array(lam_hist)
-		shape_hist 		= np.array(shape_hist)
-		rate_hist 		= np.array(rate_hist)
-		phi_hist 		= np.array(phi_hist)
-		phi_cov_hist 	= np.array(phi_cov_hist)
-
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta
 		self.state['shape'] 	= shape
@@ -290,16 +280,5 @@ class Model:
 		self.state['rho']		= rho
 		self.trial_count 		= lam.shape[1]
 		self.time 				= t_end - t_start
-
-		# Set up history dict
-		self.history = {
-			'mu': mu_hist,
-			'beta': beta_hist,
-			'lam': lam_hist,
-			'shape': shape_hist,
-			'rate': rate_hist,
-			'phi': phi_hist,
-			'phi_cov': phi_cov_hist
-		}
 
 		return

@@ -73,19 +73,6 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 
 	lam = jnp.array(lam)
 
-	
-	# Define history arrays
-	mu_hist 		= jnp.zeros((iters, N))
-	beta_hist 		= jnp.zeros((iters, N))
-	lam_hist 		= jnp.zeros((iters, N, K))
-	shape_hist 		= jnp.zeros(iters)
-	rate_hist 		= jnp.zeros(iters)
-	phi_hist  		= jnp.zeros((iters, N, 2))
-	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
-	
-	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
-		phi_hist, phi_cov_hist]
-
 	# init key
 	key = jax.random.PRNGKey(seed)
 
@@ -114,15 +101,11 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 		xi = update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior)
 		check_nans('xi', xi)
 
-		# record history
-		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
-			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
-
 	if phi_thresh is not None:
 		# Filter connection vector via opsin expression threshold
 		mu[phi[:, 0] < phi_thresh] = 0
 
-	return mu, beta, lam, shape, rate, phi, phi_cov, *hist_arrs
+	return mu, beta, lam, shape, rate, phi, phi_cov
 
 @jit
 def update_beta(lam, shape, rate, beta_prior):
