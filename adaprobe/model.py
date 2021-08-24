@@ -57,7 +57,7 @@ class Model:
 	def fit(self, obs, stimuli, method='mbcs', fit_options=dict()):
 		"""Fit posterior distributions in offline mode.
 		"""
-		assert method in ['mbcs', 'mbcs_sparse_outliers', 'cavi_sns']
+		# assert method in ['mbcs', 'mbcs_sparse_outliers', 'cavi_sns']
 
 		if method == 'mbcs':
 			self._fit_mbcs(obs, stimuli, fit_options)
