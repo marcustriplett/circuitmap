@@ -18,6 +18,10 @@ from jax.experimental import loops
 
 EPS = 1e-10
 
+def check_nans(name, arr):
+	_arr = np.array(arr)
+	print(name, np.sum(np.isnan(arr)), arr)
+
 def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	rho_prior, iters=50, num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, lam_masking=False, 
 	scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=True, 
@@ -83,19 +87,17 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 	# init key
 	key = jax.random.PRNGKey(seed)
 
-	print(np.array(xi))
-
 	# Iterate CAVI updates
 	for it in range(iters):
 		beta = update_beta(lam * xi, shape, rate, beta_prior)
-		print('beta', np.array(beta))
+		check_nans('beta', beta)
 		mu = update_mu_constr_l1(y, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
-		print('mu', np.array(mu))
+		check_nans('mu', mu)
 		if learn_lam:
 			lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N)
-			print('lam', np.array(lam))
+			check_nans('lam', lam)
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
@@ -106,9 +108,9 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 		# print(rate)
 		# print(rho_prior.shape)
 		rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
-		print('rho', np.array(rho))
+		check_nans('rho', rho)
 		xi = update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior)
-		print('xi', np.array(xi))
+		check_nans('xi', xi)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
