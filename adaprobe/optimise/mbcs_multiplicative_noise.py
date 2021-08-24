@@ -83,6 +83,8 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 	# init key
 	key = jax.random.PRNGKey(seed)
 
+	print(np.array(xi))
+
 	# Iterate CAVI updates
 	for it in range(iters):
 		beta = update_beta(lam * xi, shape, rate, beta_prior)
@@ -102,6 +104,7 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 		# print(rho_prior.shape)
 		rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
 		xi = update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior)
+		print(np.array(xi))
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
