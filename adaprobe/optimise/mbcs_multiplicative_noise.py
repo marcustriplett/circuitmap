@@ -88,14 +88,14 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 	# Iterate CAVI updates
 	for it in range(iters):
 		beta = update_beta(lam * xi, shape, rate, beta_prior)
-		print(np.array(beta))
+		print('beta', np.array(beta))
 		mu = update_mu_constr_l1(y, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
-		print(np.array(mu))
+		print('mu', np.array(mu))
 		if learn_lam:
 			lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N)
-			print(np.array(lam))
+			print('lam', np.array(lam))
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
@@ -106,9 +106,9 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 		# print(rate)
 		# print(rho_prior.shape)
 		rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
-		print(np.array(rho))
+		print('rho', np.array(rho))
 		xi = update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior)
-		print(np.array(xi))
+		print('xi', np.array(xi))
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
