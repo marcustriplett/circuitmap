@@ -20,7 +20,9 @@ EPS = 1e-10
 
 def check_nans(name, arr):
 	_arr = np.array(arr)
-	print(name, np.sum(np.isnan(arr)), arr)
+	print(name, np.sum(np.isnan(arr)), np.unique(arr))
+	print(arr)
+	print()
 
 def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	rho_prior, iters=50, num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, lam_masking=False, 
