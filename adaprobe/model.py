@@ -255,7 +255,7 @@ class Model:
 
 		t_end = time.time()
 
-		mu, beta, lam, shape, rate, phi, phi_cov, xi, rho = result
+		mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, z = result
 
 		# move from GPU back to CPU
 		## param vectors
@@ -268,6 +268,7 @@ class Model:
 		phi_cov 	= np.array(phi_cov)
 		xi 			= np.array(xi)
 		rho 		= np.array(rho)
+		z 			= np.array(z0)
 
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta
@@ -278,6 +279,7 @@ class Model:
 		self.state['lam'] 		= lam.T
 		self.state['xi'] 		= xi
 		self.state['rho']		= rho
+		self.state['z'] 		= z
 		self.trial_count 		= lam.shape[1]
 		self.time 				= t_end - t_start
 
