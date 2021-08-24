@@ -192,7 +192,7 @@ def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior):
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
 			scope.xi = index_update(scope.xi, n, rho[n]**2 * (sig * y * mu[n] * lam[n] \
 				- mu[n] * lam[n] * jnp.sum(scope.xi[scope.mask] * lam[scope.mask] * jnp.expand_dims(mu[scope.mask], 1)) \
-				 + 1/rho_prior**2))
+				 + 1/rho_prior[n]**2))
 	return scope.xi
 
 def _loss_fn(lam, args):
