@@ -49,8 +49,11 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 	xi_prior 	= jnp.ones((N, K))
 	xi  		= jnp.ones((N, K))
 
+	print('rho pre', rho_prior.shape)
 	rho_prior 	= rho_prior * jnp.array((N, K)) # convert scalar to matrix
 	rho 		= jnp.array(rho_prior)
+
+	print('rho post', rho_prior.shape)
 	
 	if init_lam is None:
 		lam = np.zeros_like(I) # spike initialisation
