@@ -7,7 +7,7 @@ class Model:
 		"""Initialise adaprobe model.
 		"""
 
-		assert model_type in ['mbcs', 'variational_sns']
+		# assert model_type in ['mbcs', 'variational_sns',]
 
 		# self.cell_locs = cell_locs
 		self.n_presynaptic = N
