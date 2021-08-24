@@ -250,7 +250,7 @@ class Model:
 		t_start = time.time()
 		result = optimise.mbcs_sparse_outliers(
 			obs, stimuli, self.state['mu'], self.state['beta'], self.state['shape'], self.state['rate'], 
-			self.state['phi'], self.state['phi_cov'], self.state['rho_prior'], **fit_options 
+			self.state['phi'], self.state['phi_cov'], self.state['rho'], **fit_options 
 		)
 
 		t_end = time.time()
