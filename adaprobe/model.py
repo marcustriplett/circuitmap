@@ -268,7 +268,7 @@ class Model:
 		phi_cov 	= np.array(phi_cov)
 		xi 			= np.array(xi)
 		rho 		= np.array(rho)
-		z 			= np.array(z0)
+		z 			= np.array(z)
 
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta
