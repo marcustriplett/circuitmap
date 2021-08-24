@@ -48,6 +48,8 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 	phi_cov 	= jnp.array(phi_cov_prior)
 	xi_prior 	= jnp.ones((N, K))
 	xi  		= jnp.ones((N, K))
+
+	rho_prior 	= rho_prior * jnp.array((N, K)) # convert scalar to matrix
 	rho 		= jnp.array(rho_prior)
 	
 	if init_lam is None:

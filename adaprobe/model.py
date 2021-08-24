@@ -24,7 +24,7 @@ class Model:
 			self.priors.setdefault('alpha', 1/2 * _ones)
 
 		elif model_type == 'mbcs_multiplicative_noise':
-			self.priors.setdefault('rho', 1e-1 * _ones)
+			self.priors.setdefault('rho', 1e-1)
 
 		self.priors.setdefault('shape', 1.)
 		self.priors.setdefault('rate', 1.)
