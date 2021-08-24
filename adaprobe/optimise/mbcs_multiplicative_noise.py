@@ -84,7 +84,7 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 			lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
-		xi = update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior)
+		xi = update_xi(y - z, mu, lam, shape, rate, xi, rho, rho_prior)
 		z = update_z_constr_l1(y, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
 
