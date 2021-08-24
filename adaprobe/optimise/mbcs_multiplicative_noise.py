@@ -79,33 +79,27 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 	# Iterate CAVI updates
 	for it in range(iters):
 		beta = update_beta(lam * xi, shape, rate, beta_prior)
-		check_nans('beta', beta)
+		# check_nans('beta', beta)
 		mu = update_mu_constr_l1(y, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
-		check_nans('mu', mu)
+		# check_nans('mu', mu)
 		if learn_lam:
 			lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N)
-			check_nans('lam', lam)
+			# check_nans('lam', lam)
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		# print(mu.shape)
-		# print(beta.shape)
-		# print(lam.shape)
-		# print(shape)
-		# print(rate)
-		# print(rho_prior.shape)
 		rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
-		check_nans('rho', rho)
+		# check_nans('rho', rho)
 		xi = update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior)
-		check_nans('xi', xi)
+		# check_nans('xi', xi)
 
 	if phi_thresh is not None:
 		# Filter connection vector via opsin expression threshold
 		mu[phi[:, 0] < phi_thresh] = 0
 
-	return mu, beta, lam, shape, rate, phi, phi_cov
+	return mu, beta, lam, shape, rate, phi, phi_cov, xi, rho
 
 @jit
 def update_beta(lam, shape, rate, beta_prior):
