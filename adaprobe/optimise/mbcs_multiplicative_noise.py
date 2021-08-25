@@ -84,8 +84,8 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 		if learn_lam:
 			lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
+		xi, mu = center_xi(xi, mu, lam)
 
-	xi, mu = center_xi(xi, mu, lam)		
 	z = update_z_constr_l1(y, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor,
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
 
@@ -226,7 +226,7 @@ def center_xi(xi, mu, lam, tol=0.01):
 			mean_xi = np.sum(xi[n, locs] * wgts)
 			# xi = index_update(xi, index[n, locs], xi[n, locs]/mean_xi) # xi is immutable jax device array
 			xi[n, locs] /= mean_xi
-			mu *= mean_xi # mu is mutable
+			mu[n] *= mean_xi # mu is mutable
 	return xi, mu
 
 def _loss_fn(lam, args):
