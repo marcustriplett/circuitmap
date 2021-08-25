@@ -213,20 +213,19 @@ def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior):
 				 + 1/rho_prior[n]**2))
 	return scope.xi
 
-@jax.partial(jit, static_argnums=(3))
+# @jax.partial(jit, static_argnums=(3))
 def center_xi(xi, mu, lam, tol=0.01):
 	'''Readjust xi to be centered about 1 by divided by weighted average, and proportionally scale up mu.
 		Weights for averaging are proportional to probability of a spike on each trial.
 	'''
 	N = xi.shape[0]
-	with loops.Scope() as scope:
-		for n in scope.range(N):
-			scope.locs = jnp.where(jnp.abs(xi[n] - 1) > tol)[0]
-			if scope.locs.shape[0] > 0:
-				scope.wgts = lam[n, scope.locs[n]]/jnp.sum(lam[n, scope.locs[n]])
-				scope.mean_xi = jnp.sum(xi[n, scope.locs[n]] * scope.wgts)
-				xi[n, locs[n]] /= scope.mean_xi[n]
-				mu *= scope.mean_xi
+	for n in range(N):
+		locs = np.where(np.abs(xi[n] - 1) > tol)[0]
+		if locs.shape[0] > 0:
+			wgts = lam[n, locs[n]]/np.sum(lam[n, locs[n]])
+			mean_xi = np.sum(xi[n, locs[n]] * wgts)
+			xi[n, locs[n]] /= mean_xi[n]
+			mu *= mean_xi
 	return xi, mu
 
 def _loss_fn(lam, args):
