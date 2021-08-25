@@ -76,16 +76,16 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 	# Iterate CAVI updates
 	for it in range(iters):
 		beta = update_beta(lam * xi, shape, rate, beta_prior)
-		# check_nans('beta', beta)
 		mu = update_mu_constr_l1(y - z, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 		rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
 		xi = update_xi(y - z, mu, lam, shape, rate, xi, rho, rho_prior)
-		xi, mu = center_xi(xi, mu, lam)
 		if learn_lam:
 			lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
+
+		xi, mu = center_xi(xi, mu, lam)
 		
 	z = update_z_constr_l1(y, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor,
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
@@ -222,7 +222,6 @@ def center_xi(xi, mu, lam, tol=0.01):
 	for n in range(N):
 		locs = np.where(np.abs(xi[n] - 1) > tol)[0]
 		if locs.shape[0] > 0:
-			print('n', n, 'lam.shape', lam.shape, 'locs.shape', locs.shape)
 			wgts = lam[n, locs]/np.sum(lam[n, locs])
 			mean_xi = np.sum(xi[n, locs] * wgts)
 			xi = index_update(xi, index[n, locs], xi[n, locs]/mean_xi) # xi is immutable jax device array
