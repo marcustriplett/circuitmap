@@ -218,13 +218,15 @@ def center_xi(xi, mu, lam, tol=0.01):
 	'''Readjust xi to be centered about 1 by divided by weighted average, and proportionally scale up mu.
 		Weights for averaging are proportional to probability of a spike on each trial.
 	'''
+	xi = np.array(xi)
 	N = xi.shape[0]
 	for n in range(N):
 		locs = np.where(np.abs(xi[n] - 1) > tol)[0]
 		if locs.shape[0] > 0:
 			wgts = lam[n, locs]/np.sum(lam[n, locs])
 			mean_xi = np.sum(xi[n, locs] * wgts)
-			xi = index_update(xi, index[n, locs], xi[n, locs]/mean_xi) # xi is immutable jax device array
+			# xi = index_update(xi, index[n, locs], xi[n, locs]/mean_xi) # xi is immutable jax device array
+			xi[n, locs] /= mean_xi
 			mu *= mean_xi # mu is mutable
 	return xi, mu
 
