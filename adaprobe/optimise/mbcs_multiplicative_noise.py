@@ -222,6 +222,7 @@ def center_xi(xi, mu, lam, tol=0.01):
 	for n in range(N):
 		locs = np.where(np.abs(xi[n] - 1) > tol)[0]
 		if locs.shape[0] > 0:
+			print('n', n, 'lam.shape', lam.shape, 'locs.shape', locs.shape)
 			wgts = lam[n, locs[n]]/np.sum(lam[n, locs[n]])
 			mean_xi = np.sum(xi[n, locs[n]] * wgts)
 			xi = index_update(xi, index[n, locs[n]], xi[n, locs[n]]/mean_xi) # xi is immutable jax device array
