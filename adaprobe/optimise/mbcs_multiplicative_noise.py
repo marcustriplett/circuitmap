@@ -80,12 +80,13 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 		mu = update_mu_constr_l1(y - z, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
+		rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
+		xi = update_xi(y - z, mu, lam, shape, rate, xi, rho, rho_prior)
+		xi, mu = center_xi(xi, mu, lam)
 		if learn_lam:
 			lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
-		xi = update_xi(y - z, mu, lam, shape, rate, xi, rho, rho_prior)
-			
+		
 	z = update_z_constr_l1(y, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor,
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
 
@@ -211,6 +212,22 @@ def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior):
 				- mu[n] * lam[n] * jnp.sum(scope.xi[scope.mask] * lam[scope.mask] * jnp.expand_dims(mu[scope.mask], 1), 0) \
 				 + 1/rho_prior[n]**2))
 	return scope.xi
+
+@jax.partial(jit, static_argnums=(3))
+def center_xi(xi, mu, lam, tol=0.01):
+	'''Readjust xi to be centered about 1 by divided by weighted average, and proportionally scale up mu.
+		Weights for averaging are proportional to probability of a spike on each trial.
+	'''
+	N = xi.shape[0]
+	with loops.Scope() as scope:
+		for n in scope.range(N):
+			scope.locs = jnp.where(jnp.abs(xi[n] - 1) > tol)[0]
+			if scope.locs.shape[0] > 0:
+				scope.wgts = lam[n, scope.locs[n]]/jnp.sum(lam[n, scope.locs[n]])
+				scope.mean_xi = jnp.sum(xi[n, scope.locs[n]] * scope.wgts)
+				xi[n, locs[n]] /= scope.mean_xi[n]
+				mu *= scope.mean_xi
+	return xi, mu
 
 def _loss_fn(lam, args):
 	y, w, lam_prior = args
