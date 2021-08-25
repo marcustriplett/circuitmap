@@ -7,7 +7,7 @@ import jax
 import jax.numpy as jnp
 from jax import jit, vmap, grad
 from jax.lax import scan, while_loop
-from jax.ops import index_update
+from jax.ops import index_update, index
 from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
 
@@ -224,8 +224,8 @@ def center_xi(xi, mu, lam, tol=0.01):
 		if locs.shape[0] > 0:
 			wgts = lam[n, locs[n]]/np.sum(lam[n, locs[n]])
 			mean_xi = np.sum(xi[n, locs[n]] * wgts)
-			xi[n, locs[n]] /= mean_xi
-			mu *= mean_xi
+			xi = index_update(xi, index[n, locs[n]], xi[n, locs[n]]/mean_xi) # xi is immutable jax device array
+			mu *= mean_xi # mu is mutable
 	return xi, mu
 
 def _loss_fn(lam, args):
