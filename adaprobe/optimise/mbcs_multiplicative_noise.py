@@ -224,7 +224,7 @@ def center_xi(xi, mu, lam, tol=0.01):
 		if locs.shape[0] > 0:
 			wgts = lam[n, locs[n]]/np.sum(lam[n, locs[n]])
 			mean_xi = np.sum(xi[n, locs[n]] * wgts)
-			xi[n, locs[n]] /= mean_xi[n]
+			xi[n, locs[n]] /= mean_xi
 			mu *= mean_xi
 	return xi, mu
 
