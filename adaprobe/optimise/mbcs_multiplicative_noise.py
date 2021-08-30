@@ -220,11 +220,12 @@ def center_xi(xi, mu, lam, tol=0.01):
 	xi = np.array(xi)
 	N = xi.shape[0]
 	for n in range(N):
-		if np.sum(lam[n]) > 0:
-			wgts = lam[n]/np.sum(lam[n])
-			mean_xi = np.sum(xi[n] * wgts)
+		locs = np.where(np.abs(xi[n] - 1) > tol)[0]
+		if locs.shape[0] > 0:
+			wgts = lam[n, locs]/np.sum(lam[n, locs])
+			mean_xi = np.sum(xi[n, locs] * wgts)
 			# xi = index_update(xi, index[n, locs], xi[n, locs]/mean_xi) # xi is immutable jax device array
-			xi[n] /= mean_xi
+			xi[n, locs] /= mean_xi
 			mu[n] *= mean_xi # mu is mutable
 	return xi, mu
 
