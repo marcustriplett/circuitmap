@@ -61,8 +61,8 @@ class Simulation3d:
 		spks = np.random.rand(self.N) <= fr
 		mult_noise = np.random.normal(1, self.multiplicative_std, self.N) # multiplicative noise
 		mult_noise[mult_noise < self.min_mult_noise] = self.min_mult_noise # prevent multipliers <= 0
-		spont = (np.random.rand(self.N) <= self.spont_prob) * np.random.exponential(self.spont_mean, self.N) # spontaneous effects
-		spont[spont > self.spont_max] = self.spont_max
+		spont = (np.random.rand() <= self.spont_prob) * np.random.exponential(self.spont_mean) # spontaneous effects
+		spont = np.min([spont, self.spont_max])
 		y = np.random.normal(self.w @ (mult_noise * spks), self.sigma) + spont
 
 		# Save simulation result to object
@@ -112,8 +112,8 @@ class Simulation3d:
 		spks = np.random.rand(self.N) <= fr
 		mult_noise = np.random.normal(1, self.multiplicative_std, self.N) # multiplicative noise
 		mult_noise[mult_noise < self.min_mult_noise] = self.min_mult_noise # prevent multipliers <= 0
-		spont = (np.random.rand(self.N) <= self.spont_prob) * np.random.exponential(self.spont_mean, self.N) # spontaneous effects
-		spont[spont > self.spont_max] = self.spont_max
+		spont = (np.random.rand() <= self.spont_prob) * np.random.exponential(self.spont_mean) # spontaneous effects
+		spont = np.min([spont, self.spont_max])
 		y = np.random.normal(self.w @ (mult_noise * spks), self.sigma) + spont
 
 		# Save simulation result to object
