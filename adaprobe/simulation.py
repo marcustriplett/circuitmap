@@ -63,7 +63,7 @@ class Simulation3d:
 		mult_noise[mult_noise < self.min_mult_noise] = self.min_mult_noise # prevent multipliers <= 0
 		spont = (np.random.rand() <= self.spont_prob) * np.random.exponential(self.spont_mean) # spontaneous effects
 		spont = np.min([spont, self.spont_max])
-		y = np.random.normal(self.w @ (mult_noise * spks), self.sigma) + spont
+		y = np.random.normal(self.w @ (mult_noise * spks), self.sigma) - spont
 
 		# Save simulation result to object
 		self.tars += [tar]
@@ -114,7 +114,7 @@ class Simulation3d:
 		mult_noise[mult_noise < self.min_mult_noise] = self.min_mult_noise # prevent multipliers <= 0
 		spont = (np.random.rand() <= self.spont_prob) * np.random.exponential(self.spont_mean) # spontaneous effects
 		spont = np.min([spont, self.spont_max])
-		y = np.random.normal(self.w @ (mult_noise * spks), self.sigma) + spont
+		y = np.random.normal(self.w @ (mult_noise * spks), self.sigma) - spont
 
 		# Save simulation result to object
 		self.tars += [tars]
