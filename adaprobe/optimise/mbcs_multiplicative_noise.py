@@ -212,7 +212,6 @@ def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior):
 				 + 1/rho_prior[n]**2))
 	return scope.xi
 
-# @jax.partial(jit, static_argnums=(3))
 def center_xi(xi, mu, lam, tol=0.01):
 	'''Readjust xi to be centered about 1 by divided by weighted average, and proportionally scale up mu.
 		Weights for averaging are proportional to probability of a spike on each trial.
@@ -220,14 +219,28 @@ def center_xi(xi, mu, lam, tol=0.01):
 	xi = np.array(xi)
 	N = xi.shape[0]
 	for n in range(N):
-		locs = np.where(np.abs(xi[n] - 1) > tol)[0]
-		if locs.shape[0] > 0:
-			wgts = lam[n, locs]/np.sum(lam[n, locs])
-			mean_xi = np.sum(xi[n, locs] * wgts)
-			# xi = index_update(xi, index[n, locs], xi[n, locs]/mean_xi) # xi is immutable jax device array
-			xi[n, locs] /= mean_xi
-			mu[n] *= mean_xi # mu is mutable
+		mean_xi = np.sum(xi[n])
+		# xi = index_update(xi, index[n, locs], xi[n, locs]/mean_xi) # xi is immutable jax device array
+		xi[n] /= mean_xi
+		mu[n] *= mean_xi # mu is mutable
 	return xi, mu
+
+# @jax.partial(jit, static_argnums=(3))
+# def center_xi(xi, mu, lam, tol=0.01):
+# 	'''Readjust xi to be centered about 1 by divided by weighted average, and proportionally scale up mu.
+# 		Weights for averaging are proportional to probability of a spike on each trial.
+# 	'''
+# 	xi = np.array(xi)
+# 	N = xi.shape[0]
+# 	for n in range(N):
+# 		locs = np.where(np.abs(xi[n] - 1) > tol)[0]
+# 		if locs.shape[0] > 0:
+# 			wgts = lam[n, locs]/np.sum(lam[n, locs])
+# 			mean_xi = np.sum(xi[n, locs] * wgts)
+# 			# xi = index_update(xi, index[n, locs], xi[n, locs]/mean_xi) # xi is immutable jax device array
+# 			xi[n, locs] /= mean_xi
+# 			mu[n] *= mean_xi # mu is mutable
+# 	return xi, mu
 
 def _loss_fn(lam, args):
 	y, w, lam_prior = args
