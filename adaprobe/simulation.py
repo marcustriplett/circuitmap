@@ -6,7 +6,8 @@ DEFAULT_PHI = np.array([0.03203156, 5.216092])
 
 class Simulation3d:
 	def __init__(self, dimx=125, dimy=125, dimz=100, spacing=10, grid_density=5, N=16, a=0.5, sigma=3, phi_0=None,
-		phi_1=None, min_w=3, max_w=20, mode='online'):
+		phi_1=None, min_w=3, max_w=20, mode='online', spont_prob=0.05, spont_mean=5, spont_max=20, multiplicative_std=0.1,
+		min_mult_noise=0.05):
 		""" Initialise a 3d adaprobe simulation object.
 		"""
 		self.gridx, self.gridy, self.gridz, self.xr, self.yr, self.zr = _generate_3d_grid(dimx, dimy, dimz, grid_density)
@@ -19,6 +20,13 @@ class Simulation3d:
 		self.w = u * z
 		self.N = N
 		self.sigma = sigma
+
+		self.spont_prob = spont_prob
+		self.spont_mean = spont_mean
+		self.spont_max = spont_max
+
+		self.multiplicative_std = multiplicative_std
+		self.min_mult_noise = min_mult_noise
 
 		if phi_0 is None:
 			self.phi_0 = np.random.uniform(0.1, 0.2, N)
@@ -39,6 +47,8 @@ class Simulation3d:
 		self.I = []
 		self.fr = []
 		self.spks = []
+		self.mult_noise = []
+		self.spont = []
 		self.y = []
 		self.trials = 0
 		return
@@ -49,13 +59,19 @@ class Simulation3d:
 		cell_inds = np.arange(self.N)
 		fr = _sigmoid(self.phi_0 * I * (cell_inds == tar) - self.phi_1) * (cell_inds == tar)
 		spks = np.random.rand(self.N) <= fr
-		y = np.random.normal(self.w @ spks, self.sigma)
+		mult_noise = np.random.normal(1, self.multiplicative_std, self.N) # multiplicative noise
+		mult_noise[mult_noise < self.min_mult_noise] = self.min_mult_noise # prevent multipliers <= 0
+		spont = (np.random.rand() <= self.spont_prob) * np.random.exponential(self.spont_mean) # spontaneous effects
+		spont[spont > self.spont_max] = self.spont_max
+		y = np.random.normal(self.w @ (mult_noise * spks), self.sigma) + spont
 
 		# Save simulation result to object
 		self.tars += [tar]
 		self.I += [I]
 		self.fr += [fr]
 		self.spks += [spks]
+		self.mult_noise += [mult_noise]
+		self.spont += [spont]
 		self.y += [y]
 		self.trials += 1
 		return
@@ -82,6 +98,8 @@ class Simulation3d:
 		self.y = np.array(self.y)
 		self.fr = np.array(self.fr).T
 		self.spks = np.array(self.spks).T
+		self.mult_noise = np.array(self.mult_noise).T
+		self.spont = np.array(self.spont)
 		return
 
 	def next_trial_multistim(self, tars, I):
@@ -92,13 +110,19 @@ class Simulation3d:
 		I_multi[tars] = I
 		fr = _sigmoid(self.phi_0 * I_multi - self.phi_1) * (I_multi > 0)
 		spks = np.random.rand(self.N) <= fr
-		y = np.random.normal(self.w @ spks, self.sigma)
+		mult_noise = np.random.normal(1, self.multiplicative_std, self.N) # multiplicative noise
+		mult_noise[mult_noise < self.min_mult_noise] = self.min_mult_noise # prevent multipliers <= 0
+		spont = (np.random.rand() <= self.spont_prob) * np.random.exponential(self.spont_mean) # spontaneous effects
+		spont[spont > self.spont_max] = self.spont_max
+		y = np.random.normal(self.w @ (mult_noise * spks), self.sigma) + spont
 
 		# Save simulation result to object
 		self.tars += [tars]
 		self.I += [I]
 		self.fr += [fr]
 		self.spks += [spks]
+		self.mult_noise += [mult_noise]
+		self.spont += [spont]
 		self.y += [y]
 		self.trials += 1
 		return
@@ -121,6 +145,8 @@ class Simulation3d:
 		self.I = np.array(self.I)
 		self.y = np.array(self.y)
 		self.fr = np.array(self.fr).T
+		self.mult_noise = np.array(self.mult_noise).T
+		self.spont = np.array(self.spont)
 		self.spks = np.array(self.spks).T
 		return
 
