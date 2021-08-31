@@ -27,7 +27,7 @@ def check_nans(name, arr):
 def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	rho_prior, iters=50, num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, lam_masking=False, 
 	scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=True, 
-	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_thresh=None, min_xi=0.25):
+	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_thresh=None, min_xi=0.25, max_xi=4):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -80,7 +80,7 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 		rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
-		xi = update_xi(y - z, mu, lam, shape, rate, xi, rho, rho_prior, min_xi)
+		xi = update_xi(y - z, mu, lam, shape, rate, xi, rho, rho_prior, min_xi, max_xi)
 		# xi, mu = center_xi(xi, mu, lam)
 		if learn_lam:
 			lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N)
@@ -198,11 +198,12 @@ def update_rho(mu, beta, lam, shape, rate, rho_prior):
 	return 1/jnp.sqrt(shape/rate * jnp.expand_dims(mu**2 + beta**2, 1) * lam + 1/rho_prior**2)
 
 @jit
-def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior, min_xi):
+def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior, min_xi, max_xi):
 	N = mu.shape[0]
 	K = y.shape[0]
 	sig = shape/rate
 	min_xi_vec = min_xi * jnp.ones(K)
+	max_xi_vec = max_xi * jnp.ones(K)
 	with loops.Scope() as scope:
 		scope.xi = xi
 		scope.mask = jnp.zeros(N - 1, dtype=int)
@@ -214,6 +215,7 @@ def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior, min_xi):
 				- mu[n] * lam[n] * jnp.sum(scope.xi[scope.mask] * lam[scope.mask] * jnp.expand_dims(mu[scope.mask], 1), 0) \
 				 + 1/rho_prior[n]**2)
 			scope.arg = jnp.max(jnp.stack([scope.arg, min_xi_vec]), 0)
+			scope.arg = jnp.min(jnp.stack([scope.arg, max_xi_vec]), 0)
 			scope.xi = index_update(scope.xi, n, scope.arg)
 	return scope.xi
 
