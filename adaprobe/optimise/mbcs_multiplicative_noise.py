@@ -200,11 +200,13 @@ def update_rho(mu, beta, lam, shape, rate, rho_prior):
 @jit
 def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior, min_xi):
 	N = mu.shape[0]
+	K = y.shape[0]
 	sig = shape/rate
-	min_xi_vec = min_xi * jnp.ones(y.shape[0])
+	min_xi_vec = min_xi * jnp.ones(K)
 	with loops.Scope() as scope:
 		scope.xi = xi
 		scope.mask = jnp.zeros(N - 1, dtype=int)
+		scope.arg = jnp.zeros(K)
 		scope.all_ids = jnp.arange(N)
 		for n in scope.range(N):
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
