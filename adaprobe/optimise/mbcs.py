@@ -19,7 +19,7 @@ from jax.experimental import loops
 EPS = 1e-10
 
 def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, iters=50, 
-	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, lam_masking=False, scale_factor=0.5, 
+	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5, 
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=True, 
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_thresh=None):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
@@ -118,7 +118,7 @@ def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 	return scope.mu
 
 def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
-	warm_start_lasso=False, constrain_weights=True, verbose=False):
+	warm_start_lasso=False, constrain_weights=True, verbose=False, tol=1e-5):
 	""" Constrained L1 solver with iterative penalty shrinking
 	"""
 	N, K = Lam.shape
@@ -133,6 +133,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 		mu = -mu
 	lasso.coef_ = np.array(mu)
 
+	err_prev = 0
 	for it in range(max_penalty_iters):
 		# iteratively shrink penalty until constraint is met
 		if verbose:
@@ -144,6 +145,10 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 		if err <= constr:
 			if verbose:
 				print(' ==== converged on iteration: %i ===='%it)
+			break
+		elif np.abs(err - err_prev) < tol:
+			if verbose:
+				print(' !!! converged without meeting constraint on iteration: %i !!!'%it)
 			break
 		else:
 			penalty *= scale_factor # exponential backoff
