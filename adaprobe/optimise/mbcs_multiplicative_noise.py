@@ -212,7 +212,7 @@ def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior, min_xi, max_xi):
 		for n in scope.range(N):
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
 			scope.arg = rho[n]**2 * (sig * y * mu[n] * lam[n] \
-				- mu[n] * lam[n] * jnp.sum(scope.xi[scope.mask] * lam[scope.mask] * jnp.expand_dims(mu[scope.mask], 1), 0) \
+				- sig * mu[n] * lam[n] * jnp.sum(scope.xi[scope.mask] * lam[scope.mask] * jnp.expand_dims(mu[scope.mask], 1), 0) \
 				 + 1/rho_prior[n]**2)
 			scope.arg = jnp.max(jnp.stack([scope.arg, min_xi_vec]), 0)
 			scope.arg = jnp.min(jnp.stack([scope.arg, max_xi_vec]), 0)
