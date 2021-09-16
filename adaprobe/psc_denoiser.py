@@ -184,6 +184,14 @@ def _sample_psc_kernel(trial_dur=900, tau_r_lower=10, tau_r_upper=80, tau_diff_l
 	xeval = np.arange(trial_dur)
 	pscs = np.array([_kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(xeval) 
 		for i in range(n_samples)])
+	if np.any(np.isnan(pscs)):
+		print('tau_r:')
+		print(tau_r_samples)
+		print('tau_d:')
+		print(tau_d_samples)
+		print('delta:')
+		print(delta_samples)
+		print()
 	max_vec = np.max(pscs, 1)[:, None]
 	amplitude = np.random.uniform(amplitude_lower, amplitude_upper, n_samples)[:, None]
 	return pscs/max_vec * amplitude
