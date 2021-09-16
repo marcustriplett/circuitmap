@@ -72,13 +72,14 @@ class NeuralDenoiser():
 		min_delta=100, delta_lower=0, delta_upper=200, n_kernel_samples=1, 
 		next_min_delta=300, next_delta_lower=0, next_delta_upper=500,
 		mode_probs=[0.3, 0.5, 0.1, 0.1], noise_std_lower=0.01, noise_std_upper=0.1, 
-		gp_lengthscale=25, gp_scale=0.01, max_nodes=4, save_path=None):
+		gp_lengthscale=25, gp_scale=0.01, max_modes=4, amplitude_lower=0.1, amplitude_upper=1.5, 
+		save_path=None):
 		'''Simulate data for training a PSC denoiser. 
 		'''
 
-		n_modes = np.random.choice(max_nodes, size, p=mode_probs)
-		n_modes_prev = np.random.choice(max_nodes, size, p=mode_probs)
-		n_modes_next = np.random.choice(max_nodes, size, p=mode_probs)
+		n_modes = np.random.choice(max_modes, size, p=mode_probs)
+		n_modes_prev = np.random.choice(max_modes, size, p=mode_probs)
+		n_modes_next = np.random.choice(max_modes, size, p=mode_probs)
 		targets = np.zeros((size, trial_dur))
 		prev_pscs = np.zeros((size, trial_dur))
 		next_pscs = np.zeros((size, trial_dur))
@@ -92,16 +93,18 @@ class NeuralDenoiser():
 			# target PSCs initiate between 100 and 300 frames (5-15ms after trial onset)
 			targets[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-				min_delta=min_delta, delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i]), 0)
+				min_delta=min_delta, delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i],
+				amplitude_lower=amplitude_lower, amplitude_upper=amplitude_upper), 0)
 
 			next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
 				min_delta=next_min_delta, delta_lower=next_delta_lower, delta_upper=next_delta_upper, 
-				n_samples=n_modes_next[i]), 0)
+				n_samples=n_modes_next[i], amplitude_lower=amplitude_lower, amplitude_upper=amplitude_upper), 0)
 
 			prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-				min_delta=min_delta, delta_lower=-400, delta_upper=-100, n_samples=n_modes_prev[i]), 0)
+				min_delta=min_delta, delta_lower=-400, delta_upper=-100, n_samples=n_modes_prev[i],
+				amplitude_lower=amplitude_lower, amplitude_upper=amplitude_upper), 0)
 			
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
@@ -166,17 +169,21 @@ def _sample_gp(trial_dur=800, gp_lengthscale=25, gp_scale=0.01, n_samples=1):
 def _kernel_func(tau_r, tau_d, delta):
 	return lambda x: (np.exp(-(x - delta)/tau_d) - np.exp(-(x - delta)/tau_r)) * (x >= delta)
 
-def _sample_psc_kernel(trial_dur=800, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, 
-	tau_diff_upper=150, min_delta=100, delta_lower=0, delta_upper=200, n_samples=1):
-	'''Sample PSCs with random time constants and onset times.
+def _sample_psc_kernel(trial_dur=900, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, 
+	tau_diff_upper=150, min_delta=100, delta_lower=0, delta_upper=200, n_samples=1,
+	amplitude_lower=0.1, amplitude_upper=1.5):
+	'''Sample PSCs with random time constants, onset times, and amplitudes.
 	'''
 	tau_r_samples = np.random.uniform(tau_r_lower, tau_r_upper, n_samples)
 	tau_diff_samples = np.random.uniform(tau_diff_lower, tau_diff_upper, n_samples)
 	tau_d_samples = tau_r_samples + tau_diff_samples
 	delta_samples = min_delta + np.random.uniform(delta_lower, delta_upper, n_samples)
 	xeval = np.arange(trial_dur)
-	return np.array([_kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(xeval) 
+	pscs = np.array([_kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(xeval) 
 		for i in range(n_samples)])
+	max_vec = np.max(pscs, 1)[:, None]
+	amplitude = np.random.uniform(amplitude_lower, amplitude_upper, n_samples)[:, None]
+	return pscs/max_vec * amplitude
 
 def _monotone_decay_filter(arr, monotone_start=500, inplace=True):
 	'''Enforce monotone decay beyond kwarg monotone_start. Performed in-place by default.
