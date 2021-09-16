@@ -101,7 +101,7 @@ class NeuralDenoiser():
 
 			prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-				min_delta=min_delta, delta_lower=-400, delta_upper=-100, n_samples=n_modes_prev[i]), 0)
+				delta_lower=-400, delta_upper=-100, n_samples=n_modes_prev[i]), 0)
 			
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
@@ -171,7 +171,7 @@ def _kernel_func(tau_r, tau_d, delta):
 	return lambda x: (np.exp(-(x - delta)/tau_d) - np.exp(-(x - delta)/tau_r)) * (x >= delta)
 
 def _sample_psc_kernel(trial_dur=900, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, 
-	tau_diff_upper=150, min_delta=100, delta_lower=0, delta_upper=200, n_samples=1,
+	tau_diff_upper=150, delta_lower=100, delta_upper=200, n_samples=1,
 	amplitude_lower=0.1, amplitude_upper=1.5):
 	'''Sample PSCs with random time constants, onset times, and amplitudes.
 	'''
@@ -180,7 +180,7 @@ def _sample_psc_kernel(trial_dur=900, tau_r_lower=10, tau_r_upper=80, tau_diff_l
 	tau_r_samples = np.random.uniform(tau_r_lower, tau_r_upper, n_samples)
 	tau_diff_samples = np.random.uniform(tau_diff_lower, tau_diff_upper, n_samples)
 	tau_d_samples = tau_r_samples + tau_diff_samples
-	delta_samples = min_delta + np.random.uniform(delta_lower, delta_upper, n_samples)
+	delta_samples = np.random.uniform(delta_lower, delta_upper, n_samples)
 	xeval = np.arange(trial_dur)
 	pscs = np.array([_kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(xeval) 
 		for i in range(n_samples)])
