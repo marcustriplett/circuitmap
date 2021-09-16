@@ -174,6 +174,8 @@ def _sample_psc_kernel(trial_dur=900, tau_r_lower=10, tau_r_upper=80, tau_diff_l
 	amplitude_lower=0.1, amplitude_upper=1.5):
 	'''Sample PSCs with random time constants, onset times, and amplitudes.
 	'''
+	if n_samples == 0:
+		return np.zeros((1, trial_dur))
 	tau_r_samples = np.random.uniform(tau_r_lower, tau_r_upper, n_samples)
 	tau_diff_samples = np.random.uniform(tau_diff_lower, tau_diff_upper, n_samples)
 	tau_d_samples = tau_r_samples + tau_diff_samples
