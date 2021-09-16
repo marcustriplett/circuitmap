@@ -69,11 +69,10 @@ class NeuralDenoiser():
 
 	def generate_training_data(self, trial_dur=900, size=1000, training_fraction=0.9, lp_cutoff=500, 
 		srate=2000, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, tau_diff_upper=150, 
-		min_delta=100, delta_lower=0, delta_upper=200, n_kernel_samples=1, 
-		next_min_delta=300, next_delta_lower=0, next_delta_upper=500,
+		delta_lower=160, delta_upper=400, next_delta_lower=400, next_delta_upper=899,
 		mode_probs=[0.3, 0.5, 0.1, 0.1], noise_std_lower=0.01, noise_std_upper=0.1, 
-		gp_lengthscale=25, gp_scale=0.01, max_modes=4, amplitude_lower=0.1, amplitude_upper=1.5, 
-		save_path=None):
+		gp_lengthscale=25, gp_scale=0.01, max_modes=4, observed_amplitude_lower=0.75, 
+		observed_amplitude_upper=1.25, save_path=None):
 		'''Simulate data for training a PSC denoiser. 
 		'''
 
@@ -93,24 +92,26 @@ class NeuralDenoiser():
 			# target PSCs initiate between 100 and 300 frames (5-15ms after trial onset)
 			targets[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-				min_delta=min_delta, delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i],
-				amplitude_lower=amplitude_lower, amplitude_upper=amplitude_upper), 0)
+				delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i]), 0)
 
 			next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-				min_delta=next_min_delta, delta_lower=next_delta_lower, delta_upper=next_delta_upper, 
-				n_samples=n_modes_next[i], amplitude_lower=amplitude_lower, amplitude_upper=amplitude_upper), 0)
+				delta_lower=next_delta_lower, delta_upper=next_delta_upper, 
+				n_samples=n_modes_next[i]), 0)
 
 			prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-				min_delta=min_delta, delta_lower=-400, delta_upper=-100, n_samples=n_modes_prev[i],
-				amplitude_lower=amplitude_lower, amplitude_upper=amplitude_upper), 0)
+				min_delta=min_delta, delta_lower=-400, delta_upper=-100, n_samples=n_modes_prev[i]), 0)
 			
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
 		# lowpass filter inputs as with experimental data
 		b_lp, a_lp = sg.butter(4, lp_cutoff, btype='low', fs=srate)
 		inputs = sg.filtfilt(b_lp, a_lp, prev_pscs + targets + next_pscs + gp_noise + iid_noise, axis=-1)
+		ampl = np.random.uniform(observed_amplitude_lower, observed_amplitude_upper, size)
+		maxv = np.max(inputs, 1)[:, None]
+		inputs = inputs/maxv * ampl
+		targets = targets/maxv * ampl
 
 		# save training data in object
 		training_trials = int(training_fraction * size)
