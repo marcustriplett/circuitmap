@@ -67,7 +67,7 @@ class NeuralDenoiser():
 		t_stop = time.time()
 		print("Training complete. Elapsed time: %.2f min."%((t_stop-t_start)/60))
 
-	def generate_training_data(self, trial_dur=800, size=1000, training_fraction=0.9, lp_cutoff=500, 
+	def generate_training_data(self, trial_dur=900, size=1000, training_fraction=0.9, lp_cutoff=500, 
 		srate=2000, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, tau_diff_upper=150, 
 		min_delta=100, delta_lower=0, delta_upper=200, n_kernel_samples=1, 
 		next_min_delta=300, next_delta_lower=0, next_delta_upper=500,
@@ -174,6 +174,8 @@ def _sample_psc_kernel(trial_dur=900, tau_r_lower=10, tau_r_upper=80, tau_diff_l
 	amplitude_lower=0.1, amplitude_upper=1.5):
 	'''Sample PSCs with random time constants, onset times, and amplitudes.
 	'''
+	if n_samples == 0:
+		return np.zeros((1, trial_dur))
 	tau_r_samples = np.random.uniform(tau_r_lower, tau_r_upper, n_samples)
 	tau_diff_samples = np.random.uniform(tau_diff_lower, tau_diff_upper, n_samples)
 	tau_d_samples = tau_r_samples + tau_diff_samples
