@@ -33,7 +33,7 @@ def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior,
 
 	if phi_thresh is not None:
 		# Filter connection vector via opsin expression threshold
-		mu[phi[:, 0] < phi_thresh] = 0
+		mu = index_update(mu, phi[:, 0] < phi_thresh, 0)
 
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist
