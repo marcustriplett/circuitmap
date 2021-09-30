@@ -20,6 +20,7 @@ def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior,
 	iters, num_mc_samples, seed, lam_masking=False, y_xcorr_thresh=0.05, learn_noise=False):
 	if lam_masking:
 		y, y_psc = obs
+		K = y.shape[0]
 		lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
 	else:
 		y = obs
