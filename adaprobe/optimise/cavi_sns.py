@@ -17,7 +17,7 @@ from jax.experimental import loops
 EPS = 1e-10
 
 def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, lam_masking=False, y_xcorr_thresh=0.05, learn_noise=False):
+	iters, num_mc_samples, seed, lam_masking=False, y_xcorr_thresh=0.05, learn_noise=False, phi_thresh=None):
 	if lam_masking:
 		y, y_psc = obs
 		K = y.shape[0]
@@ -26,8 +26,17 @@ def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior,
 		y = obs
 		lam_mask = jnp.ones(y.shape[0])
 
-	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
+
+	mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+		phi_hist, phi_cov_hist = _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	lam_mask, iters, num_mc_samples, seed, learn_noise)
+
+	if phi_thresh is not None:
+		# Filter connection vector via opsin expression threshold
+		mu[phi[:, 0] < phi_thresh] = 0
+
+	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+		phi_hist, phi_cov_hist
 
 @jax.partial(jit, static_argnums=(10, 11, 12, 13))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
