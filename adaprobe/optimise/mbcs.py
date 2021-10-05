@@ -90,8 +90,8 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 		if phi_thresh is not None:
 			# Filter connection vector via opsin expression threshold
 			phi_locs = np.where(phi[:, 0] < phi_thresh)[0]
-			mu[phi_locs] = 0
-			lam[phi_locs] = 0
+			mu = index_update(mu, phi_locs, 0.)
+			lam = index_update(lam, phi_locs, 0.)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
