@@ -87,11 +87,11 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
-		if (phi_thresh is not None) and (it > phi_thresh_delay):
-			# Filter connection vector via opsin expression threshold
-			phi_locs = jnp.where(phi[:, 0] < phi_thresh)[0]
-			mu = index_update(mu, phi_locs, 0.)
-			lam = index_update(lam, phi_locs, 0.)
+		# if (phi_thresh is not None) and (it > phi_thresh_delay):
+		# 	# Filter connection vector via opsin expression threshold
+		# 	phi_locs = jnp.where(phi[:, 0] < phi_thresh)[0]
+		# 	mu = index_update(mu, phi_locs, 0.)
+		# 	lam = index_update(lam, phi_locs, 0.)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
