@@ -89,7 +89,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 
 			if phi_thresh is not None:
 				# Filter connection vector via opsin expression threshold
-				scope.phi_expand = scope.phi[:, 0] * jnp.ones((N, K))
+				scope.phi_expand = scope.phi[:, 0][0] * jnp.ones((N, K)) # does NOT select first element, instead selects entire vector
 				scope.mu = jnp.where(scope.phi[:, 0] >= phi_thresh, scope.mu, 0.)
 				scope.lam = jnp.where(scope.phi_expand >= phi_thresh, scope.lam, 0.)
 
