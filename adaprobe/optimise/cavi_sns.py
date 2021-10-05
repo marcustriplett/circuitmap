@@ -17,7 +17,8 @@ from jax.experimental import loops
 EPS = 1e-10
 
 def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, lam_masking=False, y_xcorr_thresh=0.05, learn_noise=False, phi_thresh=None):
+	iters, num_mc_samples, seed, lam_masking=False, y_xcorr_thresh=0.05, learn_noise=False, phi_thresh=None,
+	phi_thresh_delay=1):
 	if lam_masking:
 		y, y_psc = obs
 		K = y.shape[0]
@@ -29,7 +30,7 @@ def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior,
 
 	mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist = _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh)
+	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay)
 
 	# if phi_thresh is not None:
 	# 	# Filter connection vector via opsin expression threshold
