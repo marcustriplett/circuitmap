@@ -86,7 +86,11 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 			if learn_noise:
 				scope.shape, scope.rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
 			(scope.phi, scope.phi_cov), scope.key = update_phi(scope.lam, I, phi_prior, phi_cov_prior, scope.key)
-			scope.mu, scope.lam = impose_phi_threshold(scope.mu, scope.lam, scope.phi, phi_thresh)
+
+			if phi_thresh is not None:
+				# Filter connection vector via opsin expression threshold
+				scope.mu = jnp.where(scope.phi[:, 0] < phi_thresh, scope.mu, 0.)
+				scope.lam = jnp.where(scope.phi[:, 0] < phi_thresh, scope.lam, 0.)
 
 			for hindx, pa in enumerate([scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
 				scope.hist_arrs[hindx] = index_update(scope.hist_arrs[hindx], it, pa)
@@ -181,19 +185,6 @@ def update_phi(lam, I, phi_prior, phi_cov_prior, key):
 	(posterior, logliks), keys = laplace_approx(lam, phi_prior, phi_cov_prior, I, key) # N keys returned due to vmapped LAs
 	return posterior, keys[-1]
 	
-
-@jax.partial(jit, static_argnums=(3))
-def impose_phi_threshold(mu, lam, phi, thresh):
-	N = mu.shape[0]
-	with loops.Scope() as scope:
-		scope.mu = mu
-		scope.lam = lam
-		for n in scope.range(N):
-			# Filter connection vector via opsin expression threshold
-			if phi[n] < thresh:
-				scope.mu = index_update(scope.mu, n, 0.)
-				scope.lam = index_update(scope.lam, n, 0.)
-	return scope.mu, scope.lam
 
 def _laplace_approx(y, phi_prior, phi_cov, I, key, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
 	"""Laplace approximation to sigmoid coefficient posteriors $phi$.
