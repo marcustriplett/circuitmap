@@ -21,7 +21,8 @@ EPS = 1e-10
 def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, iters=50, 
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5, 
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=True, 
-	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_thresh=None, phi_thresh_delay=5):
+	polarity='inhibitory', verbose=False, learn_noise=False, init_lam=None, learn_lam=True, 
+	phi_thresh=None, phi_thresh_delay=5):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -120,7 +121,7 @@ def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 	return scope.mu
 
 def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
-	warm_start_lasso=False, constrain_weights=True, verbose=False, tol=1e-5):
+	warm_start_lasso=False, constrain_weights=True, polarity='inhibitory', verbose=False, tol=1e-5):
 	""" Constrained L1 solver with iterative penalty shrinking
 	"""
 	N, K = Lam.shape
@@ -129,7 +130,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	LamT = Lam.T
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=constrain_weights)
 	
-	if constrain_weights:
+	if constrain_weights and polarity == 'excitatory':
 		# make sensing matrix and weight warm-start negative
 		LamT = -LamT
 		mu = -mu
