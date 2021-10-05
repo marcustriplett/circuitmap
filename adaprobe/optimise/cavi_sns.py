@@ -29,18 +29,18 @@ def cavi_sns(obs, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior,
 
 	mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist = _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed, learn_noise)
+	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh)
 
-	if phi_thresh is not None:
-		# Filter connection vector via opsin expression threshold
-		mu = index_update(mu, phi[:, 0] < phi_thresh, 0)
+	# if phi_thresh is not None:
+	# 	# Filter connection vector via opsin expression threshold
+	# 	mu = index_update(mu, phi[:, 0] < phi_thresh, 0)
 
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist
 
-@jax.partial(jit, static_argnums=(10, 11, 12, 13))
+@jax.partial(jit, static_argnums=(10, 11, 12, 13, 14))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed, learn_noise):
+	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -86,6 +86,12 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 			if learn_noise:
 				scope.shape, scope.rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
 			(scope.phi, scope.phi_cov), scope.key = update_phi(scope.lam, I, phi_prior, phi_cov_prior, scope.key)
+
+			if phi_thresh is not None:
+				# Filter connection vector via opsin expression threshold
+				scope.phi_locs = jnp.where(scope.phi[:, 0] < phi_thresh)[0]
+				scope.mu = index_update(scope.mu, scope.phi_locs, 0.)
+				scope.lam = index_update(scope.lam, scope.phi_locs, 0.)
 
 			for hindx, pa in enumerate([scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
 				scope.hist_arrs[hindx] = index_update(scope.hist_arrs[hindx], it, pa)
