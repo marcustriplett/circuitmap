@@ -81,7 +81,7 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 		beta = update_beta(lam, shape, rate, beta_prior)
 		mu = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
-			constrain_weights=constrain_weights, verbose=verbose)
+			constrain_weights=constrain_weights, verbose=verbose, polarity=polarity)
 		if learn_lam:
 			lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		if learn_noise:
