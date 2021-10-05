@@ -89,8 +89,9 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 
 			if phi_thresh is not None:
 				# Filter connection vector via opsin expression threshold
-				scope.mu = jnp.where(scope.phi[:, 0] < phi_thresh, scope.mu, 0.)
-				scope.lam = jnp.where(scope.phi[:, 0] < phi_thresh, scope.lam, jnp.zeros(N))
+				scope.phi_expand = scope.phi[:, 0] * jnp.ones((N, K))
+				scope.mu = jnp.where(scope.phi[:, 0] >= phi_thresh, scope.mu, 0.)
+				scope.lam = jnp.where(scope.phi_expand >= phi_thresh, scope.lam, 0.)
 
 			for hindx, pa in enumerate([scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
 				scope.hist_arrs[hindx] = index_update(scope.hist_arrs[hindx], it, pa)
