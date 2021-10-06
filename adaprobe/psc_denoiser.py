@@ -2,8 +2,6 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import torch.nn as nn
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy.signal as sg
 import time
 
 class NeuralDenoiser():
@@ -14,10 +12,10 @@ class NeuralDenoiser():
 			self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
 				padding=padding, stride=stride, channels=channels)
 
-	def __call__(self, traces, monotone_filter_start=500, monotone_filter_inplace=True):
+	def __call__(self, traces, monotone_filter_start=500, monotone_filter_inplace=True, rescale=20):
 		''' Run denoiser over PSC trace batch and apply monotone decay filter.
 		'''
-		den = self.denoiser(torch.Tensor(traces.copy()[:, None, :])).detach().numpy().squeeze()
+		den = self.denoiser(rescale * torch.Tensor(traces.copy()[:, None, :])).detach().numpy().squeeze()/rescale
 		return _monotone_decay_filter(den, inplace=monotone_filter_inplace, 
 			monotone_start=monotone_filter_start)
 
