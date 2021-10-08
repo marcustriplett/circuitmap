@@ -227,6 +227,9 @@ def _test_loop(dataloader, model, loss_fn):
 	test_loss = 0
 	with torch.no_grad():
 		for X, y in dataloader:
+			X.to("cuda" if torch.cuda.is_available() else "cpu")
+			y.to("cuda" if torch.cuda.is_available() else "cpu")
+			
 			pred = model(X)
 			test_loss += loss_fn(pred, y).item()
 
