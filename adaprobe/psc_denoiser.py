@@ -212,7 +212,7 @@ def _train_loop(dataloader, model, loss_fn, optimizer):
 		X.to(device=cuda0)
 		y.to(device=cuda0)
 
-		print(X.device())
+		# print(X.device())
 		print(type(X))
 
 		# Compute prediction and loss
