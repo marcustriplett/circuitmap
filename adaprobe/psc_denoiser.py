@@ -8,13 +8,13 @@ import scipy.signal as sg
 class NeuralDenoiser():
 	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
 		if path is not None:
-			self.denoiser = torch.load(path)
+			self.denoiser = torch.load(path).cuda()
 		else:
 			self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
-				padding=padding, stride=stride, channels=channels)
+				padding=padding, stride=stride, channels=channels).cuda()
 
-		cuda0 = torch.device('cuda:0')
-		self.denoiser.to(device=cuda0)
+		# cuda0 = torch.device('cuda:0')
+		# self.denoiser.to(device=cuda0)
 
 	def __call__(self, traces, monotone_filter_start=500, monotone_filter_inplace=True, rescale=20):
 		''' Run denoiser over PSC trace batch and apply monotone decay filter.
@@ -208,12 +208,9 @@ def _train_loop(dataloader, model, loss_fn, optimizer):
 	train_loss = 0
 	for batch, (X, y) in enumerate(dataloader):
 		# sending the batch to GPU
-		cuda0 = torch.device('cuda:0')
-		X.to(device=cuda0)
-		y.to(device=cuda0)
-
-		# print(X.device())
-		print(type(X))
+		# cuda0 = torch.device('cuda:0')
+		X = X.cuda()
+		y = y.cuda()
 
 		# Compute prediction and loss
 		pred = model(X)
@@ -233,8 +230,10 @@ def _test_loop(dataloader, model, loss_fn):
 	test_loss = 0
 	with torch.no_grad():
 		for X, y in dataloader:
-			X.to("cuda" if torch.cuda.is_available() else "cpu")
-			y.to("cuda" if torch.cuda.is_available() else "cpu")
+			X = X.cuda()
+			y = y.cuda()
+			# X.to("cuda" if torch.cuda.is_available() else "cpu")
+			# y.to("cuda" if torch.cuda.is_available() else "cpu")
 
 			pred = model(X)
 			test_loss += loss_fn(pred, y).item()
