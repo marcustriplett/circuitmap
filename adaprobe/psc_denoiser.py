@@ -209,6 +209,10 @@ def _train_loop(dataloader, model, loss_fn, optimizer):
 		# sending the batch to GPU
 		X.to("cuda" if torch.cuda.is_available() else "cpu")
 		y.to("cuda" if torch.cuda.is_available() else "cpu")
+
+		print(X.device())
+		print(type(X))
+
 		# Compute prediction and loss
 		pred = model(X)
 		loss = loss_fn(pred, y)
@@ -229,7 +233,7 @@ def _test_loop(dataloader, model, loss_fn):
 		for X, y in dataloader:
 			X.to("cuda" if torch.cuda.is_available() else "cpu")
 			y.to("cuda" if torch.cuda.is_available() else "cpu")
-			
+
 			pred = model(X)
 			test_loss += loss_fn(pred, y).item()
 
