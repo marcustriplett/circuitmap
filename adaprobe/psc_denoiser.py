@@ -3,6 +3,7 @@ from torch.utils.data import Dataset, DataLoader
 import torch.nn as nn
 import numpy as np
 import time
+import scipy.signal as sg
 
 class NeuralDenoiser():
 	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
