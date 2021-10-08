@@ -13,6 +13,8 @@ class NeuralDenoiser():
 			self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
 				padding=padding, stride=stride, channels=channels)
 
+		self.denoiser.to("cuda" if torch.cuda.is_available() else "cpu")
+
 	def __call__(self, traces, monotone_filter_start=500, monotone_filter_inplace=True, rescale=20):
 		''' Run denoiser over PSC trace batch and apply monotone decay filter.
 		'''
@@ -204,6 +206,9 @@ def _train_loop(dataloader, model, loss_fn, optimizer):
 	n_batches = len(dataloader)
 	train_loss = 0
 	for batch, (X, y) in enumerate(dataloader):
+		# sending the batch to GPU
+		X.to("cuda" if torch.cuda.is_available() else "cpu")
+		y.to("cuda" if torch.cuda.is_available() else "cpu")
 		# Compute prediction and loss
 		pred = model(X)
 		loss = loss_fn(pred, y)
