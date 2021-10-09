@@ -203,6 +203,7 @@ def _monotone_decay_filter(arr, monotone_start=500, inplace=True):
 def _train_loop(dataloader, model, loss_fn, optimizer):
 	n_batches = len(dataloader)
 	train_loss = 0
+	scaler = torch.cuda.amp.GradScaler()
 	for batch, (X, y) in enumerate(dataloader):
 		# send the batch to GPU
 		X = X.cuda()
@@ -210,14 +211,18 @@ def _train_loop(dataloader, model, loss_fn, optimizer):
 
 		# Compute prediction and loss
 		pred = model(X)
-		loss = loss_fn(pred, y)
+		with torch.cuda.amp.autocast():
+			loss = loss_fn(pred, y)
 		train_loss += loss
 
 		# Backpropagation
 		optimizer.zero_grad()
-		loss.backward()
-		optimizer.step()
-
+		scaler.scale(loss).backward()
+		# loss.backward()
+		scaler.step(optimizer)
+		# optimizer.step()
+		scaler.update()
+		
 	train_loss /= n_batches
 	return train_loss.detach().cpu().numpy()
 		
