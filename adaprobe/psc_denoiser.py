@@ -7,16 +7,26 @@ import scipy.signal as sg
 
 class NeuralDenoiser():
 	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
+		# Set device dynamically
+		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+		# Load or initialise denoiser object
 		if path is not None:
-			self.denoiser = torch.load(path).cuda()
+			self.denoiser = torch.load(path)
 		else:
 			self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
-				padding=padding, stride=stride, channels=channels).cuda()
+				padding=padding, stride=stride, channels=channels)
+
+		# Move denoiser to device
+		self.denoiser = self.denoiser.to(self.device)
 
 	def __call__(self, traces, monotone_filter_start=500, monotone_filter_inplace=True, rescale=20):
 		''' Run denoiser over PSC trace batch and apply monotone decay filter.
 		'''
-		den = self.denoiser(rescale * torch.Tensor(traces.copy()[:, None, :]).cuda()).cpu().detach().numpy().squeeze()/rescale
+		den = self.denoiser(
+			rescale * torch.Tensor(traces.copy()[:, None, :]).to(device)
+		).cpu().detach().numpy().squeeze()/rescale
+
 		return _monotone_decay_filter(den, inplace=monotone_filter_inplace, 
 			monotone_start=monotone_filter_start)
 
@@ -69,9 +79,9 @@ class NeuralDenoiser():
 	def generate_training_data(self, trial_dur=900, size=1000, training_fraction=0.9, lp_cutoff=500, 
 		srate=2000, tau_r_lower=2, tau_r_upper=80, tau_diff_lower=2, tau_diff_upper=150, 
 		delta_lower=160, delta_upper=400, next_delta_lower=400, next_delta_upper=899,
-		mode_probs=[0.3, 0.5, 0.1, 0.1], noise_std_lower=0.01, noise_std_upper=0.1, 
-		gp_lengthscale=25, gp_scale=0.01, max_modes=4, observed_amplitude_lower=0.75, 
-		observed_amplitude_upper=1.25, save_path=None):
+		prev_delta_lower=-400, prev_delta_upper=-100, mode_probs=[0.3, 0.5, 0.1, 0.1], 
+		noise_std_lower=0.01, noise_std_upper=0.1, gp_lengthscale=25, gp_scale=0.01, 
+		max_modes=4, observed_amplitude_lower=0.75, observed_amplitude_upper=1.25, save_path=None):
 		'''Simulate data for training a PSC denoiser. 
 		'''
 
@@ -100,7 +110,7 @@ class NeuralDenoiser():
 
 			prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 				tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-				delta_lower=-400, delta_upper=-100, n_samples=n_modes_prev[i]), 0)
+				delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i]), 0)
 			
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
@@ -206,8 +216,8 @@ def _train_loop(dataloader, model, loss_fn, optimizer):
 	scaler = torch.cuda.amp.GradScaler()
 	for batch, (X, y) in enumerate(dataloader):
 		# send the batch to GPU
-		X = X.cuda()
-		y = y.cuda()
+		X = X.to(device=model.device)
+		y = y.to(device=model.device)
 
 		# Compute prediction and loss
 		pred = model(X)
@@ -217,22 +227,24 @@ def _train_loop(dataloader, model, loss_fn, optimizer):
 
 		# Backpropagation
 		optimizer.zero_grad()
-		scaler.scale(loss).backward()
+
 		# loss.backward()
-		scaler.step(optimizer)
 		# optimizer.step()
+		scaler.scale(loss).backward()
+		scaler.step(optimizer)
 		scaler.update()
-		
+
 	train_loss /= n_batches
-	return train_loss.detach().cpu().numpy()
+	return train_loss
+	# return train_loss.detach().cpu().numpy()
 		
 def _test_loop(dataloader, model, loss_fn):
 	n_batches = len(dataloader)
 	test_loss = 0
 	with torch.no_grad():
 		for X, y in dataloader:
-			X = X.cuda()
-			y = y.cuda()
+			X = X.to(device=model.device)
+			y = y.to(device=model.device)
 			# X.to("cuda" if torch.cuda.is_available() else "cpu")
 			# y.to("cuda" if torch.cuda.is_available() else "cpu")
 

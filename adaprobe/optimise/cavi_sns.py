@@ -71,7 +71,6 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 		scope.rate_hist 	= jnp.zeros(iters)
 		scope.phi_hist  	= jnp.zeros((iters, N, 2))
 		scope.phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
-
 		
 		scope.hist_arrs = [scope.mu_hist, scope.beta_hist, scope.alpha_hist, scope.lam_hist, scope.shape_hist, scope.rate_hist, \
 			scope.phi_hist, scope.phi_cov_hist]
