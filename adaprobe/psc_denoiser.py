@@ -24,7 +24,7 @@ class NeuralDenoiser():
 		''' Run denoiser over PSC trace batch and apply monotone decay filter.
 		'''
 		den = self.denoiser(
-			rescale * torch.Tensor(traces.copy()[:, None, :]).to(device)
+			rescale * torch.Tensor(traces.copy()[:, None, :]).to(device=self.device)
 		).cpu().detach().numpy().squeeze()/rescale
 
 		return _monotone_decay_filter(den, inplace=monotone_filter_inplace, 
@@ -71,7 +71,7 @@ class NeuralDenoiser():
 			self.test_loss.append(_test_loop(test_dataloader, self, loss_fn))
 			print('Epoch %i/%i  Train loss: %.8f  Test loss: %.8f'%(t+1, epochs, self.train_loss[t], self.test_loss[t]))
 
-			if (save_every is not None) and (t % save_every == 0) and (save_path is not None):
+			if (save_every is not None) and (t % save_every == 0) and (t > 0) and (save_path is not None):
 				torch.save(self.denoiser, save_path + '_chkpt_%i.pt'%t)
 		t_stop = time.time()
 		print("Training complete. Elapsed time: %.2f min."%((t_stop-t_start)/60))
