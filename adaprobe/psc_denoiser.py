@@ -67,8 +67,8 @@ class NeuralDenoiser():
 		print('Initiating neural net training...')
 		t_start = time.time()
 		for t in range(epochs):
-			self.train_loss.append(_train_loop(train_dataloader, self.denoiser, loss_fn, optimizer))
-			self.test_loss.append(_test_loop(test_dataloader, self.denoiser, loss_fn))
+			self.train_loss.append(_train_loop(train_dataloader, self, loss_fn, optimizer))
+			self.test_loss.append(_test_loop(test_dataloader, self, loss_fn))
 			print('Epoch %i/%i  Train loss: %.8f  Test loss: %.8f'%(t+1, epochs, self.train_loss[t], self.test_loss[t]))
 
 			if (save_every is not None) and (t % save_every == 0) and (save_path is not None):
@@ -220,7 +220,7 @@ def _train_loop(dataloader, model, loss_fn, optimizer):
 		y = y.to(device=model.device)
 
 		# Compute prediction and loss
-		pred = model(X)
+		pred = model.denoiser(X)
 		with torch.cuda.amp.autocast():
 			loss = loss_fn(pred, y)
 		train_loss += loss
@@ -248,7 +248,7 @@ def _test_loop(dataloader, model, loss_fn):
 			# X.to("cuda" if torch.cuda.is_available() else "cpu")
 			# y.to("cuda" if torch.cuda.is_available() else "cpu")
 
-			pred = model(X)
+			pred = model.denoiser(X)
 			test_loss += loss_fn(pred, y).item()
 
 	test_loss /= n_batches
