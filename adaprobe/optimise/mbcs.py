@@ -20,8 +20,8 @@ EPS = 1e-10
 
 def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, iters=50, 
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5, 
-	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=True, 
-	polarity='inhibitory', verbose=False, learn_noise=False, init_lam=None, learn_lam=True, 
+	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', 
+	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, 
 	phi_thresh=None, phi_thresh_delay=5):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
@@ -81,7 +81,7 @@ def mbcs(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_c
 		beta = update_beta(lam, shape, rate, beta_prior)
 		mu = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
-			constrain_weights=constrain_weights, verbose=verbose, polarity=polarity)
+			constrain_weights=constrain_weights, verbose=verbose)
 		if learn_lam:
 			lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		if learn_noise:
@@ -128,7 +128,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	sigma = np.sqrt(rate/shape)
 	constr = sigma * np.sqrt(K)
 	LamT = Lam.T
-	positive = constrain_weights == 'positive'
+	positive = constrain_weights in ['positive', 'negative']
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=positive)
 	
 	if constrain_weights == 'negative':
