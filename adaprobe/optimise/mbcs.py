@@ -135,6 +135,12 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 		# make sensing matrix and weight warm-start negative
 		LamT = -LamT
 		mu = -mu
+	print('positive?', positive)
+	print('\n')
+	print('mu', mu)
+	print('\n')
+	print('LamT', LamT)
+	print('\n')
 	lasso.coef_ = np.array(mu)
 
 	err_prev = 0
