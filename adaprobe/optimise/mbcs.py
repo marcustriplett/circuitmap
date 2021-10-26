@@ -170,7 +170,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 			print('constr: ', constr)
 			print('')
 
-	if constrain_weights:
+	if constrain_weights == 'negative':
 		return -coef
 	else:
 		return coef
