@@ -1,26 +1,29 @@
 import torch
-from torch.utils.data import Dataset, DataLoader
 import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
+import pytorch_lightning as pl
+
 import numpy as np
 import time
 import scipy.signal as sg
 
 class NeuralDenoiser():
-	def __init__(self, path=None, n_layers=3, kernel_size=99, padding=49, stride=1, channels=[16, 8, 1]):
+	def __init__(self, path=None):
 		# Set device dynamically
 		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 		# Load or initialise denoiser object
 		if path is not None:
-			self.denoiser = torch.load(path)
+			self.denoiser = DenoisingUNet().load_from_checkpoint(path)
 		else:
-			self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
-				padding=padding, stride=stride, channels=channels)
+			# self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
+			# 	padding=padding, stride=stride, channels=channels)
+			self.denoiser = DenoisingUNet()
 
 		# Move denoiser to device
 		self.denoiser = self.denoiser.to(self.device)
 
-	def __call__(self, traces, monotone_filter_start=500, monotone_filter_inplace=True, rescale=20):
+	def __call__(self, traces, monotone_filter_start=500, monotone_filter_inplace=True, rescale=1):
 		''' Run denoiser over PSC trace batch and apply monotone decay filter.
 		'''
 		den = self.denoiser(
@@ -31,12 +34,12 @@ class NeuralDenoiser():
 			monotone_start=monotone_filter_start)
 
 	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None, save_every=50, 
-		save_path=None):
+		save_path=None, num_workers=2, pin_memory=True, num_gpus=1):
 		'''Run pytorch training loop.
 		'''
 
-		print('CUDA device available: ', torch.cuda.is_available())
-		print('CUDA device: ', torch.cuda.get_device_name())
+		# print('CUDA device available: ', torch.cuda.is_available())
+		# print('CUDA device: ', torch.cuda.get_device_name())
 
 		if data_path is not None:
 			print('Attempting to load data at', data_path, '... ', end='')
@@ -56,24 +59,29 @@ class NeuralDenoiser():
 			test_data = PSCData(self.test_data[0], self.test_data[1])
 			print('found.')
 
-		train_dataloader = DataLoader(training_data, batch_size=batch_size)
-		test_dataloader = DataLoader(test_data, batch_size=batch_size)
+		train_dataloader = DataLoader(training_data, batch_size=batch_size, 
+			pin_memory=pin_memory, num_workers=num_workers)
+		test_dataloader = DataLoader(test_data, batch_size=batch_size, 
+			pin_memory=pin_memory, num_workers=num_workers)
 
-		loss_fn = nn.MSELoss()
-		self.train_loss, self.test_loss = [], []
-		optimizer = torch.optim.SGD(self.denoiser.parameters(), lr=learning_rate)
+		# loss_fn = nn.MSELoss()
+		# self.train_loss, self.test_loss = [], []
+		# optimizer = torch.optim.SGD(self.denoiser.parameters(), lr=learning_rate)
 
 		# Run torch update loops
 		print('Initiating neural net training...')
 		t_start = time.time()
-		for t in range(epochs):
-			self.train_loss.append(_train_loop(train_dataloader, self, loss_fn, optimizer))
-			self.test_loss.append(_test_loop(test_dataloader, self, loss_fn))
-			print('Epoch %i/%i  Train loss: %.8f  Test loss: %.8f'%(t+1, epochs, self.train_loss[t], self.test_loss[t]))
-
-			if (save_every is not None) and (t % save_every == 0) and (t > 0) and (save_path is not None):
-				torch.save(self.denoiser, save_path + '_chkpt_%i.pt'%t)
+		self.trainer = pl.Trainer(gpus=num_gpus, max_epochs=epochs)
+		self.trainer.fit(self.denoiser, train_dataloader, test_dataloader)
 		t_stop = time.time()
+
+		# for t in range(epochs):
+		# 	self.train_loss.append(_train_loop(train_dataloader, self, loss_fn, optimizer))
+		# 	self.test_loss.append(_test_loop(test_dataloader, self, loss_fn))
+		# 	print('Epoch %i/%i  Train loss: %.8f  Test loss: %.8f'%(t+1, epochs, self.train_loss[t], self.test_loss[t]))
+
+		# 	if (save_every is not None) and (t % save_every == 0) and (t > 0) and (save_path is not None):
+		# 		torch.save(self.denoiser, save_path + '_chkpt_%i.pt'%t)
 		print("Training complete. Elapsed time: %.2f min."%((t_stop-t_start)/60))
 
 	def generate_training_data(self, trial_dur=900, size=1000, training_fraction=0.9, lp_cutoff=500, 
@@ -150,7 +158,9 @@ class PSCData(Dataset):
 	def __len__(self):
 		return self.len
 
-class DenoisingNetwork(nn.Module):
+class StackedDenoisingNetwork(nn.Module):
+	'''Denoising neural network consisting of multiple layers of long 1d convolutions.
+	'''
 	def __init__(self, n_layers=3, kernel_size=99, padding=49, channels=[16, 8, 1], stride=1):
 		super(DenoisingNetwork, self).__init__()
 		assert n_layers >= 2, 'Neural network must have at least one input layer and one output layer.'
@@ -169,6 +179,108 @@ class DenoisingNetwork(nn.Module):
 
 	def forward(self, x):
 		return self.layers(x)
+
+class DownsamplingBlock(nn.Module):
+	'''DownsamplingBlock
+	'''
+	def __init__(self, in_channels, out_channels, kernel_size, dilation):
+		super(DownsamplingBlock, self).__init__()
+
+		self.conv = nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
+			dilation=dilation)
+		self.decimate = nn.AvgPool1d(kernel_size=3, stride=2)
+		self.relu = nn.ReLU()
+		self.bn = nn.BatchNorm1d(out_channels)
+
+	def forward(self, x):
+		return self.relu(self.bn(self.conv(self.decimate(x))))
+
+class UpsamplingBlock(nn.Module):
+	'''UpsamplingBlock
+	'''
+	def __init__(self, in_channels, out_channels, kernel_size, stride, interpolation_mode='linear'):
+		super(UpsamplingBlock, self).__init__()
+
+		self.deconv = nn.ConvTranspose1d(in_channels=in_channels, out_channels=out_channels, 
+			kernel_size=kernel_size, stride=stride)
+		self.relu = nn.ReLU()
+		self.bn = nn.BatchNorm1d(out_channels)
+		self.interpolation_mode = interpolation_mode
+
+	def forward(self, x, skip=None, interp_size=None):
+		if skip is not None:
+			up = nn.functional.interpolate(self.relu(self.bn(self.deconv(x))), size=skip.shape[-1], 
+										  mode=self.interpolation_mode)
+			return torch.cat([up, skip], dim=1)
+		else:
+			return nn.functional.interpolate(self.relu(self.bn(self.deconv(x))), size=interp_size, 
+				mode=self.interpolation_mode)
+
+class ConvolutionBlock(nn.Module):
+	'''ConvolutionBlock
+	'''
+	def __init__(self, in_channels, out_channels, kernel_size, padding, stride, dilation):
+		super(ConvolutionBlock, self).__init__()
+		
+		self.conv = nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, 
+							  stride=stride, padding=padding, dilation=dilation)
+		self.relu = nn.ReLU()
+		self.bn = nn.BatchNorm1d(out_channels)
+		
+	def forward(self, x):
+		return self.relu(self.bn(self.conv(x)))
+
+class DenoisingUNet(pl.LightningModule):
+	def __init__(self):
+		super(DenoisingUNet, self).__init__()
+		self.dblock1 = DownsamplingBlock(1, 16, 32, 2)
+		self.dblock2 = DownsamplingBlock(16, 16, 32, 1)
+		self.dblock3 = DownsamplingBlock(16, 32, 16, 1)
+		self.dblock4 = DownsamplingBlock(32, 32, 16, 1)
+		
+		self.ublock1 = UpsamplingBlock(32, 16, 16, 1)
+		self.ublock2 = UpsamplingBlock(48, 16, 16, 1)
+		self.ublock3 = UpsamplingBlock(32, 16, 32, 1)
+		self.ublock4 = UpsamplingBlock(32, 4, 32, 2)
+		
+		self.conv = ConvolutionBlock(4, 1, 256, 255, 1, 2)
+		
+	def forward(self, x):
+		# Encoding
+		enc1 = self.dblock1(x)
+		enc2 = self.dblock2(enc1)
+		enc3 = self.dblock3(enc2)
+		enc4 = self.dblock4(enc3)
+
+		# Decoding
+		dec1 = self.ublock1(enc4, skip=enc3)
+		dec2 = self.ublock2(dec1, skip=enc2)
+		dec3 = self.ublock3(dec2, skip=enc1)
+		dec4 = self.ublock4(dec3, interp_size=x.shape[-1])
+
+		# Final conv layer
+		out = self.conv(dec4)
+
+		return out
+
+	def configure_optimizers(self):
+		return torch.optim.SGD(self.parameters(), lr=1e-2)
+	
+	def loss_fn(self, inputs, targets):
+		return nn.functional.mse_loss(inputs, targets)
+	
+	def training_step(self, batch, batch_idx):
+		x, y = batch
+		pred = self.forward(x)
+		loss = self.loss_fn(pred, y)
+		self.log('train_loss', loss)
+		return loss
+	
+	def validation_step(self, batch, batch_idx):
+		x, y = batch
+		pred = self.forward(x)
+		loss = self.loss_fn(pred, y)
+		self.log('val_loss', loss)
 
 def _sample_gp(trial_dur=800, gp_lengthscale=25, gp_scale=0.01, n_samples=1):
 	D = np.array([[i - j for i in range(trial_dur)] for j in range(trial_dur)])
@@ -210,48 +322,48 @@ def _monotone_decay_filter(arr, monotone_start=500, inplace=True):
 			_arr[:, t] = np.min([arr[:, t], _arr[:, t-1]], axis=0)
 	return _arr
 
-def _train_loop(dataloader, model, loss_fn, optimizer):
-	n_batches = len(dataloader)
-	train_loss = 0
-	scaler = torch.cuda.amp.GradScaler()
-	for batch, (X, y) in enumerate(dataloader):
-		# send the batch to GPU
-		X = X.to(device=model.device)
-		y = y.to(device=model.device)
+# def _train_loop(dataloader, model, loss_fn, optimizer):
+# 	n_batches = len(dataloader)
+# 	train_loss = 0
+# 	scaler = torch.cuda.amp.GradScaler()
+# 	for batch, (X, y) in enumerate(dataloader):
+# 		# send the batch to GPU
+# 		X = X.to(device=model.device)
+# 		y = y.to(device=model.device)
 
-		# Compute prediction and loss
-		pred = model.denoiser(X)
-		with torch.cuda.amp.autocast():
-			loss = loss_fn(pred, y)
-		train_loss += loss
+# 		# Compute prediction and loss
+# 		pred = model.denoiser(X)
+# 		with torch.cuda.amp.autocast():
+# 			loss = loss_fn(pred, y)
+# 		train_loss += loss
 
-		# Backpropagation
-		optimizer.zero_grad()
+# 		# Backpropagation
+# 		optimizer.zero_grad()
 
-		# loss.backward()
-		# optimizer.step()
-		scaler.scale(loss).backward()
-		scaler.step(optimizer)
-		scaler.update()
+# 		# loss.backward()
+# 		# optimizer.step()
+# 		scaler.scale(loss).backward()
+# 		scaler.step(optimizer)
+# 		scaler.update()
 
-	train_loss /= n_batches
-	return train_loss
-	# return train_loss.detach().cpu().numpy()
+# 	train_loss /= n_batches
+# 	return train_loss
+# 	# return train_loss.detach().cpu().numpy()
 		
-def _test_loop(dataloader, model, loss_fn):
-	n_batches = len(dataloader)
-	test_loss = 0
-	with torch.no_grad():
-		for X, y in dataloader:
-			X = X.to(device=model.device)
-			y = y.to(device=model.device)
-			# X.to("cuda" if torch.cuda.is_available() else "cpu")
-			# y.to("cuda" if torch.cuda.is_available() else "cpu")
+# def _test_loop(dataloader, model, loss_fn):
+# 	n_batches = len(dataloader)
+# 	test_loss = 0
+# 	with torch.no_grad():
+# 		for X, y in dataloader:
+# 			X = X.to(device=model.device)
+# 			y = y.to(device=model.device)
+# 			# X.to("cuda" if torch.cuda.is_available() else "cpu")
+# 			# y.to("cuda" if torch.cuda.is_available() else "cpu")
 
-			pred = model.denoiser(X)
-			test_loss += loss_fn(pred, y).item()
+# 			pred = model.denoiser(X)
+# 			test_loss += loss_fn(pred, y).item()
 
-	test_loss /= n_batches
-	return test_loss
+# 	test_loss /= n_batches
+# 	return test_loss
 
 
