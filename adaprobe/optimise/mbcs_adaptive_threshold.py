@@ -97,7 +97,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 	return mu, beta, lam, shape, rate, phi, phi_cov, *hist_arrs
 
-def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=20, init_thresh=0.2, scale_factor=0.95, min_thresh=0.09, 
+def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, I, max_iters=20, init_thresh=0.2, scale_factor=0.95, min_thresh=0.09, 
 	proportion_allowable_missed_events=0.1):
 	'''Adaptively reduce excitability threshold phi until the L2 noise constraint is met
 	'''
