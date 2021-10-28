@@ -21,8 +21,8 @@ EPS = 1e-10
 def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, iters=50, 
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5, 
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', 
-	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, 
-	phi_thresh=None, phi_thresh_delay=5):
+	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2, 
+	phi_thresh_scale_factor=0.95, min_phi_thresh=0.9):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -87,7 +87,8 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate)
+		mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, max_iters=max_phi_thresh_iters, 
+			init_thresh=init_phi_thresh, scale_factor=phi_thresh_scale_factor, min_thresh=min_phi_thresh)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
@@ -95,7 +96,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 	return mu, beta, lam, shape, rate, phi, phi_cov, *hist_arrs
 
-def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, max_iters=20, init_thresh=0.2, scale_factor=0.95):
+def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, max_iters=20, init_thresh=0.2, scale_factor=0.95, min_thresh=0.9):
 	'''Adaptively reduce excitability threshold phi until the L2 noise constraint is met
 	'''
 	sig = shape/rate
@@ -114,7 +115,7 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, max_iters=20, 
 		_lam[phi_locs] = 0
 
 		err = np.sqrt(np.sum(np.square(y_cpu - _lam.T @ _mu)))
-		if err <= constr:
+		if err <= constr or phi_thresh <= min_thresh:
 			print('found excitability threshold ', phi_thresh)
 			break
 		else:
