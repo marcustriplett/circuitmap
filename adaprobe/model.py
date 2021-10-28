@@ -65,10 +65,12 @@ class Model:
 			self._fit_mbcs_sparse_outliers(obs, stimuli, fit_options)
 		elif method =='mbcs_multiplicative_noise':
 			self._fit_mbcs_multiplicative_noise(obs, stimuli, fit_options)
-		elif method =='mbcs_multiplicative_noise':
+		elif method =='mbcs_adaptive_threshold':
 			self._fit_mbcs_adaptive_threshold(obs, stimuli, fit_options)
 		elif method == 'cavi_sns':
 			self._fit_cavi_sns(obs, stimuli, fit_options)
+		else:
+			raise Exception
 
 	def _fit_cavi_sns(self, obs, stimuli, fit_options):
 		"""Run CAVI with spike-and-slab synapse prior.
