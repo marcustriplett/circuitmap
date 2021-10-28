@@ -114,7 +114,8 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_
 		_lam = lam_cpu.copy()
 		_lam[phi_locs] = 0
 
-		no_presynaptic_events = np.all(_lam < 0.5, axis=0)
+
+		no_presynaptic_events = np.all(_lam[np.where(_mu != 0)[0]] < 0.5, axis=0)
 		observed_events = np.where(lam_mask > 0)[0]
 
 		err = np.sum(no_presynaptic_events[observed_events])/(mu_cpu.shape[0] * observed_events.shape[0])
