@@ -106,7 +106,7 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_
 	mu_cpu = np.array(mu)
 	lam_cpu = np.array(lam)
 	y_cpu = np.array(y)
-
+	print('lam_cpu shape: ', lam_cpu.shape)
 	for it in range(max_iters):
 		# Filter connection vector via opsin expression threshold
 		phi_locs = phi[:, 0] < phi_thresh
