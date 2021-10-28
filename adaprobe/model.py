@@ -65,6 +65,8 @@ class Model:
 			self._fit_mbcs_sparse_outliers(obs, stimuli, fit_options)
 		elif method =='mbcs_multiplicative_noise':
 			self._fit_mbcs_multiplicative_noise(obs, stimuli, fit_options)
+		elif method =='mbcs_multiplicative_noise':
+			self._fit_mbcs_adaptive_threshold(obs, stimuli, fit_options)
 		elif method == 'cavi_sns':
 			self._fit_cavi_sns(obs, stimuli, fit_options)
 
@@ -167,7 +169,7 @@ class Model:
 		self.state['rate'] 		= rate
 		self.state['phi'] 		= phi
 		self.state['phi_cov'] 	= phi_cov
-		self.state['lam'] 		= lam.T
+		self.state['lam'] 		= lam
 		self.trial_count 		= lam.shape[1]
 		self.time 				= t_end - t_start
 
@@ -185,7 +187,7 @@ class Model:
 		return
 
 	def _fit_mbcs_sparse_outliers(self, obs, stimuli, fit_options):
-		"""Run MBCS with .
+		"""Run MBCS with sparse outliers.
 		"""
 		t_start = time.time()
 		result = optimise.mbcs_sparse_outliers(
@@ -284,3 +286,57 @@ class Model:
 		self.time 				= t_end - t_start
 
 		return
+
+	def _fit_mbcs_adaptive_threshold(self, obs, stimuli, fit_options):
+		"""
+		"""
+		t_start = time.time()
+		result = optimise.mbcs_adaptive_threshold(
+			obs, stimuli, self.state['mu'], self.state['beta'], self.state['shape'], self.state['rate'], 
+			self.state['phi'], self.state['phi_cov'], **fit_options 
+		)
+
+		t_end = time.time()
+
+		mu, beta, lam, shape, rate, phi, phi_cov, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
+		phi_hist, phi_cov_hist = result
+
+		# move from GPU back to CPU
+		## param vectors
+		mu 			= np.array(mu)
+		beta 		= np.array(beta)
+		lam 		= np.array(lam)
+		shape 		= np.array(shape)
+		rate 		= np.array(rate)
+		phi 		= np.array(phi)
+		phi_cov 	= np.array(phi_cov)
+
+		## history vectors
+		mu_hist 		= np.array(mu_hist)
+		beta_hist 		= np.array(beta_hist)
+		lam_hist 		= np.array(lam_hist)
+		shape_hist 		= np.array(shape_hist)
+		rate_hist 		= np.array(rate_hist)
+		phi_hist 		= np.array(phi_hist)
+		phi_cov_hist 	= np.array(phi_cov_hist)
+
+		self.state['mu'] 		= mu
+		self.state['beta'] 		= beta
+		self.state['shape'] 	= shape
+		self.state['rate'] 		= rate
+		self.state['phi'] 		= phi
+		self.state['phi_cov'] 	= phi_cov
+		self.state['lam'] 		= lam
+		self.trial_count 		= lam.shape[1]
+		self.time 				= t_end - t_start
+
+		# Set up history dict
+		self.history = {
+			'mu': mu_hist,
+			'beta': beta_hist,
+			'lam': lam_hist,
+			'shape': shape_hist,
+			'rate': rate_hist,
+			'phi': phi_hist,
+			'phi_cov': phi_cov_hist
+		}
