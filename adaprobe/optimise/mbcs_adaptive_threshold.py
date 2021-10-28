@@ -30,7 +30,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		K = y.shape[0]
 
 		# Setup lam mask
-		lam_mask = (jnp.array([jnp.var(y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh)
+		lam_mask = (jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh)
 
 	else:
 		y = obs
