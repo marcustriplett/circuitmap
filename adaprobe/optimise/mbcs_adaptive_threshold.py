@@ -101,12 +101,19 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, max_iters=20, 
 	sig = shape/rate
 	constr = sig * np.sqrt(y.shape[0])
 	phi_thresh = init_thresh
+	mu_cpu = np.array(mu)
+	lam_cpu = np.array(lam)
+	y_cpu = np.array(y)
+
 	for it in range(max_iters):
 		# Filter connection vector via opsin expression threshold
-		phi_locs = jnp.where(phi[:, 0] < phi_thresh)[0]
-		_mu = index_update(mu, phi_locs, 0.)
-		_lam = index_update(lam, phi_locs, 0.)
-		err = np.sqrt(np.sum(np.square(y - _lam.T @ _mu)))
+		phi_locs = phi[:, 0] < phi_thresh
+		_mu = mu_cpu.copy()
+		_mu[phi_locs] = 0
+		_lam = lam_cpu.copy()
+		_lam[phi_locs] = 0
+
+		err = np.sqrt(np.sum(np.square(y_cpu - _lam.T @ _mu)))
 		if err <= constr:
 			print('found excitability threshold ', phi_thresh)
 			break
