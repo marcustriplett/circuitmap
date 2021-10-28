@@ -115,6 +115,7 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, max_iters=20, 
 		_lam[phi_locs] = 0
 
 		err = np.sqrt(np.sum(np.square(y_cpu - _lam.T @ _mu)))
+		print('err: ', err, 'constr: ', constr)
 		if err <= constr or phi_thresh <= min_thresh:
 			print('found excitability threshold ', phi_thresh)
 			break
