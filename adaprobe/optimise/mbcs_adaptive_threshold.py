@@ -120,7 +120,7 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_
 		observed_events = np.where(lam_mask > 0)[0]
 
 		# err = np.sum(no_presynaptic_events[observed_events])/(mu_cpu.shape[0] * observed_events.shape[0])
-		err = np.sqrt(np.sum(np.square(y_pred - _lam.T @ _mu)))
+		err = np.sqrt(np.mean(np.square(y_pred - _lam.T @ _mu)))
 
 		print('curr thresh: ', phi_thresh, ' err: ', err, ' constr: ', tol)
 		if err <= tol or phi_thresh <= min_thresh:
