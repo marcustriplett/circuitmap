@@ -119,7 +119,7 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_
 		observed_events = np.where(lam_mask > 0)[0]
 		err = np.mean(no_presynaptic_events[observed_events])
 
-		print('err: ', err, 'constr: ', proportion_allowable_missed_events)
+		print('curr thresh: ', phi_thresh, ' err: ', err, ' constr: ', proportion_allowable_missed_events)
 		if err <= proportion_allowable_missed_events or phi_thresh <= min_thresh:
 			print('found excitability threshold ', phi_thresh)
 			break
