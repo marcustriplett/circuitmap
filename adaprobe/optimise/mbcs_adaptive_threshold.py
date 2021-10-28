@@ -87,7 +87,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=max_phi_thresh_iters, 
+		mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, I, max_iters=max_phi_thresh_iters, 
 			init_thresh=init_phi_thresh, scale_factor=phi_thresh_scale_factor, min_thresh=min_phi_thresh, 
 			proportion_allowable_missed_events=proportion_allowable_missed_events)
 
@@ -106,7 +106,6 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_
 	mu_cpu = np.array(mu)
 	lam_cpu = np.array(lam)
 	y_cpu = np.array(y)
-	print('lam_cpu shape: ', lam_cpu.shape)
 	for it in range(max_iters):
 		# Filter connection vector via opsin expression threshold
 		phi_locs = phi[:, 0] < phi_thresh
@@ -118,8 +117,7 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_
 		no_presynaptic_events = np.all(_lam < 0.5, axis=0)
 		observed_events = np.where(lam_mask > 0)[0]
 
-
-		err = np.sum(no_presynaptic_events[observed_events])/(mu_cpu.shape[0] * observed_events.shape[0])
+		err = np.sum(no_presynaptic_events[observed_events])/(mu_cpu.shape[0] * np.mean(np.sum(I > 0, axis=1)))
 
 		print('curr thresh: ', phi_thresh, ' err: ', err, ' constr: ', proportion_allowable_missed_events)
 		if err <= proportion_allowable_missed_events or phi_thresh <= min_thresh:
