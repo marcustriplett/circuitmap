@@ -99,7 +99,7 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, max_iters=20, 
 	'''Adaptively reduce excitability threshold phi until the L2 noise constraint is met
 	'''
 	sig = shape/rate
-	constr = sig * np.sqrt(K)
+	constr = sig * np.sqrt(y.shape[0])
 	phi_thresh = init_thresh
 	for it in range(max_iters):
 		# Filter connection vector via opsin expression threshold
