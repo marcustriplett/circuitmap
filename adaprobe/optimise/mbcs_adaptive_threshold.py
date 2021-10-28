@@ -22,7 +22,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5, 
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', 
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2, 
-	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1):
+	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -89,7 +89,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=max_phi_thresh_iters, 
 			init_thresh=init_phi_thresh, scale_factor=phi_thresh_scale_factor, min_thresh=min_phi_thresh, 
-			proportion_allowable_missed_events=proportion_allowable_missed_events)
+			proportion_allowable_missed_events=proportion_allowable_missed_events, tol=phi_tol)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
@@ -98,7 +98,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	return mu, beta, lam, shape, rate, phi, phi_cov, *hist_arrs
 
 def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=20, init_thresh=0.2, scale_factor=0.95, min_thresh=0.09, 
-	proportion_allowable_missed_events=0.1):
+	proportion_allowable_missed_events=0.1, tol=1e-1):
 	'''Adaptively reduce excitability threshold phi until the L2 noise constraint is met
 	'''
 	sig = shape/rate
@@ -106,6 +106,7 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_
 	mu_cpu = np.array(mu)
 	lam_cpu = np.array(lam)
 	y_cpu = np.array(y)
+	y_pred = lam_cpu.T @ mu_cpu
 	for it in range(max_iters):
 		# Filter connection vector via opsin expression threshold
 		phi_locs = phi[:, 0] < phi_thresh
@@ -118,10 +119,11 @@ def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_
 		no_presynaptic_events = np.all(_lam[np.where(_mu != 0)[0]] < 0.5, axis=0)
 		observed_events = np.where(lam_mask > 0)[0]
 
-		err = np.sum(no_presynaptic_events[observed_events])/(mu_cpu.shape[0] * observed_events.shape[0])
+		# err = np.sum(no_presynaptic_events[observed_events])/(mu_cpu.shape[0] * observed_events.shape[0])
+		err = np.sqrt(np.sum(np.square(y_pred - _lam.T @ _mu)))
 
-		print('curr thresh: ', phi_thresh, ' err: ', err, ' constr: ', proportion_allowable_missed_events)
-		if err <= proportion_allowable_missed_events or phi_thresh <= min_thresh:
+		print('curr thresh: ', phi_thresh, ' err: ', err, ' constr: ', tol)
+		if err <= tol or phi_thresh <= min_thresh:
 			print('found excitability threshold ', phi_thresh)
 			break
 		else:
