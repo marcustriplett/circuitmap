@@ -86,11 +86,10 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-
-		if it > phi_delay:
-			mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=max_phi_thresh_iters, 
-				init_thresh=init_phi_thresh, scale_factor=phi_thresh_scale_factor, min_thresh=min_phi_thresh, 
-				proportion_allowable_missed_events=proportion_allowable_missed_events, tol=phi_tol)
+		mu, lam = adaptive_excitability_threshold(mu, lam, I)
+		# mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=max_phi_thresh_iters, 
+		# 	init_thresh=init_phi_thresh, scale_factor=phi_thresh_scale_factor, min_thresh=min_phi_thresh, 
+		# 	proportion_allowable_missed_events=proportion_allowable_missed_events, tol=phi_tol)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
@@ -98,7 +97,24 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 	return mu, beta, lam, shape, rate, phi, phi_cov, *hist_arrs
 
-def adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=20, init_thresh=0.2, scale_factor=0.95, min_thresh=0.09, 
+def adaptive_excitability_threshold(mu, lam, I):
+	powers = np.unique(I)[1:]
+	connected_cells = np.where(mu != 0)[0]
+	n_connected = len(connected_cells)
+	n_powers = len(powers)
+	inferred_spk_probs = np.zeros((n_connected, n_powers))
+	for i, n in enumerate(connected_cells):
+		for p, power in enumerate(powers):
+			locs = np.where(I[n] == power)[0]
+			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
+			inferred_spk_probs[i, p] = spks/len(locs)
+	cell_mask = np.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
+	disc_cells = connected_cells[np.invert(cell_mask)]
+	mu[disc_cells] = 0
+	lam[disc_cells] = 0
+	return mu, lam
+
+def _adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=20, init_thresh=0.2, scale_factor=0.95, min_thresh=0.09, 
 	proportion_allowable_missed_events=0.1, tol=1e-1):
 	'''Adaptively reduce excitability threshold phi until the L2 noise constraint is met
 	'''
