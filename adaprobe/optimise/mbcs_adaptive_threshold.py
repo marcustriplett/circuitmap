@@ -22,7 +22,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5, 
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', 
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2, 
-	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, phi_delay=0):
+	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, phi_delay=0, phi_thresh=0.1):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -86,7 +86,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		mu, lam = adaptive_excitability_threshold(mu, lam, I)
+		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi_thresh)
 		# mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=max_phi_thresh_iters, 
 		# 	init_thresh=init_phi_thresh, scale_factor=phi_thresh_scale_factor, min_thresh=min_phi_thresh, 
 		# 	proportion_allowable_missed_events=proportion_allowable_missed_events, tol=phi_tol)
@@ -97,23 +97,28 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 	return mu, beta, lam, shape, rate, phi, phi_cov, *hist_arrs
 
-def adaptive_excitability_threshold(mu, lam, I):
+def adaptive_excitability_threshold(mu, lam, I, phi_thresh):
 	powers = np.unique(I)[1:]
 	connected_cells = np.where(mu != 0)[0]
 	n_connected = len(connected_cells)
 	n_powers = len(powers)
-	inferred_spk_probs = np.zeros((n_connected, n_powers))
+	inferred_spk_probs = jnp.zeros((n_connected, n_powers))
 	for i, n in enumerate(connected_cells):
 		for p, power in enumerate(powers):
 			locs = np.where(I[n] == power)[0]
 			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
-			inferred_spk_probs[i, p] = spks/len(locs)
-	cell_mask = np.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
-	disc_cells = connected_cells[np.invert(cell_mask)]
-	mu = index_update(mu, disc_cells, 0)
-	lam = index_update(lam, disc_cells, 0)
-	# mu[disc_cells] = 0
-	# lam[disc_cells] = 0
+			inferred_spk_probs = index_update(inferred_spk_probs, (i, p), spks/locs.shape[0])
+			# inferred_spk_probs[i, p] = spks/len(locs)
+	cell_mask = jnp.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
+	disc_cells = connected_cells[jnp.invert(cell_mask)]
+	mu = index_update(mu, disc_cells, 0.)
+	lam = index_update(lam, disc_cells, 0.)
+
+	# Filter connection vector via opsin expression threshold
+	phi_locs = np.where(phi[:, 0] < phi_thresh)[0]
+	mu = index_update(mu, phi_locs, 0.)
+	lam = index_update(lam, phi_locs, 0.)
+
 	return mu, lam
 
 def _adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=20, init_thresh=0.2, scale_factor=0.95, min_thresh=0.09, 
