@@ -110,8 +110,10 @@ def adaptive_excitability_threshold(mu, lam, I):
 			inferred_spk_probs[i, p] = spks/len(locs)
 	cell_mask = np.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
 	disc_cells = connected_cells[np.invert(cell_mask)]
-	mu[disc_cells] = 0
-	lam[disc_cells] = 0
+	mu = index_update(mu, disc_cells, 0)
+	lam = index_update(lam, disc_cells, 0)
+	# mu[disc_cells] = 0
+	# lam[disc_cells] = 0
 	return mu, lam
 
 def _adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=20, init_thresh=0.2, scale_factor=0.95, min_thresh=0.09, 
