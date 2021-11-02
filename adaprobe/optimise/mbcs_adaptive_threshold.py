@@ -92,7 +92,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh)
 		if it > phi_delay:
-			z = update_z_constr_l1(y, mu, lam, shape, rate, penalty=outlier_penalty, scale_factor=scale_factor,
+			z = update_z_constr_l1(y, mu, lam, shape, rate, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=True, 
 				orthogonal=orthogonal_outliers)
 
@@ -231,7 +231,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	else:
 		return coef
 
-def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
+def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
 	verbose=False, orthogonal=True):
 	""" Soft thresholding with iterative penalty shrinkage
 	"""
@@ -255,6 +255,8 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max
 		if orthogonal:
 			# enforce orthogonality
 			z[np.any(Lam >= 0.5, axis=0)] = 0
+			
+		z = z * lam_mask
 
 		err = np.sqrt(np.sum(np.square(resid - z)))
 
