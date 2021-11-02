@@ -254,7 +254,7 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max
 		z[z < 0] = 0
 		if orthogonal:
 			# enforce orthogonality
-			z[np.any(model_seq.state['lam'] >= 0.5, axis=0)] = 0
+			z[np.any(Lam >= 0.5, axis=0)] = 0
 
 		err = np.sqrt(np.sum(np.square(resid - z)))
 
