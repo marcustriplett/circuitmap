@@ -250,18 +250,23 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max
 		z[soft_thresh_locs] = resid[soft_thresh_locs] - penalty
 		z[z < 0] = 0
 
+
+
 		err = np.sqrt(np.sum(np.square(resid - z)))
+
+		if verbose:
+			print('soft thresh err: ', err)
+			print('constr: ', constr)
+			print('')
+
+			
 		if err <= constr:
 			if verbose:
 				print(' ==== converged on iteration: %i ===='%it)
 			break
 		else:
 			penalty *= scale_factor # exponential backoff
-
-		if verbose:
-			print('soft thresh err: ', err)
-			print('constr: ', constr)
-			print('')
+		
 	return z
 
 # def _loss_fn(lam, args):
