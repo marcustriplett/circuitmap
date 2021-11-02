@@ -93,7 +93,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh)
 		if it > phi_delay:
 			z = update_z_constr_l1(y, mu, lam, shape, rate, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
-				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=True, 
+				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose, 
 				orthogonal=orthogonal_outliers)
 
 		# mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=max_phi_thresh_iters, 
@@ -187,6 +187,8 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	warm_start_lasso=False, constrain_weights='positive', verbose=False, tol=1e-5):
 	""" Constrained L1 solver with iterative penalty shrinking
 	"""
+	if verbose:
+		print(' ====== Updating mu via constrained L1 solver with iterative penalty shrinking ======')
 	N, K = Lam.shape
 	sigma = np.sqrt(rate/shape)
 	constr = sigma * np.sqrt(K)
@@ -236,6 +238,9 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_facto
 	verbose=False, orthogonal=True):
 	""" Soft thresholding with iterative penalty shrinkage
 	"""
+	if verbose:
+		print(' ====== Updating z via soft thresholding with iterative penalty shrinking ======')
+
 	N, K = Lam.shape
 	sigma = np.sqrt(rate/shape)
 	constr = sigma * np.sqrt(K)
