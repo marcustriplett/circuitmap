@@ -344,5 +344,5 @@ class Model:
 			'rate': rate_hist,
 			'phi': phi_hist,
 			'phi_cov': phi_cov_hist,
-			'z_hist': z_hist
+			'z': z_hist
 		}
