@@ -22,7 +22,8 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5, 
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', 
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2, 
-	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, phi_delay=0, phi_thresh=0.09):
+	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, phi_delay=0, phi_thresh=0.09,
+	outlier_penalty=10):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -91,7 +92,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		# mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh)
 		if it > 3:
-			z = update_z_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor,
+			z = update_z_constr_l1(y, mu, lam, shape, rate, penalty=outlier_penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=True)
 
 		# mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=max_phi_thresh_iters, 
@@ -259,7 +260,7 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max
 			print('constr: ', constr)
 			print('')
 
-			
+
 		if err <= constr:
 			if verbose:
 				print(' ==== converged on iteration: %i ===='%it)
