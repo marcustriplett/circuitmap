@@ -47,7 +47,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
-	z 			= jnp.zeros(K)
+	z 			= np.zeros(K)
 	
 	# Spike initialisation
 	if init_lam is None:
@@ -108,7 +108,7 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh):
 	connected_cells = np.where(mu != 0)[0]
 	n_connected = len(connected_cells)
 	n_powers = len(powers)
-	inferred_spk_probs = jnp.zeros((n_connected, n_powers))
+	inferred_spk_probs = np.zeros((n_connected, n_powers))
 	for i, n in enumerate(connected_cells):
 		for p, power in enumerate(powers):
 			locs = np.where(I[n] == power)[0]
