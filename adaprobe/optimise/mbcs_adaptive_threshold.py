@@ -107,21 +107,22 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	return mu, beta, lam, shape, rate, phi, phi_cov, z, *hist_arrs
 
 def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh):
-	# powers = np.unique(I)[1:]
-	# connected_cells = np.where(mu != 0)[0]
-	# n_connected = len(connected_cells)
-	# n_powers = len(powers)
-	# inferred_spk_probs = np.zeros((n_connected, n_powers))
-	# for i, n in enumerate(connected_cells):
-	# 	for p, power in enumerate(powers):
-	# 		locs = np.where(I[n] == power)[0]
-	# 		spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
-	# 		inferred_spk_probs = index_update(inferred_spk_probs, (i, p), spks/locs.shape[0])
-	# 		# inferred_spk_probs[i, p] = spks/len(locs)
-	# cell_mask = np.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
-	# disc_cells = connected_cells[np.invert(cell_mask)]
-	# mu = index_update(mu, disc_cells, 0.)
-	# lam = index_update(lam, disc_cells, 0.)
+	# Enforce monotonicity
+	powers = np.unique(I)[1:]
+	connected_cells = np.where(mu != 0)[0]
+	n_connected = len(connected_cells)
+	n_powers = len(powers)
+	inferred_spk_probs = np.zeros((n_connected, n_powers))
+	for i, n in enumerate(connected_cells):
+		for p, power in enumerate(powers):
+			locs = np.where(I[n] == power)[0]
+			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
+			inferred_spk_probs = index_update(inferred_spk_probs, (i, p), spks/locs.shape[0])
+			# inferred_spk_probs[i, p] = spks/len(locs)
+	cell_mask = np.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
+	disc_cells = connected_cells[np.invert(cell_mask)]
+	mu = index_update(mu, disc_cells, 0.)
+	lam = index_update(lam, disc_cells, 0.)
 
 	# Filter connection vector via opsin expression threshold
 	phi_locs = np.where(phi[:, 0] < phi_thresh)[0]
