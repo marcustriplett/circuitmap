@@ -89,7 +89,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh)
+		# mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh)
 		if it > 3:
 			z = update_z_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
