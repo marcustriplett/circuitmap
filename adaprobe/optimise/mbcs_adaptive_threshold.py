@@ -31,12 +31,12 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		K = y.shape[0]
 
 		# Setup lam mask
-		lam_mask = (jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh)
+		lam_mask = (np.array([np.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh)
 
 	else:
 		y = obs
 		K = y.shape[0]
-		lam_mask = jnp.ones(K)
+		lam_mask = np.ones(K)
 
 	# Initialise new params
 	N = mu_prior.shape[0]
@@ -255,7 +255,7 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_facto
 		if orthogonal:
 			# enforce orthogonality
 			z[np.any(Lam >= 0.5, axis=0)] = 0
-			
+
 		z = z * lam_mask
 
 		err = np.sqrt(np.sum(np.square(resid - z)))
