@@ -47,9 +47,11 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
+	z 			= jnp.zeros(K)
 	
+	# Spike initialisation
 	if init_lam is None:
-		lam = np.zeros_like(I) # spike initialisation
+		lam = np.zeros_like(I) 
 		if lam_masking:
 			lam[I > 0] = 0.95
 			lam = lam * lam_mask
@@ -68,9 +70,10 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	rate_hist 		= jnp.zeros(iters)
 	phi_hist  		= jnp.zeros((iters, N, 2))
 	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
+	z_hist 			= jnp.zeros((iters, K))
 	
 	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
-		phi_hist, phi_cov_hist]
+		phi_hist, phi_cov_hist, z_hist]
 
 	# init key
 	key = jax.random.PRNGKey(seed)
@@ -87,15 +90,18 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh)
+		z = update_z_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor,
+				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
+
 		# mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=max_phi_thresh_iters, 
 		# 	init_thresh=init_phi_thresh, scale_factor=phi_thresh_scale_factor, min_thresh=min_phi_thresh, 
 		# 	proportion_allowable_missed_events=proportion_allowable_missed_events, tol=phi_tol)
 
 		# record history
-		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
+		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
-	return mu, beta, lam, shape, rate, phi, phi_cov, *hist_arrs
+	return mu, beta, lam, shape, rate, phi, phi_cov, z, *hist_arrs
 
 def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh):
 	powers = np.unique(I)[1:]
@@ -109,8 +115,8 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh):
 			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
 			inferred_spk_probs = index_update(inferred_spk_probs, (i, p), spks/locs.shape[0])
 			# inferred_spk_probs[i, p] = spks/len(locs)
-	cell_mask = jnp.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
-	disc_cells = connected_cells[jnp.invert(cell_mask)]
+	cell_mask = np.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
+	disc_cells = connected_cells[np.invert(cell_mask)]
 	mu = index_update(mu, disc_cells, 0.)
 	lam = index_update(lam, disc_cells, 0.)
 
@@ -222,30 +228,65 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	else:
 		return coef
 
-def _loss_fn(lam, args):
-	y, w, lam_prior = args
-	K, N = lam_prior.shape
-	lam = lam.reshape([K, N])
-	return np.sum(np.square(y - lam @ w)) - np.sum(lam * np.log(lam_prior) + (1 - lam) * np.log(1 - lam_prior))
+def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, verbose=False):
+	""" Soft thresholding with iterative penalty shrinkage
+	"""
+	N, K = Lam.shape
+	sigma = np.sqrt(rate/shape)
+	constr = sigma * np.sqrt(K)
+	resid = np.array(y - Lam.T @ mu) # copy to np array, possible memory overhead problem here
 
-def _loss_fn_jax(lam, args):
-	y, w, lam_prior = args
-	K, N = lam_prior.shape
-	lam = lam.reshape([K, N])
-	return jnp.sum(jnp.square(y - lam @ w)) - jnp.sum(lam * jnp.log(lam_prior) + (1 - lam) * jnp.log(1 - lam_prior))
+	for it in range(max_penalty_iters):
+		# iteratively shrink penalty until constraint is met
+		if verbose:
+			print('penalty iter: ', it)
+			print('current penalty: ', penalty)
+		
+		z = np.zeros(K)
+		hard_thresh_locs = np.where(resid < penalty)[0]
+		soft_thresh_locs = np.where(resid >= penalty)[0]
+		z[hard_thresh_locs] = 0
+		z[soft_thresh_locs] = resid[soft_thresh_locs] - penalty
+		z[z < 0] = 0
 
-_grad_loss_fn_jax = grad(_loss_fn_jax)
-_grad_loss_fn = lambda x, args: np.array(_grad_loss_fn_jax(x, args))
+		err = np.sqrt(np.sum(np.square(resid - z)))
+		if err <= constr:
+			if verbose:
+				print(' ==== converged on iteration: %i ===='%it)
+			break
+		else:
+			penalty *= scale_factor # exponential backoff
 
-def update_lam_bfgs(y, w, stim_matrix, phi, phi_cov, num_mc_samples=10):
-	N, K = stim_matrix.shape
-	unif_samples = np.random.uniform(0, 1, [N, 2, num_mc_samples])
-	phi_samples = np.array([[ndtri(ndtr(-phi[n][i]/phi_cov[n][i,i]) + unif_samples[n, i] * (1 - ndtr(-phi[n][i]/phi_cov[n][i,i]))) * phi_cov[n][i,i] \
-					  + phi[n][i] for i in range(2)] for n in range(N)])
-	lam_prior = np.mean([sigmoid(phi_samples[:, 0, i][:, None] * stim_matrix - phi_samples[:, 1, i][:, None]) for i in range(num_mc_samples)], axis=0)
-	args = [y, w, lam_prior.T]
-	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
-	return res.x.reshape([K, N]).T
+		if verbose:
+			print('soft thresh err: ', err)
+			print('constr: ', constr)
+			print('')
+	return z
+
+# def _loss_fn(lam, args):
+# 	y, w, lam_prior = args
+# 	K, N = lam_prior.shape
+# 	lam = lam.reshape([K, N])
+# 	return np.sum(np.square(y - lam @ w)) - np.sum(lam * np.log(lam_prior) + (1 - lam) * np.log(1 - lam_prior))
+
+# def _loss_fn_jax(lam, args):
+# 	y, w, lam_prior = args
+# 	K, N = lam_prior.shape
+# 	lam = lam.reshape([K, N])
+# 	return jnp.sum(jnp.square(y - lam @ w)) - jnp.sum(lam * jnp.log(lam_prior) + (1 - lam) * jnp.log(1 - lam_prior))
+
+# _grad_loss_fn_jax = grad(_loss_fn_jax)
+# _grad_loss_fn = lambda x, args: np.array(_grad_loss_fn_jax(x, args))
+
+# def update_lam_bfgs(y, w, stim_matrix, phi, phi_cov, num_mc_samples=10):
+# 	N, K = stim_matrix.shape
+# 	unif_samples = np.random.uniform(0, 1, [N, 2, num_mc_samples])
+# 	phi_samples = np.array([[ndtri(ndtr(-phi[n][i]/phi_cov[n][i,i]) + unif_samples[n, i] * (1 - ndtr(-phi[n][i]/phi_cov[n][i,i]))) * phi_cov[n][i,i] \
+# 					  + phi[n][i] for i in range(2)] for n in range(N)])
+# 	lam_prior = np.mean([sigmoid(phi_samples[:, 0, i][:, None] * stim_matrix - phi_samples[:, 1, i][:, None]) for i in range(num_mc_samples)], axis=0)
+# 	args = [y, w, lam_prior.T]
+# 	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
+# 	return res.x.reshape([K, N]).T
 
 @jax.partial(jit, static_argnums=(11, 12)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N):
