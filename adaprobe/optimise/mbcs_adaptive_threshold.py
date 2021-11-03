@@ -91,7 +91,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		# mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh)
+		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh)
 		if it > phi_delay:
 			z = update_z_constr_l1(y, mu, lam, shape, rate, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose, 
@@ -114,14 +114,15 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh):
 	n_connected = len(connected_cells)
 	n_powers = len(powers)
 	inferred_spk_probs = np.zeros((n_connected, n_powers))
+	slopes = np.zeros(n_connected)
 	for i, n in enumerate(connected_cells):
 		for p, power in enumerate(powers):
 			locs = np.where(I[n] == power)[0]
 			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
-			inferred_spk_probs = index_update(inferred_spk_probs, (i, p), spks/locs.shape[0])
-			# inferred_spk_probs[i, p] = spks/len(locs)
-	cell_mask = np.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
-	disc_cells = connected_cells[np.invert(cell_mask)]
+			inferred_spk_probs[i, p] = spks/locs.shape[0]
+		slopes[i] = linregress(powers, inferred_spk_probs[i]).slope
+	# cell_mask = np.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
+	disc_cells = connected_cells[slopes <= 0]
 	mu = index_update(mu, disc_cells, 0.)
 	lam = index_update(lam, disc_cells, 0.)
 
