@@ -97,8 +97,8 @@ class Model:
 			# Revert to initial priors and re-fit model
 			self.reset() 
 			self.fit(train_obs, train_stimuli, method=method, fit_options=fit_options)
-			lppd, ppd_samples = self.eval_posterior_predictive_density(test_obs, test_stimuli, method, idx)
-			self._cv.update(fold=idx, test_obs=test_set[0], test_stim=test_set[1],
+			lppd, ppd_samples = self.eval_posterior_predictive_density(test_obs[0], test_stimuli, method, idx)
+			self._cv.update(fold=idx, test_obs=test_obs[0], test_stim=test_stimuli[1],
 			 predictive_distribution=ppd_samples, lppd=lppd)
 
 		if save_dir is not None:
