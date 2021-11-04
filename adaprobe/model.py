@@ -91,8 +91,8 @@ class Model:
 			# Load cross-validation data fold
 			test_indices = split[idx]
 			train_indices = np.setdiff1d(np.arange(K), split[idx])
-			train_obs, train_stimuli = obs[train_indices], stimuli[train_indices]
-			test_obs, test_stimuli = obs[test_indices], stimuli[test_indices]
+			train_obs, train_stimuli = (obs[0][train_indices], obs[1][train_indices]), stimuli[:, train_indices]
+			test_obs, test_stimuli = (obs[0][test_indices], obs[1][test_indices]), stimuli[:, test_indices]
 
 			# Revert to initial priors and re-fit model
 			self.reset() 
