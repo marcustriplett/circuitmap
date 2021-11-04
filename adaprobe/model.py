@@ -127,9 +127,18 @@ class Model:
 		# Reconstruct obs
 		y_pred = np.sum(w[..., None] * s, 1)
 
+		print('s')
+		print(s.shape)
+		print(s)
+		print('obs')
 		print(obs.shape)
+		print(obs)
+		print('y_pred')
 		print(y_pred.shape)
+		print(y_pred)
 		print(sig)
+		print('w')
+		print(w)
 		print(w.shape)
 
 		# Compute lppd 
