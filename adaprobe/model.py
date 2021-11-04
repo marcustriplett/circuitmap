@@ -100,7 +100,7 @@ class Model:
 			print(test_obs[0].shape)
 			print(test_obs)
 			lppd, ppd_samples = self.eval_posterior_predictive_density(test_obs[0], test_stimuli, method, idx)
-			self._cv.update(fold=idx, test_obs=test_obs[0], test_stim=test_stimuli[1],
+			self._cv.update(fold=idx, test_obs=test_obs[0], test_stim=test_stimuli,
 			 predictive_distribution=ppd_samples, lppd=lppd)
 
 		if save_dir is not None:
@@ -126,6 +126,11 @@ class Model:
 
 		# Reconstruct obs
 		y_pred = np.sum(w[..., None] * s, 1)
+
+		print(obs.shape)
+		print(y_pred.shape)
+		print(sig)
+		print(w.shape)
 
 		# Compute lppd 
 		lppd = np.sum(np.log(np.mean(normal.pdf(obs, y_pred, sig), axis=0)))
