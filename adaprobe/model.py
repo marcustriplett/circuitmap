@@ -1,6 +1,10 @@
 import numpy as np
 from adaprobe import optimise
+from scipy.stats import norm as normal
+import utils
+from utils import CrossValidation
 import time
+import pickle
 
 class Model:
 	def __init__(self, N, model_type='mbcs', priors=dict()):
@@ -55,8 +59,8 @@ class Model:
 	'''
 
 	def fit(self, obs, stimuli, method='mbcs', fit_options=dict()):
-		"""Fit posterior distributions in offline mode.
-		"""
+		'''Fit posterior distributions in offline mode.
+		'''
 		# assert method in ['mbcs', 'mbcs_sparse_outliers', 'cavi_sns']
 
 		if method == 'mbcs':
@@ -71,6 +75,61 @@ class Model:
 			self._fit_cavi_sns(obs, stimuli, fit_options)
 		else:
 			raise Exception
+
+	def cross_validate(self, obs, stimuli, method='mbcs', nfolds=10, fit_options=dict(), save_dir=None):
+		'''Cross-validation.
+		'''
+
+		# Initialise cross-validation record
+		self._cv = CrossValidation(nfolds, 'sigma', np.sqrt(self.state['rate']/self.state['shape']))
+		
+		K = stimuli.shape[-1]
+		random_order = np.random.choice(K, K, replace=False)
+		split = np.array_split(random_order, 10)
+
+		for idx in range(nfolds):
+
+			# Load cross-validation data fold
+			test_indices = split[idx]
+			train_indices = np.setdiff1d(np.arange(K), split[idx])
+			train_obs, train_stimuli = obs[train_indices], stimuli[train_indices]
+			test_obs, test_stimuli = obs[test_indices], stimuli[test_indices]
+
+			# Revert to initial priors and re-fit model
+			self.reset() 
+			self.fit(train_obs, train_stimuli, method=method, fit_options=fit_options)
+			lppd, ppd_samples = self.eval_posterior_predictive_density(test_obs, test_stimuli, method, idx)
+			self._cv.update(fold=idx, test_obs=test_set[0], test_stim=test_set[1],
+			 predictive_distribution=ppd_samples, lppd=lppd)
+
+		if save_dir is not None:
+			self._cv.save(save_dir)
+
+	def eval_posterior_predictive_density(self, obs, stimuli, method, n_samples=100):
+		'''Evaluate log pointwise predictive density (see Gelman et al. (2014), CRC Press, pp. 168-169)
+
+			obs 	: K x 1 array of observed PSCs
+			stimuli : N x K matrix of power delivered to target neurons
+
+		'''
+		assert method in ['mbcs', 'mbcs_adaptive_threshold']
+
+		# Sample from posterior
+		w = np.random.normal(self.state['mu'], self.state['beta'] * (self.state['mu'] != 0), 
+			[n_samples, self.n_presynaptic])
+		phi = np.array([utils.sample_truncnorm(self.state['phi'][n], np.diag(self.state['phi_cov'][n]),
+			size=[n_samples, 1]) for n in range(self.n_presynaptic)]).astype(float)
+		s = np.array([np.random.rand(self.n_presynaptic, stimuli.shape[-1]) <= \
+			utils.sigmoid(phi[:, j, 0][:, None] * stimuli - phi[:, j, 1][:, None]) for j in range(n_samples)]).astype(float)
+		sig = np.sqrt(self.state['rate']/self.state['shape'])
+
+		# Reconstruct obs
+		y_pred = np.sum(w[..., None] * s, 1)
+
+		# Compute lppd 
+		lppd = np.sum(np.log(np.mean(normal.pdf(obs, y_pred, sig), axis=0)))
+
+		return lppd, y_pred
 
 	def _fit_cavi_sns(self, obs, stimuli, fit_options):
 		"""Run CAVI with spike-and-slab synapse prior.
