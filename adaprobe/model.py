@@ -1,8 +1,7 @@
 import numpy as np
 from adaprobe import optimise
 from scipy.stats import norm as normal
-import utils
-from utils import CrossValidation
+from adaprobe.utils import CrossValidation, sigmoid, sample_truncnorm
 import time
 import pickle
 
@@ -117,10 +116,10 @@ class Model:
 		# Sample from posterior
 		w = np.random.normal(self.state['mu'], self.state['beta'] * (self.state['mu'] != 0), 
 			[n_samples, self.n_presynaptic])
-		phi = np.array([utils.sample_truncnorm(self.state['phi'][n], np.diag(self.state['phi_cov'][n]),
+		phi = np.array([sample_truncnorm(self.state['phi'][n], np.diag(self.state['phi_cov'][n]),
 			size=[n_samples, 1]) for n in range(self.n_presynaptic)]).astype(float)
 		s = np.array([np.random.rand(self.n_presynaptic, stimuli.shape[-1]) <= \
-			utils.sigmoid(phi[:, j, 0][:, None] * stimuli - phi[:, j, 1][:, None]) for j in range(n_samples)]).astype(float)
+			sigmoid(phi[:, j, 0][:, None] * stimuli - phi[:, j, 1][:, None]) for j in range(n_samples)]).astype(float)
 		sig = np.sqrt(self.state['rate']/self.state['shape'])
 
 		# Reconstruct obs
