@@ -133,9 +133,8 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh):
 		for p, power in enumerate(powers):
 			locs = np.where(I[n] == power)[0]
 			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
-			inferred_spk_probs[i, p] = spks/locs.shape[0]
-			print(spks)
-			print(locs)
+			if locs.shape[0] > 0:
+				inferred_spk_probs[i, p] = spks/locs.shape[0]
 		slopes[i] = linregress(powers, inferred_spk_probs[i]).slope
 	# cell_mask = np.alltrue((inferred_spk_probs[:, 1:] - inferred_spk_probs[:, :-1]) >= 0, axis=1)
 	disc_cells = connected_cells[slopes <= 0]
