@@ -99,7 +99,7 @@ class Model:
 			self.fit(train_obs, train_stimuli, method=method, fit_options=fit_options)
 			print(test_obs[0].shape)
 			print(test_obs)
-			lppd, ppd_samples = self.eval_posterior_predictive_density(test_obs[0], test_stimuli, method, idx)
+			lppd, ppd_samples = self.eval_posterior_predictive_density(test_obs[0], test_stimuli, method)
 			self._cv.update(fold=idx, test_obs=test_obs[0], test_stim=test_stimuli,
 			 predictive_distribution=ppd_samples, lppd=lppd)
 
