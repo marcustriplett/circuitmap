@@ -87,6 +87,12 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	# init key
 	key = jax.random.PRNGKey(seed)
 
+	print('obs[0] shape')
+	print(obs[0].shape)
+
+	print('stim shape')
+	print(I.shape)
+
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
 		# print('iter %i/%i'%(it+1, iters), end='\r')
@@ -122,6 +128,7 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh):
 	n_powers = len(powers)
 	inferred_spk_probs = np.zeros((n_connected, n_powers))
 	slopes = np.zeros(n_connected)
+
 	for i, n in enumerate(connected_cells):
 		for p, power in enumerate(powers):
 			locs = np.where(I[n] == power)[0]

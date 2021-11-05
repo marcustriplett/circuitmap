@@ -49,7 +49,7 @@ class CrossValidation:
 		self.stats['mean'], self.stats['std'] = np.mean(lppds), np.std(lppds)
 
 	def save(self, path):
-		if path[-1] != '/': path += '/'
+		# if path[-1] != '/': path += '/'
 		with bz2.BZ2File(path + 'CV_param_%s_val_%.3f_nfolds_%i.pkl'%(self.param, self.val, self.nfolds), 'wb') as savefile:
 			cpickle.dump(self, savefile)
 
