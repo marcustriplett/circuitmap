@@ -26,8 +26,8 @@ class CrossValidation:
 		summary.title = f'Cross-validation record for parameter {self.param} with value {self.val:.2f}'
 		summary.field_names = ['Num folds'] + ['Fold %i'%(fold+1) for fold in range(self.nfolds)] \
 			+ ['Mean', 'Std']
-		entry = [self.nfolds] + [fold['log_pointwise_predictive_density'] for fold in self.folds] \
-			+ [self.stats['mean'], self.stats['std']]
+		entry = [self.nfolds] + ['%.2f'%fold['log_pointwise_predictive_density'] for fold in self.folds] \
+			+ ['%.2f'%self.stats['mean'], '%.2f'%self.stats['std']]
 		summary.add_row(entry)
 
 		return summary.get_string()
