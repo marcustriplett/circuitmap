@@ -87,7 +87,8 @@ class Model:
 		split = np.array_split(random_order, 10)
 
 		for idx in range(nfolds):
-
+			print('Fold %i/%i'%(idx+1, nfolds))
+			
 			# Load cross-validation data fold
 			test_indices = split[idx]
 			train_indices = np.setdiff1d(np.arange(K), split[idx])
