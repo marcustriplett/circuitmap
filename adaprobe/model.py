@@ -4,6 +4,7 @@ from scipy.stats import norm as normal
 from adaprobe.utils import CrossValidation, sigmoid, sample_truncnorm
 import time
 import pickle
+from tqdm import tqdm
 
 class Model:
 	def __init__(self, N, model_type='mbcs', priors=dict()):
@@ -86,9 +87,8 @@ class Model:
 		random_order = np.random.choice(K, K, replace=False)
 		split = np.array_split(random_order, nfolds)
 
-		for idx in range(nfolds):
-			print('Fold %i/%i'%(idx+1, nfolds))
-
+		for idx in tqdm(range(nfolds), desc='CV fold'):
+			
 			# Load cross-validation data fold
 			test_indices = split[idx]
 			train_indices = np.setdiff1d(np.arange(K), split[idx])
