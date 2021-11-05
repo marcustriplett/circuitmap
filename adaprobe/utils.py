@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import ndtri, ndtr
 from prettytable import PrettyTable
+import pickle
 
 def sample_truncnorm(mean, sdev, size=1):
 	u = np.random.uniform(0, 1, size)

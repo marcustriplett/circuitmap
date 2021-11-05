@@ -3,7 +3,6 @@ from adaprobe import optimise
 from scipy.stats import norm as normal
 from adaprobe.utils import CrossValidation, sigmoid, sample_truncnorm
 import time
-import pickle
 
 # Conditionally import progress bar
 try:
