@@ -127,6 +127,13 @@ class Model:
 		# Reconstruct obs
 		y_pred = np.sum(w[..., None] * s, 1)
 
+		print('mu')
+		print(self.state['mu'])
+		print('beta')
+		print(self.state['beta'])
+		print('phi samps')
+		print(phi)
+
 		print('s')
 		print(s.shape)
 		print(s)
