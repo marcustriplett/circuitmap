@@ -25,7 +25,7 @@ class CrossValidation:
 		summary = PrettyTable()
 		summary.title = f'Cross-validation record for parameter {self.param} with value {self.val:.2f}'
 		summary.field_names = ['Num folds'] + ['Fold %i'%(fold+1) for fold in range(self.nfolds)] \
-			+ ['Mean', 'Std', '95% CI']
+			+ ['Mean', 'Std']
 		entry = [self.nfolds] + [fold['log_pointwise_predictive_density'] for fold in self.folds] \
 			+ [self.stats['mean'], self.stats['std']]
 		summary.add_row(entry)
