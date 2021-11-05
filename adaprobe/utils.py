@@ -30,7 +30,7 @@ class CrossValidation:
 			+ [self.stats['mean'], self.stats['std']]
 		summary.add_row(entry)
 
-		return summary
+		return summary.get_string()
 
 	def update(self, fold=None, test_obs=None, test_stim=None, predictive_distribution=None, lppd=None):
 		'''Update cross-validation record.
