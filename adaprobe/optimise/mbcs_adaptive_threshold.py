@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.linear_model import Lasso
 from scipy.optimize import minimize
 from scipy.stats import linregress
+from tqdm import tqdm
 
 # Jax imports
 import jax
