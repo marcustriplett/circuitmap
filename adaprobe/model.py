@@ -84,11 +84,11 @@ class Model:
 		
 		K = stimuli.shape[-1]
 		random_order = np.random.choice(K, K, replace=False)
-		split = np.array_split(random_order, 10)
+		split = np.array_split(random_order, nfolds)
 
 		for idx in range(nfolds):
 			print('Fold %i/%i'%(idx+1, nfolds))
-			
+
 			# Load cross-validation data fold
 			test_indices = split[idx]
 			train_indices = np.setdiff1d(np.arange(K), split[idx])
