@@ -107,8 +107,11 @@ class Model:
 			self._cv.update(fold=idx, test_obs=test_obs[0], test_stim=test_stimuli,
 			 predictive_distribution=ppd_samples, lppd=lppd)
 
+		print(self._cv)
 		if save_dir is not None:
+			print('Saving cross-validation object to file...')
 			self._cv.save(save_dir)
+		print('Cross-validation complete.')
 
 	def eval_posterior_predictive_density(self, obs, stimuli, method, n_samples=100):
 		'''Evaluate log pointwise predictive density (see Gelman et al. (2014), CRC Press, pp. 168-169)
