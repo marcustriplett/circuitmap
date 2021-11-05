@@ -87,12 +87,6 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	# init key
 	key = jax.random.PRNGKey(seed)
 
-	print('obs[0] shape')
-	print(obs[0].shape)
-
-	print('stim shape')
-	print(I.shape)
-
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
 		# print('iter %i/%i'%(it+1, iters), end='\r')
