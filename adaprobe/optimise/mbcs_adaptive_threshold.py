@@ -2,7 +2,13 @@ import numpy as np
 from sklearn.linear_model import Lasso
 from scipy.optimize import minimize
 from scipy.stats import linregress
-from tqdm import tqdm
+
+# Conditionally import progress bar
+try:
+	get_ipython()
+	from tqdm.notebook import tqdm
+except:
+	from tqdm import tqdm
 
 # Jax imports
 import jax
