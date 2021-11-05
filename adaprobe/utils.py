@@ -1,7 +1,8 @@
 import numpy as np
 from scipy.special import ndtri, ndtr
 from prettytable import PrettyTable
-import pickle
+import _pickle as cpickle # pickle compression
+import bz2
 
 def sample_truncnorm(mean, sdev, size=1):
 	u = np.random.uniform(0, 1, size)
@@ -49,11 +50,10 @@ class CrossValidation:
 
 	def save(self, path):
 		if path[-1] != '/': path += '/'
-		savefile = open(path + 'CV_param_%s_val_%.3f_nfolds_%i'%(self.param, self.val, self.nfolds), 'wb')
-		pickle.dump(self, savefile)
-		savefile.close()
+		with bz2.BZ2File(path + 'CV_param_%s_val_%.3f_nfolds_%i.pkl'%(self.param, self.val, self.nfolds), 'wb') as savefile:
+			cpickle.dump(self, savefile)
 
-	def load(self, path):
-		pkl_file = open(path, 'rb')
-		self = pickle.load(path)
-		pkl_file.close()
+def load_CV(path):
+	with bz2.BZ2File(path, 'rb') as pkl_file:
+		cv = cpickle.load(pkl_file)
+	return cv
