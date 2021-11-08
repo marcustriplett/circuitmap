@@ -29,6 +29,7 @@ class NeuralDenoiser():
 
 		if verbose: print('Demixing PSC traces... ', end='')
 		t1 = time.time()
+
 		tmax = np.max(traces, axis=1)[:, None]
 		den = self.denoiser(
 			torch.Tensor((traces/tmax).copy()[:, None, :]).to(device=self.device)
@@ -38,7 +39,7 @@ class NeuralDenoiser():
 			monotone_start=monotone_filter_start)
 
 		t2 = time.time()
-		if verbose: print('complete (elapsed time %.2f)'%(t2 - t1))
+		if verbose: print('complete (elapsed time %.2f).'%(t2 - t1))
 
 		return den
 
@@ -219,7 +220,7 @@ class UpsamplingBlock(nn.Module):
 	def forward(self, x, skip=None, interp_size=None):
 		if skip is not None:
 			up = nn.functional.interpolate(self.relu(self.bn(self.deconv(x))), size=skip.shape[-1], 
-										  mode=self.interpolation_mode)
+										  mode=self.interpolation_mode, align_corners=False)
 			return torch.cat([up, skip], dim=1)
 		else:
 			return nn.functional.interpolate(self.relu(self.bn(self.deconv(x))), size=interp_size, 
