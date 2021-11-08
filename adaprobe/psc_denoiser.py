@@ -224,7 +224,7 @@ class UpsamplingBlock(nn.Module):
 			return torch.cat([up, skip], dim=1)
 		else:
 			return nn.functional.interpolate(self.relu(self.bn(self.deconv(x))), size=interp_size, 
-				mode=self.interpolation_mode)
+				mode=self.interpolation_mode, align_corners=False)
 
 class ConvolutionBlock(nn.Module):
 	'''ConvolutionBlock
