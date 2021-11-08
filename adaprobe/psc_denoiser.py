@@ -23,15 +23,24 @@ class NeuralDenoiser():
 		# Move denoiser to device
 		self.denoiser = self.denoiser.to(self.device)
 
-	def __call__(self, traces, monotone_filter_start=500, monotone_filter_inplace=True, rescale=1):
+	def __call__(self, traces, monotone_filter_start=500, monotone_filter_inplace=True, verbose=True):
 		''' Run denoiser over PSC trace batch and apply monotone decay filter.
 		'''
-		den = self.denoiser(
-			rescale * torch.Tensor(traces.copy()[:, None, :]).to(device=self.device)
-		).cpu().detach().numpy().squeeze()/rescale
 
-		return _monotone_decay_filter(den, inplace=monotone_filter_inplace, 
+		if verbose: print('Demixing PSC traces... ', end='')
+		t1 = time.time()
+		tmax = np.max(traces, axis=1)[:, None]
+		den = self.denoiser(
+			torch.Tensor((traces/tmax).copy()[:, None, :]).to(device=self.device)
+		).cpu().detach().numpy().squeeze() * tmax
+
+		den = _monotone_decay_filter(den, inplace=monotone_filter_inplace, 
 			monotone_start=monotone_filter_start)
+
+		t2 = time.time()
+		if verbose: print('complete (elapsed time %.2f)'%(t2 - t1))
+
+		return den
 
 	def train(self, epochs=1000, batch_size=64, learning_rate=1e-2, data_path=None, save_every=50, 
 		save_path=None, num_workers=2, pin_memory=True, num_gpus=1):

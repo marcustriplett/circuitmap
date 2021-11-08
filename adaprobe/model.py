@@ -108,9 +108,11 @@ class Model:
 			 predictive_distribution=ppd_samples, lppd=lppd)
 
 		print(self._cv)
+		
 		if save_dir is not None:
 			print('Saving cross-validation object to file...')
 			self._cv.save(save_dir)
+
 		print('Cross-validation complete.')
 
 	def eval_posterior_predictive_density(self, obs, stimuli, method, n_samples=100):
@@ -134,7 +136,7 @@ class Model:
 		# Reconstruct obs
 		y_pred = np.sum(w[..., None] * s, 1)
 
-		# Compute lppd 
+		# Compute lppd
 		lppd = np.sum(np.log(np.mean(normal.pdf(obs, y_pred, sig), axis=0)))
 
 		return lppd, y_pred
