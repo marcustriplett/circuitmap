@@ -39,7 +39,7 @@ class NeuralDenoiser():
 			monotone_start=monotone_filter_start)
 
 		t2 = time.time()
-		if verbose: print('complete (elapsed time %.2f).'%(t2 - t1))
+		if verbose: print('complete (elapsed time %.2fs).'%(t2 - t1))
 
 		return den
 
