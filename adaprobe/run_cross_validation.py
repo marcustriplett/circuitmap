@@ -34,7 +34,8 @@ if __name__ == '__main__':
 		if path[-1] != '/': path += '/'
 	data = np.load(data_dir + filename)
 	denoiser = NeuralDenoiser(path=denoiser_path)
-	psc = data['psc_%s'%expt_type], stim_matrix = data['stimulus_matrix_%s'%expt_type]
+	psc = data['psc_%s'%expt_type]
+	stim_matrix = data['stimulus_matrix_%s'%expt_type]
 	N, K = stim_matrix.shape
 
 	# Denoise traces
