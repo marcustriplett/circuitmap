@@ -25,6 +25,7 @@ class Model:
 		self.I = []
 		self.L = []
 		self.y = []
+		self._cv = None
 
 		# Set up priors
 		_ones = np.ones(self.n_presynaptic)
