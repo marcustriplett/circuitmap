@@ -3,6 +3,7 @@ import argparse
 import adaprobe
 from adaprobe.psc_denoiser import NeuralDenoiser
 import os
+os.path.append('..')
 
 if __name__ == '__main__':
 	'''Cross-validation
