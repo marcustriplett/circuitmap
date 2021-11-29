@@ -1,5 +1,6 @@
 import os
-os.path.append('..')
+import sys
+sys.path.append('..')
 import adaprobe
 from adaprobe.psc_denoiser import NeuralDenoiser
 import numpy as np
