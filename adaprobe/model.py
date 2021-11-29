@@ -115,7 +115,7 @@ class Model:
 
 		print('Cross-validation complete.')
 
-	def eval_posterior_predictive_density(self, obs, stimuli, method, n_samples=100):
+	def eval_posterior_predictive_density(self, obs, stimuli, method, n_samples=100, epsilon=1e-7):
 		'''Evaluate log pointwise predictive density (see Gelman et al. (2014), CRC Press, pp. 168-169)
 
 			obs 	: K x 1 array of observed PSCs
@@ -137,7 +137,7 @@ class Model:
 		y_pred = np.sum(w[..., None] * s, 1)
 
 		# Compute lppd
-		lppd = np.sum(np.log(np.mean(normal.pdf(obs, y_pred, sig), axis=0)))
+		lppd = np.sum(np.log(np.mean(normal.pdf(obs, y_pred, sig), axis=0) + epsilon))
 
 		return lppd, y_pred
 
