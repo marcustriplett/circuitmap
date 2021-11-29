@@ -1,9 +1,9 @@
-import numpy as np
-import argparse
-import adaprobe
-from adaprobe.psc_denoiser import NeuralDenoiser
 import os
 os.path.append('..')
+import adaprobe
+from adaprobe.psc_denoiser import NeuralDenoiser
+import numpy as np
+import argparse
 
 if __name__ == '__main__':
 	'''Cross-validation
