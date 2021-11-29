@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
 	# Process inputs
 	parser = argparse.ArgumentParser()
-	args = ['data_dir', 'filename', 'sigma', 'seed', 'save_dir', 'nfolds', 'denoiser']
+	args = ['data_dir', 'filename', 'sigma', 'seed', 'save_dir', 'nfolds', 'denoiser', 'expt_type']
 	for arg in args:		
 		parser.add_argument('--' + arg)
 	args = parser.parse_args()
@@ -26,20 +26,19 @@ if __name__ == '__main__':
 	save_dir = args.save_dir
 	nfolds = np.int(args.nfolds)
 	denoiser_path = args.denoiser
+	expt_type = args.expt_type
+	assert expt_type in ['seq', 'multi']
 
 	# Load data and NN denoiser
 	for path in [data_dir, save_dir]:
 		if path[-1] != '/': path += '/'
 	data = np.load(data_dir + filename)
 	denoiser = NeuralDenoiser(path=denoiser_path)
-	psc_seq, psc_multi = data['psc_seq'], data['psc_multi']
-	stim_matrix_seq, stim_matrix_multi = data['stimulus_matrix_seq'], data['stimulus_matrix_multi']
-	N, K = stim_matrix_seq.shape
+	psc = data['psc_%s'%expt_type], stim_matrix = data['stimulus_matrix_%s'%expt_type]
+	N, K = stim_matrix.shape
 
 	# Denoise traces
-	seq_max, multi_max = [np.max(arr, axis=1)[:, None] for arr in [psc_seq, psc_multi]]
-	den_psc_seq = denoiser(psc_seq)
-	den_psc_multi = denoiser(psc_multi)
+	den_psc = denoiser(psc)
 
 	# Configure priors
 	phi_prior = np.c_[0.125 * np.ones(N), 5 * np.ones(N)]
@@ -85,14 +84,9 @@ if __name__ == '__main__':
 		'phi_delay': phi_delay
 	}
 
-	models = [adaprobe.Model(N, model_type='mbcs', priors=priors) for _ in range(2)]
-	datasets = [den_psc_seq, den_psc_multi]
-	stimuli = [stim_matrix_seq, stim_matrix_multi]
-	labels = ['single', 'multi']
-
-	for model, traces, stim, label in zip(models, datasets, stimuli, labels):
-		model.cross_validate((np.trapz(traces, axis=1), traces), stim, method='mbcs_adaptive_threshold',
-		 nfolds=nfolds, fit_options=fit_options, save_dir=save_dir, token=filename[:-4]+'_'+label+'_')
+	adaprobe.Model(N, model_type='mbcs', priors=priors)
+	model.cross_validate((np.trapz(den_psc, axis=1), den_psc), stim_matrix, method='mbcs_adaptive_threshold',
+	 nfolds=nfolds, fit_options=fit_options, save_dir=save_dir, token=filename[:-4] + '_' + expt_type)
 
 
 
