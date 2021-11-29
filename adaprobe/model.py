@@ -83,7 +83,7 @@ class Model:
 		else:
 			raise Exception
 
-	def cross_validate(self, obs, stimuli, method='mbcs', nfolds=10, fit_options=dict(), save_dir=None):
+	def cross_validate(self, obs, stimuli, method='mbcs', nfolds=10, fit_options=dict(), save_dir=None, token=None):
 		'''Cross-validation.
 		'''
 
@@ -113,7 +113,8 @@ class Model:
 		
 		if save_dir is not None:
 			print('Saving cross-validation object to file...')
-			self._cv.save(save_dir)
+			if save_dir[-1] != '/': save_dir += '/'
+			self._cv.save(save_dir + token + '_')
 
 		print('Cross-validation complete.')
 
