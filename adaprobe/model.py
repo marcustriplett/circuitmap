@@ -1,8 +1,9 @@
 import numpy as np
 from adaprobe import optimise
 from scipy.stats import norm as normal
-from adaprobe.utils import CrossValidation, sigmoid, sample_truncnorm
+from adaprobe.utils import CrossValidation, sigmoid, sample_truncnorm, load_CV, load_CV_dir
 import time
+import os
 
 # Conditionally import progress bar
 try:
@@ -115,6 +116,11 @@ class Model:
 			self._cv.save(save_dir)
 
 		print('Cross-validation complete.')
+
+	def model_selection(self, fdir):
+		'''Select model from supplied directory via mean lppd.
+		'''
+		return load_CV_dir(fdir, select=True)
 
 	def eval_posterior_predictive_density(self, obs, stimuli, method, n_samples=100, epsilon=1e-7):
 		'''Evaluate log pointwise predictive density (see Gelman et al. (2014), CRC Press, pp. 168-169)

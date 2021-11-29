@@ -2,7 +2,9 @@ import numpy as np
 from scipy.special import ndtri, ndtr
 from prettytable import PrettyTable
 import _pickle as cpickle # pickle compression
+import pandas as pd
 import bz2
+import os
 
 def sample_truncnorm(mean, sdev, size=1):
 	u = np.random.uniform(0, 1, size)
@@ -25,7 +27,7 @@ class CrossValidation:
 
 	def __str__(self):
 		summary = PrettyTable()
-		summary.title = f'Cross-validation record for parameter "{self.param}" with value "{self.val:.2f}". Statistic: log pointwise predictive density.'
+		summary.title = f'Cross-validation record for parameter "{self.param}" with value "{self.val:.2f}".\nStatistic: log pointwise predictive density.'
 		summary.field_names = ['Num folds'] + ['Fold %i'%(fold+1) for fold in range(self.nfolds)] \
 			+ ['Mean', 'Std']
 		entry = [self.nfolds] + ['%.2f'%fold['log_pointwise_predictive_density'] for fold in self.folds] \
@@ -57,3 +59,17 @@ def load_CV(path):
 	with bz2.BZ2File(path, 'rb') as pkl_file:
 		cv = cpickle.load(pkl_file)
 	return cv
+
+def load_CV_dir(fdir, select=False):
+	files = os.listdir(fdir)
+	num_files = len(files)
+	df = pd.DataFrame(columns=['sigma', 'lppd'])
+	for f in files:
+		cv = load_CV(fdir + f)
+		df = df.append({'sigma': cv.val, 'lppd': cv.stats['mean']}, ignore_index=True)
+
+	# Return optimal sigma if performing model selection else complete dataframe
+	if select:
+		return df.groupby('sigma').mean().idxmax()[0]
+	else:
+		return df
