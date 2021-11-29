@@ -85,7 +85,7 @@ if __name__ == '__main__':
 		'phi_delay': phi_delay
 	}
 
-	adaprobe.Model(N, model_type='mbcs', priors=priors)
+	model = adaprobe.Model(N, model_type='mbcs', priors=priors)
 	model.cross_validate((np.trapz(den_psc, axis=1), den_psc), stim_matrix, method='mbcs_adaptive_threshold',
 	 nfolds=nfolds, fit_options=fit_options, save_dir=save_dir, token=filename[:-4] + '_' + expt_type)
 
