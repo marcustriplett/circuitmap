@@ -61,6 +61,7 @@ def load_CV(path):
 	return cv
 
 def load_CV_dir(fdir, select=False):
+	if fdir[-1] != '/': fdir += '/'
 	files = os.listdir(fdir)
 	num_files = len(files)
 	df = pd.DataFrame(columns=['sigma', 'lppd'])

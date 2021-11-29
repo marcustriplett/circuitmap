@@ -113,9 +113,12 @@ class Model:
 		
 		if save_dir is not None:
 			print('Saving cross-validation object to file...')
+			
 			if save_dir[-1] != '/': save_dir += '/'
 			if not os.path.isdir(save_dir):
 				os.mkdir(save_dir)
+
+			if token[-1] != '_': token += '_'
 			self._cv.save(save_dir + token + '_')
 
 		print('Cross-validation complete.')
