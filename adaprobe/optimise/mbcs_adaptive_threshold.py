@@ -117,12 +117,13 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1):
 	# Enforce monotonicity
-	powers = np.unique(I)[1:]
+	powers = np.unique(I)[1:].reshape(-1, 1)
 	connected_cells = np.where(mu != 0)[0]
 	n_connected = len(connected_cells)
 	n_powers = len(powers)
 	inferred_spk_probs = np.zeros((n_connected, n_powers))
 	slopes = np.zeros(n_connected)
+	lr = LinearRegression(fit_intercept=False)
 
 	for i, n in enumerate(connected_cells):
 		for p, power in enumerate(powers):
@@ -130,7 +131,7 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_c
 			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
 			if locs.shape[0] > 0:
 				inferred_spk_probs[i, p] = spks/locs.shape[0]
-		slopes[i] = linregress(powers, inferred_spk_probs[i] - spont_rate).slope
+		slopes[i] = lr.fit(powers, inferred_spk_probs[i] - spont_rate).coef_[0, 0]
 
 	disc_cells = connected_cells[slopes < 0]
 	mu = index_update(mu, disc_cells, 0.)
