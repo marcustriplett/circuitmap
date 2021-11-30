@@ -9,7 +9,7 @@ import argparse
 if __name__ == '__main__':
 	'''Cross-validation
 	'''
-	os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+	# os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 	# Process inputs
 	parser = argparse.ArgumentParser()
@@ -21,10 +21,10 @@ if __name__ == '__main__':
 	# Load sigma and seed
 	data_dir = args.data_dir
 	filename = args.filename
-	sigma = np.float(args.sigma)
-	seed = np.int(args.seed)
+	sigma = float(args.sigma)
+	seed = int(args.seed)
 	save_dir = args.save_dir
-	nfolds = np.int(args.nfolds)
+	nfolds = int(args.nfolds)
 	denoiser_path = args.denoiser
 	expt_type = args.expt_type
 	assert expt_type in ['seq', 'multi']

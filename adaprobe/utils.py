@@ -64,13 +64,17 @@ def load_CV_dir(fdir, select=False):
 	if fdir[-1] != '/': fdir += '/'
 	files = os.listdir(fdir)
 	num_files = len(files)
-	df = pd.DataFrame(columns=['sigma', 'lppd'])
+	df = pd.DataFrame(columns=['sigma', 'mean_lppd'] + ['fold %i'%i for i in range(load_CV(fdir + files[0]).nfolds)])
 	for f in files:
 		cv = load_CV(fdir + f)
-		df = df.append({'sigma': cv.val, 'lppd': cv.stats['mean']}, ignore_index=True)
+		folds = [fold['log_pointwise_predictive_density'] for fold in cv.folds]
+		row = {'sigma': cv.val, 'mean_lppd': cv.stats['mean']}
+		row.update({('fold %i'%i): fold for i, fold in enumerate(folds)})
+		df = df.append(row, ignore_index=True)
 
 	# Return optimal sigma if performing model selection else complete dataframe
 	if select:
 		return df.groupby('sigma').mean().idxmax()[0]
 	else:
 		return df
+
