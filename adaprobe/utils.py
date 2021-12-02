@@ -27,7 +27,7 @@ class CrossValidation:
 
 	def __str__(self):
 		summary = PrettyTable()
-		summary.title = f'Cross-validation record for parameter(s) "{self.params}" with value(s) "{self.vals}" (log pointwise predictive density).'
+		summary.title = f'Cross-validation record for parameter(s) {self.params} with value(s) {self.vals} (log pointwise predictive density).'
 		summary.field_names = ['Num folds'] + ['Fold %i'%(fold+1) for fold in range(self.nfolds)] \
 			+ ['Mean', 'Std']
 		entry = [self.nfolds] + ['%.2f'%fold['log_pointwise_predictive_density'] for fold in self.folds] \
@@ -64,7 +64,8 @@ def load_CV_dir(fdir):
 	if fdir[-1] != '/': fdir += '/'
 	files = os.listdir(fdir)
 	num_files = len(files)
-	df = pd.DataFrame(columns=[p for p in params] + ['mean_lppd'] + ['fold %i'%i for i in range(load_CV(fdir + files[0]).nfolds)])
+	cv = load_CV(fdir + files[0])
+	df = pd.DataFrame(columns=[p for p in cv.params] + ['mean_lppd'] + ['fold %i'%i for i in range(cv.nfolds)])
 	for f in files:
 		cv = load_CV(fdir + f)
 		folds = [fold['log_pointwise_predictive_density'] for fold in cv.folds]

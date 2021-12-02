@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
 	# Process inputs
 	parser = argparse.ArgumentParser()
-	args = ['data_dir', 'filename', 'sigma', 'seed', 'save_dir', 'nfolds', 'denoiser', 'expt_type']
+	args = ['data_dir', 'filename', 'sigma', 'phi_thresh', 'seed', 'save_dir', 'nfolds', 'denoiser', 'expt_type']
 	for arg in args:		
 		parser.add_argument('--' + arg)
 	args = parser.parse_args()
@@ -22,6 +22,7 @@ if __name__ == '__main__':
 	data_dir = args.data_dir
 	filename = args.filename
 	sigma = float(args.sigma)
+	phi_thresh = float(args.phi_thresh)
 	seed = int(args.seed)
 	save_dir = args.save_dir
 	nfolds = int(args.nfolds)
@@ -49,10 +50,9 @@ if __name__ == '__main__':
 	mu_prior = np.zeros(N)
 
 	# Configure optimisation params
-	phi_thresh = 0.09
 	phi_delay = -1
-	y_xcorr_thresh = 1e-3
-	outlier_penalty = 30
+	y_xcorr_thresh = 1e-2
+	outlier_penalty = 5e2
 	orthogonal_outliers = True
 	learn_lam = True
 	lam_masking = True
@@ -71,7 +71,7 @@ if __name__ == '__main__':
 		'iters': 50,
 		'num_mc_samples': 500,
 		'penalty': 2,
-		'max_penalty_iters': 20, # default 15
+		'max_penalty_iters': 30, # default 15
 		'max_lasso_iters': 1000,
 		'scale_factor': 0.75,
 		'constrain_weights': constrain_weights,
@@ -85,8 +85,12 @@ if __name__ == '__main__':
 		'phi_delay': phi_delay
 	}
 
+	# Parameter info for cross-validation record
+	params = ['sigma', 'phi_thresh']
+	vals = [sigma, phi_thresh]
+
 	model = adaprobe.Model(N, model_type='mbcs', priors=priors)
-	model.cross_validate((np.trapz(den_psc, axis=1), den_psc), stim_matrix, method='mbcs_adaptive_threshold',
+	model.cross_validate((np.trapz(den_psc, axis=1), den_psc), stim_matrix, params, vals, method='mbcs_adaptive_threshold',
 	 nfolds=nfolds, fit_options=fit_options, save_dir=save_dir, token=filename[:-4] + '_' + expt_type)
 
 
