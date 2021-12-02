@@ -37,8 +37,8 @@ class Model:
 		elif model_type == 'mbcs_multiplicative_noise':
 			self.priors.setdefault('rho', 1e-1)
 
-		self.priors.setdefault('shape', 1.)
-		self.priors.setdefault('rate', 1.)
+		# self.priors.setdefault('shape', 1.)
+		# self.priors.setdefault('rate', 1.)
 		self.priors.setdefault('mu', np.zeros(self.n_presynaptic))
 		self.priors.setdefault('beta', 1e1 * _ones)
 		self.priors.setdefault('phi', np.c_[1e-1 * _ones, 5e0 * _ones])
@@ -83,12 +83,19 @@ class Model:
 		else:
 			raise Exception
 
-	def cross_validate(self, obs, stimuli, method='mbcs', nfolds=10, fit_options=dict(), save_dir=None, token=None):
+	def cross_validate(self, obs, stimuli, params, vals, method='mbcs', nfolds=10, fit_options=dict(), save_dir=None, token=None):
 		'''Cross-validation.
+
+		Args
+			obs: 		postsynaptic responses
+			stimuli: 	stimulus design matrix
+			params: 	list parameters to be cross-validated
+			vals: 		list of values associated with params
+
 		'''
 
 		# Initialise cross-validation record
-		self._cv = CrossValidation(nfolds, 'sigma', np.sqrt(self.state['rate']/self.state['shape']))
+		self._cv = CrossValidation(nfolds, params, vals)
 		
 		K = stimuli.shape[-1]
 		random_order = np.random.choice(K, K, replace=False)
@@ -126,7 +133,7 @@ class Model:
 	def model_selection(self, fdir):
 		'''Select model from supplied directory via mean lppd.
 		'''
-		return load_CV_dir(fdir, select=True)
+		return load_CV_dir(fdir)
 
 	def eval_posterior_predictive_density(self, obs, stimuli, method, n_samples=100, epsilon=1e-7):
 		'''Evaluate log pointwise predictive density (see Gelman et al. (2014), CRC Press, pp. 168-169)
