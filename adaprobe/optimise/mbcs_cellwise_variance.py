@@ -365,7 +365,8 @@ def update_sigma(y, _mu, _lam, z):
 		lam_excl = lam[excl, :][:, spk_locs]
 		mu_excl = mu[excl]
 		sigma[n] = np.std(y_spk - lam_excl.T @ mu_excl - z[spk_locs])
-		constr += np.sum(lam[n, spk_locs]) * sigma[n]**2
+		constr += np.nansum(lam[n, spk_locs]) * sigma[n]**2
+	constr = np.sqrt(constr)
 	return sigma, constr
 
 @jit
