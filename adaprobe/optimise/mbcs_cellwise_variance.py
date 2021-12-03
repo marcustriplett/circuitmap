@@ -31,7 +31,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', 
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2, 
 	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, phi_delay=0, phi_thresh=0.09,
-	outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., fit_excitability_intercept=True):
+	outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., fit_excitability_intercept=True, obs_noise=2.0):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -92,7 +92,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 		mu = update_mu_constr_l1(y - z, mu, lam, constr, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
-		lam, key = update_lam(y - z, I, mu, beta, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N)
+		lam, key = update_lam(y - z, I, mu, beta, obs_noise, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
@@ -312,8 +312,8 @@ def update_z_constr_l1(y, mu, Lam, constr, lam_mask, penalty=1, scale_factor=0.5
 # 	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
 # 	return res.x.reshape([K, N]).T
 
-@jax.partial(jit, static_argnums=(9, 10)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
-def update_lam(y, I, mu, beta, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N):
+@jax.partial(jit, static_argnums=(10, 11)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+def update_lam(y, I, mu, beta, obs_noise, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	K = I.shape[1]
@@ -344,7 +344,7 @@ def update_lam(y, I, mu, beta, lam, phi, phi_cov, lam_mask, key, num_mc_samples,
 			# monte carlo approximation of expectation
 			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
 			
-			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - 1/2 * scope.arg)) # require spiking cells to be targeted
+			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - 1/(2 * obs_noise**2) * scope.arg)) # require spiking cells to be targeted
 	return scope.lam, scope.key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
