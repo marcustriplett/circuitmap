@@ -123,7 +123,8 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_c
 			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
 			if locs.shape[0] > 0:
 				inferred_spk_probs[i, p] = spks/locs.shape[0]
-		slopes[i] = lr.fit(powers, inferred_spk_probs[i].reshape(-1, 1) - spont_rate).coef_[0, 0]
+		slopes[i] = linregress(powers, inferred_spk_probs[i]).slope
+		# slopes[i] = lr.fit(powers, inferred_spk_probs[i].reshape(-1, 1) - spont_rate).coef_[0, 0]
 
 	disc_cells = connected_cells[slopes < 0]
 	mu = index_update(mu, disc_cells, 0.)
