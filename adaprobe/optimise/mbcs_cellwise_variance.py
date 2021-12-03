@@ -315,7 +315,7 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_facto
 # 	return res.x.reshape([K, N]).T
 
 @jax.partial(jit, static_argnums=(11, 12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
-def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N):
+def update_lam(y, I, mu, beta, lam, N, phi, phi_cov, lam_mask, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	K = I.shape[1]
