@@ -352,7 +352,9 @@ def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
 	return jnp.log(fn/(1 - fn))
 _vmap_eval_lam_update_monte_carlo = jit(vmap(_eval_lam_update_monte_carlo, in_axes=(None, 0, 0)))
 
-def update_sigma(y, mu, lam, z):
+def update_sigma(y, _mu, _lam, z):
+	lam = np.array(_lam)
+	mu = np.array(_mu)
 	N = mu.shape[0]
 	sigma = np.zeros(N)
 	constr = 0
