@@ -87,12 +87,12 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
 		# print('iter %i/%i'%(it+1, iters), end='\r')
+		sigma, constr = update_sigma(y, mu, lam, z)
 		beta = update_beta(lam, beta_prior)
 		mu = update_mu_constr_l1(y - z, mu, lam, constr, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 		lam, key = update_lam(y - z, I, mu, beta, lam, sigma, phi, phi_cov, lam_mask, key, num_mc_samples, N)
-		sigma, constr = update_sigma(y, mu, lam, z)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
