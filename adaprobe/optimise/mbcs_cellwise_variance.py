@@ -97,7 +97,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
 		if it > phi_delay:
-			z = update_z_constr_l1(y, mu, lam, sigma, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
+			z = update_z_constr_l1(y, mu, lam, constr, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose, 
 				orthogonal=orthogonal_outliers)
 
@@ -243,7 +243,7 @@ def update_mu_constr_l1(y, mu, Lam, constr, penalty=1, scale_factor=0.5, max_pen
 	else:
 		return coef
 
-def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
+def update_z_constr_l1(y, mu, Lam, constr, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
 	verbose=False, orthogonal=True):
 	""" Soft thresholding with iterative penalty shrinkage
 	"""
@@ -251,8 +251,6 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_facto
 		print(' ====== Updating z via soft thresholding with iterative penalty shrinking ======')
 
 	N, K = Lam.shape
-	sigma = np.sqrt(rate/shape)
-	constr = sigma * np.sqrt(K)
 	resid = np.array(y - Lam.T @ mu) # copy to np array, possible memory overhead problem here
 
 	for it in range(max_penalty_iters):
