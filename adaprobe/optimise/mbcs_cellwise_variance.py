@@ -138,10 +138,10 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_c
 	lam = index_update(lam, phi_locs, 0.)
 
 	# Filter connection vector via spike counts
-	spks = np.array([len(np.where(lam[n] >= 0.5)[0]) for n in range(mu.shape[0])])
-	few_spk_locs = np.where(spks < minimum_spike_count)[0]
-	mu = index_update(mu, few_spk_locs, 0.)
-	lam = index_update(lam, few_spk_locs, 0.)
+	# spks = np.array([len(np.where(lam[n] >= 0.5)[0]) for n in range(mu.shape[0])])
+	# few_spk_locs = np.where(spks < minimum_spike_count)[0]
+	# mu = index_update(mu, few_spk_locs, 0.)
+	# lam = index_update(lam, few_spk_locs, 0.)
 
 	return mu, lam
 
