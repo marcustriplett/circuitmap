@@ -74,7 +74,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 	mu_hist 		= jnp.zeros((iters, N))
 	beta_hist 		= jnp.zeros((iters, N))
 	lam_hist 		= jnp.zeros((iters, N, K))
-	sigma_hist 		= jnp.zeros(iters)
+	sigma_hist 		= jnp.zeros((N, iters))
 	phi_hist  		= jnp.zeros((iters, N, 2))
 	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
 	z_hist 			= jnp.zeros((iters, K))
