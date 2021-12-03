@@ -39,6 +39,7 @@ class Model:
 
 		# self.priors.setdefault('shape', 1.)
 		# self.priors.setdefault('rate', 1.)
+		self.priors.setdefault('sigma', np.ones(self.n_presynaptic))
 		self.priors.setdefault('mu', np.zeros(self.n_presynaptic))
 		self.priors.setdefault('beta', 1e1 * _ones)
 		self.priors.setdefault('phi', np.c_[1e-1 * _ones, 5e0 * _ones])
