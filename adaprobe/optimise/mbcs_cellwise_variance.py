@@ -364,7 +364,7 @@ def update_sigma(y, _mu, _lam, z):
 	mu = np.array(_mu)
 	N = mu.shape[0]
 	sigma = np.zeros(N)
-	constr = np.var(z)
+	constr = 0
 	for n in range(N):
 		spk_locs = np.where(lam[n] >= 0.5)[0]
 		y_spk = y[spk_locs]
@@ -372,7 +372,7 @@ def update_sigma(y, _mu, _lam, z):
 		lam_excl = lam[excl, :][:, spk_locs]
 		mu_excl = mu[excl]
 		sigma[n] = np.std(y_spk - lam_excl.T @ mu_excl - z[spk_locs]) if spk_locs.shape[0] > 0 else 0.
-		constr += np.nansum(lam[n, spk_locs]) * sigma[n]**2
+		constr += np.nansum(lam[n, spk_locs] >= 0.5) * sigma[n]**2
 	constr = np.sqrt(constr)
 	return sigma, constr
 
