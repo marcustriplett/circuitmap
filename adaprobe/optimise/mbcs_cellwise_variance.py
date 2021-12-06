@@ -30,9 +30,9 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5, 
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', 
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2, 
-	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, phi_delay=0, phi_thresh=0.09,
-	outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., fit_excitability_intercept=True, obs_noise=2.0,
-	constr=1.):
+	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, 
+	phi_delay=0, phi_thresh=0.09, outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., 
+	fit_excitability_intercept=True, obs_noise=2.0, constr=1.):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -364,7 +364,7 @@ def update_sigma(y, _mu, _lam, z):
 	mu = np.array(_mu)
 	N = mu.shape[0]
 	sigma = np.zeros(N)
-	constr = 0
+	constr = np.var(z)
 	for n in range(N):
 		spk_locs = np.where(lam[n] >= 0.5)[0]
 		y_spk = y[spk_locs]
