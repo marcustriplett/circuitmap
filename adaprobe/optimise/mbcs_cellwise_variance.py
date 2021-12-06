@@ -92,7 +92,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 		mu = update_mu_constr_l1(y - z, mu, lam, constr, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
-		lam, key = update_lam(y - z, I, mu, beta, obs_noise, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N)
+		lam, key = update_lam(y - z, I, mu, beta, sigma, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
@@ -320,7 +320,7 @@ def update_z_constr_l1(y, mu, Lam, constr, lam_mask, penalty=1, scale_factor=0.5
 # 	return res.x.reshape([K, N]).T
 
 @jax.partial(jit, static_argnums=(10, 11)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
-def update_lam(y, I, mu, beta, obs_noise, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N):
+def update_lam(y, I, mu, beta, sigma, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	K = I.shape[1]
@@ -351,7 +351,7 @@ def update_lam(y, I, mu, beta, obs_noise, lam, phi, phi_cov, lam_mask, key, num_
 			# monte carlo approximation of expectation
 			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
 			
-			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - 1/(2 * obs_noise**2) * scope.arg)) # require spiking cells to be targeted
+			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - 1/(2 * sigma[n]**2) * scope.arg)) # require spiking cells to be targeted
 	return scope.lam, scope.key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
@@ -362,10 +362,11 @@ _vmap_eval_lam_update_monte_carlo = jit(vmap(_eval_lam_update_monte_carlo, in_ax
 def update_sigma(y, _mu, _lam, z):
 	lam = np.array(_lam)
 	mu = np.array(_mu)
+	connected_cells = np.where(mu != 0)[0]
 	N = mu.shape[0]
 	sigma = np.zeros(N)
 	constr = 0
-	for n in range(N):
+	for n in connected_cells:
 		spk_locs = np.where(lam[n] >= 0.5)[0]
 		y_spk = y[spk_locs]
 		excl = np.setdiff1d(np.arange(N), n)
