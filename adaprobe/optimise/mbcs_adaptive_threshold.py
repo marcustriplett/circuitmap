@@ -117,7 +117,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, fit_excitability_intercept=True):
 	# Enforce monotonicity
-	powers = np.unique(I)[1:].reshape(-1, 1)
+	powers = np.unique(I)[1:]
 	connected_cells = np.where(mu != 0)[0]
 	n_connected = len(connected_cells)
 	n_powers = len(powers)
