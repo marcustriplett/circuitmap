@@ -89,8 +89,8 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
 		# print('iter %i/%i'%(it+1, iters), end='\r')
 		beta = update_beta(lam, beta_prior)
-		mu = update_mu_constr_l1(y - z, mu, lam, constr, penalty=penalty, scale_factor=scale_factor, 
-			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
+		mu = update_mu_constr_l1(y - z, mu, lam, constr, penalty=penalty, scale_factor=scale_factor,
+			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso,
 			constrain_weights=constrain_weights, verbose=verbose)
 		lam, key = update_lam(y - z, I, mu, beta, sigma, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
@@ -98,7 +98,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
 		if it > phi_delay:
 			z = update_z_constr_l1(y, mu, lam, constr, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
-				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose, 
+				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose,
 				orthogonal=orthogonal_outliers)
 		sigma, constr = update_sigma(y, mu, lam, z)
 
@@ -351,7 +351,7 @@ def update_lam(y, I, mu, beta, sigma, lam, phi, phi_cov, lam_mask, key, num_mc_s
 			# monte carlo approximation of expectation
 			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
 			
-			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - 1/(2 * sigma[n]**2 + 1e-7) * scope.arg)) # require spiking cells to be targeted
+			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - 1/(2 * sigma[n]**2 + 1e-5) * scope.arg)) # require spiking cells to be targeted
 	return scope.lam, scope.key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
