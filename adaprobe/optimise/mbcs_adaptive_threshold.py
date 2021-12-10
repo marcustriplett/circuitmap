@@ -98,7 +98,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
-		lam = collect_free_spikes(lam, I, z, assignment_threshold=0.2)
+		mu, lam = collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
@@ -117,7 +117,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 	return mu, beta, lam, shape, rate, phi, phi_cov, z, *hist_arrs
 
-def collect_free_spikes(lam, I, z, assignment_threshold=0.2):
+def collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2):
 	powers = np.unique(I)
 	for n in range(lam.shape[0]):
 		locs = np.where(I[n] == powers[-1])[0]
@@ -126,6 +126,12 @@ def collect_free_spikes(lam, I, z, assignment_threshold=0.2):
 			# assign all spontaneous events to this cell
 			locs_all = np.where(I[n] > 0)[0]
 			spont_all = np.where(z[locs_all])[0]
+
+			# what if cell n is disconnected?
+			if mu[n] == 0:
+				# reconnect n
+				mu[n] = np.mean(z[locs_all[spont_all]])
+
 			lam = index_update(lam, tuple([n, locs_all[spont_all]]), 1.)
 			z[locs_all[spont_all]] = 0
 	return lam
