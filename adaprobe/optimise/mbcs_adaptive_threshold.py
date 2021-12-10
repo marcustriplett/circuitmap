@@ -134,7 +134,7 @@ def collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2):
 
 			lam = index_update(lam, tuple([n, locs_all[spont_all]]), 1.)
 			z[locs_all[spont_all]] = 0
-	return lam
+	return mu, lam
 
 def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, fit_excitability_intercept=True):
 	# Enforce monotonicity
