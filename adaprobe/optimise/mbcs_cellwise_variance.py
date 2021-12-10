@@ -310,7 +310,7 @@ def update_z_constr_l1(y, mu, Lam, constr, lam_mask, penalty=1, scale_factor=0.5
 		z[z < 0] = 0
 		if orthogonal:
 			# enforce orthogonality
-			z[np.any(Lam >= 0.5, axis=0)] = 0
+			z[np.any(Lam >= 0.1, axis=0)] = 0
 
 		z = z * lam_mask
 
