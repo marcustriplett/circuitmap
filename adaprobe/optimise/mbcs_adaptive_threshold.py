@@ -119,7 +119,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 def collect_free_spikes(lam, I, z, assignment_threshold=0.2):
 	powers = np.unique(I)
-	for n in range(N):
+	for n in range(lam.shape[0]):
 		locs = np.where(I[n] == powers[-1])[0]
 		spont = np.where(z[locs])[0]
 		if len(spont)/len(locs) >= assignment_threshold:
