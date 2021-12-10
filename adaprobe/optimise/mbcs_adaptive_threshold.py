@@ -98,7 +98,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
-		mu, lam = collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2)
+		mu, lam, z = collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
@@ -120,17 +120,19 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 def collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2):
 	N = lam.shape[0]
 	powers = np.unique(I)
-	spont_events = [None for _ in range(N)]
+	disconnected_cells = np.where(mu == 0)[0]
+	n_disconnected = len(disconnected_cells)
+	spont_events = [None for _ in range(n_disconnected)]
 
-	for n in range(N):
+	for i, n in enumerate(disconnected_cells):
 		locs = np.where(I[n] > 0)[0]
-		spont_events[n] = np.where(z[locs])[0]
+		spont_events[i] = np.where(z[locs])[0]
 
-	n_spont_events = [len(spont_events[n]) for n in range(N)]
+	n_spont_events = [len(spont_events[n]) for n in range(n_disconnected)]
 	spont_order = np.argsort(n_spont_events)[::-1] # descending order
 
-	for m in range(N):
-		n = spont_order[m]
+	for m in range(n_disconnected):
+		n = disconnected_cells[spont_order[m]]
 		locs = np.where(I[n] == powers[-1])[0]
 		spont = np.where(z[locs])[0]
 		if len(spont)/len(locs) >= assignment_threshold:
@@ -138,16 +140,13 @@ def collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2):
 			locs_all = np.where(I[n] > 0)[0]
 			spont_all = np.where(z[locs_all])[0]
 
-			# what if cell n is disconnected?
-			if mu[n] == 0:
-				# reconnect n
-				mu = index_update(mu, n, np.mean(z[locs_all[spont_all]]))
-
+			# reconnect cell n
+			mu = index_update(mu, n, np.mean(z[locs_all[spont_all]]))
 			lam = index_update(lam, tuple([n, locs_all[spont_all]]), 1.)
-
 			# remove bound spikes from z
 			z[locs_all[spont_all]] = 0
-	return mu, lam
+
+	return mu, lam, z
 
 def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, fit_excitability_intercept=True):
 	# Enforce monotonicity
