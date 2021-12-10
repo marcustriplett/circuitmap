@@ -31,7 +31,8 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', 
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2, 
 	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, phi_delay=0, phi_thresh=0.09,
-	outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., fit_excitability_intercept=True):
+	outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., fit_excitability_intercept=True,
+	assignment_threshold=0.2):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -97,6 +98,7 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
+		lam = collect_free_spikes(lam, I, z, assignment_threshold=0.2)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
@@ -114,6 +116,15 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
 	return mu, beta, lam, shape, rate, phi, phi_cov, z, *hist_arrs
+
+def collect_free_spikes(lam, I, z, assignment_threshold=0.2):
+	powers = np.unique(I)
+	for n in range(N):
+		locs = np.where(I[n] == powers[-1])[0]
+		spont = np.where(z[locs])[0]
+		if len(spont)/len(locs) >= assignment_threshold:
+			lam[n][locs[spont]] = 1.
+	return lam
 
 def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, fit_excitability_intercept=True):
 	# Enforce monotonicity
