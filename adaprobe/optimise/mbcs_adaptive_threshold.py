@@ -123,7 +123,10 @@ def collect_free_spikes(lam, I, z, assignment_threshold=0.2):
 		locs = np.where(I[n] == powers[-1])[0]
 		spont = np.where(z[locs])[0]
 		if len(spont)/len(locs) >= assignment_threshold:
-			lam = index_update(lam, tuple([n, locs[spont]]), 1.)
+			# assign all spontaneous events to this cell
+			locs_all = np.where(I[n] > 0)[0]
+			spont_all = np.where(z[locs_all])[0]
+			lam = index_update(lam, tuple([n, locs_all[spont_all]]), 1.)
 	return lam
 
 def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, fit_excitability_intercept=True):
