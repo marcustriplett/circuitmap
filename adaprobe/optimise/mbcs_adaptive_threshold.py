@@ -118,8 +118,19 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	return mu, beta, lam, shape, rate, phi, phi_cov, z, *hist_arrs
 
 def collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2):
+	N = lam.shape[0]
 	powers = np.unique(I)
-	for n in range(lam.shape[0]):
+	spont_events = [None for _ in range(N)]
+
+	for n in range(N):
+		locs = np.where(I[n] > 0)[0]
+		spont_events[n] = np.where(z[locs])[0]
+
+	n_spont_events = [len(spont_events[n]) for n in range(N)]
+	spont_order = np.argsort(n_spont_events)[::-1] # descending order
+
+	for m in range(N):
+		n = spont_order[m]
 		locs = np.where(I[n] == powers[-1])[0]
 		spont = np.where(z[locs])[0]
 		if len(spont)/len(locs) >= assignment_threshold:
@@ -130,9 +141,11 @@ def collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2):
 			# what if cell n is disconnected?
 			if mu[n] == 0:
 				# reconnect n
-				mu[n] = np.mean(z[locs_all[spont_all]])
+				mu = index_update(mu, n, np.mean(z[locs_all[spont_all]]))
 
 			lam = index_update(lam, tuple([n, locs_all[spont_all]]), 1.)
+
+			# remove bound spikes from z
 			z[locs_all[spont_all]] = 0
 	return mu, lam
 
