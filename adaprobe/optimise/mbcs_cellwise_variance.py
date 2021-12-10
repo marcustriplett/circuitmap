@@ -32,7 +32,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2, 
 	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, 
 	phi_delay=0, phi_thresh=0.09, outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., 
-	fit_excitability_intercept=True, obs_noise=2.0, constr=1.):
+	fit_excitability_intercept=True, obs_noise=2.0, constr=1., assignment_threshold=0.2):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -93,6 +93,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso,
 			constrain_weights=constrain_weights, verbose=verbose)
 		lam, key = update_lam(y - z, I, mu, beta, sigma, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N)
+		mu, lam, z = collect_free_spikes(mu, lam, I, z, assignment_threshold=assignment_threshold)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
@@ -107,6 +108,39 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
 	return mu, beta, lam, sigma, phi, phi_cov, z, *hist_arrs
+
+def collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2):
+	N = lam.shape[0]
+	powers = np.unique(I)
+	disconnected_cells = np.where(mu == 0)[0]
+	n_disconnected = len(disconnected_cells)
+	spont_events = [None for _ in range(n_disconnected)]
+
+	for i, n in enumerate(disconnected_cells):
+		locs = np.where(I[n] > 0)[0]
+		spont_events[i] = np.where(z[locs])[0]
+
+	n_spont_events = [len(spont_events[n]) for n in range(n_disconnected)]
+	spont_order = np.argsort(n_spont_events)[::-1] # descending order
+
+	for m in range(n_disconnected):
+		n = disconnected_cells[spont_order[m]]
+		locs = np.where(I[n] == powers[-1])[0]
+		spont = np.where(z[locs])[0]
+		if len(spont)/len(locs) >= assignment_threshold:
+			# assign all spontaneous events to this cell
+			locs_all = np.where(I[n] > 0)[0]
+			spont_all = np.where(z[locs_all])[0]
+
+			# reconnect cell n
+			spont_locs = locs_all[spont_all]
+			mu = index_update(mu, n, np.mean(z[spont_locs]))
+			lam = index_update(lam, tuple([n, spont_locs]), 1.)
+			
+			# remove bound spikes from z
+			z[spont_locs] = 0
+
+	return mu, lam, z
 
 def adaptive_excitability_threshold(mu, _lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, fit_excitability_intercept=True):
 	# Enforce monotonicity

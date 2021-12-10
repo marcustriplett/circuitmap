@@ -107,10 +107,6 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose, 
 				orthogonal=orthogonal_outliers)
 
-		# mu, lam = adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max_iters=max_phi_thresh_iters, 
-		# 	init_thresh=init_phi_thresh, scale_factor=phi_thresh_scale_factor, min_thresh=min_phi_thresh, 
-		# 	proportion_allowable_missed_events=proportion_allowable_missed_events, tol=phi_tol)
-
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
@@ -141,10 +137,12 @@ def collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2):
 			spont_all = np.where(z[locs_all])[0]
 
 			# reconnect cell n
-			mu = index_update(mu, n, np.mean(z[locs_all[spont_all]]))
-			lam = index_update(lam, tuple([n, locs_all[spont_all]]), 1.)
+			spont_locs = locs_all[spont_all]
+			mu = index_update(mu, n, np.mean(z[spont_locs]))
+			lam = index_update(lam, tuple([n, spont_locs]), 1.)
+
 			# remove bound spikes from z
-			z[locs_all[spont_all]] = 0
+			z[spont_locs] = 0
 
 	return mu, lam, z
 
