@@ -165,9 +165,9 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_c
 		slopes[i] = linregress(powers, inferred_spk_probs[i]).slope
 
 	# Enforce non-negative slope constraint
-	disc_cells = connected_cells[slopes < 0]
-	mu = index_update(mu, disc_cells, 0.)
-	lam = index_update(lam, disc_cells, 0.)
+	# disc_cells = connected_cells[slopes < 0]
+	# mu = index_update(mu, disc_cells, 0.)
+	# lam = index_update(lam, disc_cells, 0.)
 
 	# Filter connection vector via opsin expression threshold
 	phi_locs = np.where(phi[:, 0] < phi_thresh)[0]
