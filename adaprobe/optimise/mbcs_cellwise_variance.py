@@ -32,7 +32,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2, 
 	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, 
 	phi_delay=0, phi_thresh=0.09, outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., 
-	fit_excitability_intercept=True, obs_noise=2.0, constr=1., assignment_threshold=0.2):
+	fit_excitability_intercept=True, obs_noise=2.0, constr=1., assignment_threshold=0.2, sigma_scale=0.1):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -101,7 +101,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 			z = update_z_constr_l1(y, mu, lam, constr, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose,
 				orthogonal=orthogonal_outliers)
-		sigma, constr = update_sigma(y, mu, lam, z)
+		sigma, constr = update_sigma_proportion_weight(mu, lam, scale=sigma_scale)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, sigma, phi, phi_cov, z]):
@@ -166,9 +166,9 @@ def adaptive_excitability_threshold(mu, _lam, I, phi, phi_thresh, minimum_spike_
 		slopes[i] = linregress(powers, inferred_spk_probs[i]).slope
 		# slopes[i] = lr.fit(powers, inferred_spk_probs[i].reshape(-1, 1) - spont_rate).coef_[0, 0]
 
-	# disc_cells = connected_cells[slopes < 0]
-	# mu = index_update(mu, disc_cells, 0.)
-	# lam = index_update(lam, disc_cells, 0.)
+	disc_cells = connected_cells[slopes < 0]
+	mu = index_update(mu, disc_cells, 0.)
+	lam = index_update(lam, disc_cells, 0.)
 
 	# Filter connection vector via opsin expression threshold
 	phi_locs = np.where(phi[:, 0] < phi_thresh)[0]
@@ -395,7 +395,20 @@ def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
 	return jnp.log(fn/(1 - fn))
 _vmap_eval_lam_update_monte_carlo = jit(vmap(_eval_lam_update_monte_carlo, in_axes=(None, 0, 0)))
 
-def update_sigma(y, _mu, _lam, z):
+def update_sigma_proportion_weight(_mu, _lam, scale=0.1):
+	lam = np.array(_lam)
+	mu = np.array(_mu)
+	connected_cells = np.where(mu != 0)[0]
+	N = mu.shape[0]
+	constr = 0
+	sigma = scale * mu
+	for n in connected_cells:
+		spk_locs = np.where(lam[n] >= 0.5)[0]
+		constr += np.sum(lam[n, spk_locs] >= 0.5) * sigma[n]**2
+	constr = np.sqrt(constr)
+	return sigma, constr
+
+def update_sigma_residual_psc_variance(y, _mu, _lam, z):
 	lam = np.array(_lam)
 	mu = np.array(_mu)
 	connected_cells = np.where(mu != 0)[0]

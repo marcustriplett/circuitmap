@@ -96,9 +96,8 @@ def mbcs_adaptive_threshold(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 		lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
-		if learn_noise:
-			shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
-		mu, lam, z = collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2)
+		
+		# mu, lam, z = collect_free_spikes(mu, lam, I, z, assignment_threshold=0.2)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
