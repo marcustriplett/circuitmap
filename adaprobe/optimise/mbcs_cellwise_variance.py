@@ -95,10 +95,11 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 		lam, key = update_lam(y - z, I, mu, beta, sigma, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		# mu, lam, z = collect_free_spikes(mu, lam, I, z, assignment_threshold=assignment_threshold)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		if it > phi_delay:
-			mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
+
+		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
 			
+		if it > phi_delay:
 			z = update_z_constr_l1(y, mu, lam, constr, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose,
 				orthogonal=orthogonal_outliers)
