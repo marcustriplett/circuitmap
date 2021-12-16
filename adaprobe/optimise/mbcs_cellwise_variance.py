@@ -405,7 +405,7 @@ _vmap_eval_lam_update_monte_carlo = jit(vmap(_eval_lam_update_monte_carlo, in_ax
 
 def update_sigma_proportion_weight(_mu, _lam, z, y):
 	# Probably separate this into two functions
-	lam = np.array(_lam)
+	lam = np.array(_lam).T
 	mu = np.array(_mu)
 	connected_cells = np.where(mu != 0)[0]
 	N, K = lam.shape
@@ -413,8 +413,8 @@ def update_sigma_proportion_weight(_mu, _lam, z, y):
 	scale = np.sqrt(np.sum(np.square(y - lam @ mu - z))/np.sum(lam @ (mu**2)))
 	sigma = scale * mu
 	for n in connected_cells:
-		spk_locs = np.where(lam[n] >= 0.5)[0]
-		spike_weighted_constr += np.sum(lam[n, spk_locs] >= 0.5) * sigma[n]**2
+		spk_locs = np.where(lam[:, n] >= 0.5)[0]
+		spike_weighted_constr += np.sum(lam[spk_locs, n] >= 0.5) * sigma[n]**2
 	spike_weighted_constr = np.sqrt(spike_weighted_constr)
 	return sigma, spike_weighted_constr
 
