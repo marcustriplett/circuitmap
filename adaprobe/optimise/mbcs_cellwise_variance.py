@@ -414,7 +414,7 @@ def update_sigma_proportion_weight(_mu, _lam, sigma_z, scale=0.1):
 	for n in connected_cells:
 		spk_locs = np.where(lam[n] >= 0.5)[0]
 		spike_weighted_constr += np.sum(lam[n, spk_locs] >= 0.5) * sigma[n]**2
-	spike_weighted_constr = np.sqrt(spike_weighted_constr) + np.sqrt(K) * sigma_z
+	spike_weighted_constr = np.sqrt(spike_weighted_constr + K * sigma_z)
 	return sigma, spike_weighted_constr
 
 def update_sigma_residual_psc_variance(y, _mu, _lam, z):
