@@ -410,7 +410,7 @@ def update_sigma_proportion_weight(_mu, _lam, z, y):
 	connected_cells = np.where(mu != 0)[0]
 	N, K = lam.shape
 	spike_weighted_constr = 0
-	scale = np.sqrt(np.sum(np.square(y - lam @ mu - z))/np.sum(lam @ (mu**2)))
+	scale = np.sqrt(np.sum(np.square(y - lam @ mu - z))/(np.sum(lam @ (mu**2)) + 1e-5))
 	sigma = scale * mu
 	for n in connected_cells:
 		spk_locs = np.where(lam[:, n] >= 0.5)[0]
