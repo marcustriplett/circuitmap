@@ -408,7 +408,7 @@ def update_sigma_proportion_weight(_mu, _lam, sigma_z, scale=0.1):
 	lam = np.array(_lam)
 	mu = np.array(_mu)
 	connected_cells = np.where(mu != 0)[0]
-	N = mu.shape[0]
+	N, K = lam.shape
 	spike_weighted_constr = 0
 	sigma = scale * mu
 	for n in connected_cells:
