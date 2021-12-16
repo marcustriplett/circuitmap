@@ -105,7 +105,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose,
 				orthogonal=orthogonal_outliers)
 
-		sigma, constr = update_sigma_proportion_weight(mu, lam, z, y)
+		sigma, constr = update_sigma_proportion_weight(mu, lam, scale=sigma_scale)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, sigma, phi, phi_cov, z]):
@@ -403,14 +403,13 @@ def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
 	return jnp.log(fn/(1 - fn))
 _vmap_eval_lam_update_monte_carlo = jit(vmap(_eval_lam_update_monte_carlo, in_axes=(None, 0, 0)))
 
-def update_sigma_proportion_weight(_mu, _lam, z, y):
+def update_sigma_proportion_weight(_mu, _lam, scale=0.1):
 	# Probably separate this into two functions
 	lam = np.array(_lam).T
 	mu = np.array(_mu)
 	connected_cells = np.where(mu != 0)[0]
 	N, K = lam.shape
 	spike_weighted_constr = 0
-	scale = np.sqrt(np.sum(np.square(y - lam @ mu - z))/(np.sum(lam @ (mu**2)) + 1e-5))
 	sigma = scale * mu
 	for n in connected_cells:
 		spk_locs = np.where(lam[:, n] >= 0.5)[0]
