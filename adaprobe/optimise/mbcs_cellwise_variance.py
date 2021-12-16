@@ -33,7 +33,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, 
 	phi_delay=0, phi_thresh=0.09, outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., 
 	fit_excitability_intercept=True, obs_noise=2.0, constr=1., assignment_threshold=0.2, sigma_scale=0.1, 
-	passing_spike_fraction=0.5, sigma_z=5):
+	passing_spike_fraction=0.5):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -105,7 +105,7 @@ def mbcs_cellwise_variance(obs, I, mu_prior, beta_prior, sigma_prior, phi_prior,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose,
 				orthogonal=orthogonal_outliers)
 
-		sigma, constr = update_sigma_proportion_weight(mu, lam, sigma_z, scale=sigma_scale)
+		sigma, constr = update_sigma_proportion_weight(mu, lam, scale=sigma_scale)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, sigma, phi, phi_cov, z]):
@@ -403,7 +403,7 @@ def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
 	return jnp.log(fn/(1 - fn))
 _vmap_eval_lam_update_monte_carlo = jit(vmap(_eval_lam_update_monte_carlo, in_axes=(None, 0, 0)))
 
-def update_sigma_proportion_weight(_mu, _lam, sigma_z, scale=0.1):
+def update_sigma_proportion_weight(_mu, _lam, scale=0.1):
 	# Probably separate this into two functions
 	lam = np.array(_lam)
 	mu = np.array(_mu)
@@ -414,7 +414,7 @@ def update_sigma_proportion_weight(_mu, _lam, sigma_z, scale=0.1):
 	for n in connected_cells:
 		spk_locs = np.where(lam[n] >= 0.5)[0]
 		spike_weighted_constr += np.sum(lam[n, spk_locs] >= 0.5) * sigma[n]**2
-	spike_weighted_constr = np.sqrt(spike_weighted_constr + K * sigma_z**2)
+	spike_weighted_constr = np.sqrt(spike_weighted_constr)
 	return sigma, spike_weighted_constr
 
 def update_sigma_residual_psc_variance(y, _mu, _lam, z):
