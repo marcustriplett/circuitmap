@@ -86,8 +86,6 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	# init key
 	key = jax.random.PRNGKey(seed)
 
-	print('ello love')
-
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
 		beta = update_beta(lam, shape, rate, beta_prior)
@@ -96,6 +94,10 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 			constrain_weights=constrain_weights, verbose=verbose)
 		lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
+
+		mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
+			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
+
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
 		# record history
@@ -114,6 +116,42 @@ def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4)
 	shape = noise_scale**2 * mc_ws_sq + 1/2
 	rate = noise_scale * mu @ lam + 1/2 * mc_recon_err + eps
 	return shape, rate
+
+def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, fit_excitability_intercept=True):
+	# Enforce monotonicity
+	powers = np.unique(I)[1:]
+	connected_cells = np.where(mu != 0)[0]
+	n_connected = len(connected_cells)
+	n_powers = len(powers)
+	inferred_spk_probs = np.zeros((n_connected, n_powers))
+	slopes = np.zeros(n_connected)
+	# lr = LinearRegression(fit_intercept=fit_excitability_intercept)
+
+	for i, n in enumerate(connected_cells):
+		for p, power in enumerate(powers):
+			locs = np.where(I[n] == power)[0]
+			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
+			if locs.shape[0] > 0:
+				inferred_spk_probs[i, p] = spks/locs.shape[0]
+		slopes[i] = linregress(powers, inferred_spk_probs[i]).slope
+
+	# Enforce non-negative slope constraint
+	disc_cells = connected_cells[slopes < 0]
+	mu = index_update(mu, disc_cells, 0.)
+	lam = index_update(lam, disc_cells, 0.)
+
+	# Filter connection vector via opsin expression threshold
+	phi_locs = np.where(phi[:, 0] < phi_thresh)[0]
+	mu = index_update(mu, phi_locs, 0.)
+	lam = index_update(lam, phi_locs, 0.)
+
+	# Filter connection vector via spike counts
+	spks = np.array([len(np.where(lam[n] >= 0.5)[0]) for n in range(mu.shape[0])])
+	few_spk_locs = np.where(spks < minimum_spike_count)[0]
+	mu = index_update(mu, few_spk_locs, 0.)
+	lam = index_update(lam, few_spk_locs, 0.)
+
+	return mu, lam
 
 @jit
 def update_beta(lam, shape, rate, beta_prior):
