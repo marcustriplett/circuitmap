@@ -495,7 +495,7 @@ class Model:
 			'z': z_hist
 		}
 
-	def _fit_mbcs_spike_weighted_var(obs, stimuli, fit_options):
+	def _fit_mbcs_spike_weighted_var(self, obs, stimuli, fit_options):
 		'''
 		'''
 		t_start = time.time()
