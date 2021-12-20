@@ -112,9 +112,9 @@ def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4)
 	s_samps = (np.random.rand(num_mc_samples, N, K) <= lam).astype(float)
 	mc_ws_sq = np.mean([w_samps[i] @ s_samps[i] for i in range(num_mc_samples)], axis=0)
 	mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
-	shape = 1/noise_scale**2 * mc_ws_sq + 1/2
-	rate = 1/noise_scale * mu @ lam + 1/2 * mc_recon_err
-	return shape, rate + eps
+	shape = noise_scale**2 * mc_ws_sq + 1/2
+	rate = noise_scale * mu @ lam + 1/2 * mc_recon_err + eps
+	return shape, rate
 	
 def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, fit_excitability_intercept=True):
 	# Enforce monotonicity
