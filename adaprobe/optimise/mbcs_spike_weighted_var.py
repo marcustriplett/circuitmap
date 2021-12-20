@@ -160,6 +160,8 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 
 		lasso.fit(LamT, y)
 		coef = lasso.coef_
+		zlocs = np.where(np.sum(LamT, 0) == 0)[0]
+		coef[zlocs] = 0
 		err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
 
 		if verbose:
