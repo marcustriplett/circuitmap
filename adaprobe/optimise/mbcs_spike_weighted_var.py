@@ -86,6 +86,8 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	# init key
 	key = jax.random.PRNGKey(seed)
 
+	print('ello love')
+
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
 		beta = update_beta(lam, shape, rate, beta_prior)
