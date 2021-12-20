@@ -186,7 +186,7 @@ def _adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max
 
 @jit
 def update_beta(lam, shape, rate, beta_prior):
-	return 1/jnp.sqrt(shape/rate * jnp.sum(lam, 1) + 1/(beta_prior**2))
+	return 1/jnp.sqrt(jnp.sum((shape/rate)[None, :] * lam, 1) + 1/(beta_prior**2))
 
 @jax.partial(jit, static_argnums=(8))
 def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
