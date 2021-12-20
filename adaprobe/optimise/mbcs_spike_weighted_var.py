@@ -81,7 +81,7 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
 	
 	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
-		phi_hist, phi_cov_hist, z_hist]
+		phi_hist, phi_cov_hist]
 
 	# init key
 	key = jax.random.PRNGKey(seed)
@@ -100,10 +100,10 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
 		# record history
-		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
+		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
-	return mu, beta, lam, shape, rate, phi, phi_cov, z, *hist_arrs
+	return mu, beta, lam, shape, rate, phi, phi_cov, *hist_arrs
 
 def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
 	N, K = lam.shape
