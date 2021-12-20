@@ -94,6 +94,7 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 			constrain_weights=constrain_weights, verbose=verbose)
 		lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
+		
 		# mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
 		# 	spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
 
@@ -107,9 +108,9 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
 	N, K = lam.shape
-	std = beta * (mu > 0)
+	std = beta * (mu != 0)
 	w_samps = np.random.normal(mu, std, [num_mc_samples, N])
-	s_samps = (np.random.rand(num_mc_samples, N, K) <= lam).astype(float)
+	s_samps = (np.random.rand(num_mc_samples, N, K) <= lam[None, :, :]).astype(float)
 	mc_ws_sq = np.mean([w_samps[i] @ s_samps[i] for i in range(num_mc_samples)], axis=0)
 	mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
 	shape = noise_scale**2 * mc_ws_sq + 1/2
@@ -211,7 +212,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	if verbose:
 		print(' ====== Updating mu via constrained L1 solver with iterative penalty shrinking ======')
 	N, K = Lam.shape
-	constr = np.sum(np.sqrt(rate/shape))
+	constr = np.sqrt(np.sum(rate/shape))
 	LamT = Lam.T
 	positive = constrain_weights in ['positive', 'negative']
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=positive)
@@ -236,7 +237,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 			print('lasso err: ', err)
 			print('constr: ', constr)
 			print('')
-			
+
 		if err <= constr:
 			if verbose:
 				print(' ==== converged on iteration: %i ===='%it)
