@@ -231,6 +231,12 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 		lasso.fit(LamT, y)
 		coef = lasso.coef_
 		err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
+
+		if verbose:
+			print('lasso err: ', err)
+			print('constr: ', constr)
+			print('')
+			
 		if err <= constr:
 			if verbose:
 				print(' ==== converged on iteration: %i ===='%it)
@@ -244,10 +250,6 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 			lasso.alpha = penalty
 			if it == 0:
 				lasso.warm_start = True
-		if verbose:
-			print('lasso err: ', err)
-			print('constr: ', constr)
-			print('')
 
 	if constrain_weights == 'negative':
 		return -coef
