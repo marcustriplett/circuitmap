@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.linear_model import Lasso, LinearRegression
+from sklearn.isotonic import IsotonicRegression
 from scipy.optimize import minimize
 from scipy.stats import linregress
 
@@ -32,7 +33,7 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2,
 	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, phi_delay=0, phi_thresh=0.09,
 	outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., fit_excitability_intercept=True,
-	assignment_threshold=0.2, noise_scale=0.5, num_mc_samples_noise_model=10):
+	assignment_threshold=0.2, noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -97,8 +98,8 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_delay:
-			mu, lam = adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
-			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept)
+			mu, lam = isotonic_filtering(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
+			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
 
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
@@ -119,7 +120,7 @@ def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4)
 	rate = noise_scale * mu @ lam + 1/2 * mc_recon_err + eps
 	return shape, rate
 
-def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, fit_excitability_intercept=True):
+def isotonic_filtering(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, minimum_maximal_spike_prob=0.2):
 	# Enforce monotonicity
 	powers = np.unique(I)[1:]
 	connected_cells = np.where(mu != 0)[0]
@@ -128,24 +129,28 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_c
 	inferred_spk_probs = np.zeros((n_connected, n_powers))
 	slopes = np.zeros(n_connected)
 	# lr = LinearRegression(fit_intercept=fit_excitability_intercept)
+	iso = IsotonicRegression(y_min=0, y_max=1, increasing=True)
+	max_power_response = np.zeros(mu.shape[0])
 
 	for i, n in enumerate(connected_cells):
 		for p, power in enumerate(powers):
 			locs = np.where(I[n] == power)[0]
 			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
-			# if locs.shape[0] > 0:
-			# 	inferred_spk_probs[i, p] = spks/locs.shape[0]
+			if locs.shape[0] > 0:
+				inferred_spk_probs[i, p] = np.mean(lam[n, locs])
 		# slopes[i] = linregress(powers, inferred_spk_probs[i]).slope
+		iso.fit(powers, inferred_spk_probs[i])
+		max_power_response[n] = iso.f_(powers[-1])
 
-	# Enforce non-negative slope constraint
-	# disc_cells = connected_cells[slopes < 0]
-	# mu = index_update(mu, disc_cells, 0.)
-	# lam = index_update(lam, disc_cells, 0.)
+	# Enforce minimum maximal spike probability
+	disc_locs = np.where(max_power_response < minimum_maximal_spike_prob)[0]
+	mu = index_update(mu, disc_locs, 0.)
+	lam = index_update(lam, disc_locs, 0.)
 
 	# Filter connection vector via opsin expression threshold
-	phi_locs = np.where(phi[:, 0] < phi_thresh)[0]
-	mu = index_update(mu, phi_locs, 0.)
-	lam = index_update(lam, phi_locs, 0.)
+	# phi_locs = np.where(phi[:, 0] < phi_thresh)[0]
+	# mu = index_update(mu, phi_locs, 0.)
+	# lam = index_update(lam, phi_locs, 0.)
 
 	# Filter connection vector via spike counts
 	spks = np.array([len(np.where(lam[n] >= 0.5)[0]) for n in range(mu.shape[0])])
