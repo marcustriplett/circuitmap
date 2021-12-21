@@ -92,14 +92,14 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 		update_order = np.random.choice(N, N, replace=False)
-		# lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N)
-		lam, isotonic_receptive_field = update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, num_mc_samples, N)
-		# (phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-
-		if it > phi_delay:
-			mu, lam = isotonic_filtering(mu, lam, I, isotonic_receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
-
+		lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, num_mc_samples, N)
+		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
+		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
+
+		# (phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
+		# lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N)
+
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
@@ -131,6 +131,27 @@ def isotonic_filtering(mu, lam, I, isotonic_receptive_field, minimum_spike_count
 	lam = index_update(lam, few_spk_locs, 0.)
 
 	return mu, lam
+
+def update_isotonic_receptive_field(lam, I):
+	N, K = lam.shape
+
+	powers = np.unique(I)
+	n_powers = len(powers)
+	inferred_spk_probs = np.zeros((N, n_powers))
+	receptive_field = np.zeros((N, n_powers))
+	isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
+	spike_prior = np.zeros((N, K))
+
+	for n in range(N):
+		for p, power in enumerate(powers[1:]):
+			locs = np.where(I[n] == power)[0]
+			if locs.shape[0] > 0:
+				inferred_spk_probs[n, p + 1] = np.mean(lam[n, locs])
+
+		isotonic_regressor.fit(powers, inferred_spk_probs[n])
+		receptive_field[n] = isotonic_regressor.f_(powers)
+		spike_prior[n] = isotonic_regressor.f_(I[n])
+	return receptive_field, spike_prior
 
 @jit
 def update_beta(lam, shape, rate, beta_prior):
@@ -205,39 +226,21 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	else:
 		return coef
 
-def update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, num_mc_samples, N):
+def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 
-	print('before ', np.unique(lam))
-
 	K = I.shape[1]
 	all_ids = jnp.arange(N)
-	powers = np.unique(I)
-	n_powers = len(powers)
-	inferred_spk_probs = np.zeros((N, n_powers))
-	isotonic_receptive_field = np.zeros((N, n_powers))
-	isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
 
 	for m in range(N):
 		n = update_order[m]
 		mask = jnp.unique(jnp.where(all_ids != n, all_ids, n - 1), size=N-1)
 		arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
 		+ (mu[n]**2 + beta[n]**2)
+		lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg)) # require spiking cells to be targeted
 
-		for p, power in enumerate(powers[1:]):
-			locs = np.where(I[n] == power)[0]
-			if locs.shape[0] > 0:
-				inferred_spk_probs[n, p + 1] = np.mean(lam[n, locs])
-
-		isotonic_regressor.fit(powers, inferred_spk_probs[n])
-		isotonic_receptive_field[n] = isotonic_regressor.f_(powers)
-		spike_prior = isotonic_regressor.f_(I[n])
-		lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior - shape/(2 * rate) * arg)) # require spiking cells to be targeted
-
-	print('after ', np.unique(lam))
-
-	return lam, isotonic_receptive_field
+	return lam
 
 @jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N):
