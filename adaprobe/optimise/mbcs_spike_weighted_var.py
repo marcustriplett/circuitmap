@@ -209,8 +209,7 @@ def update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_ma
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 
-	print(lam)
-	print(np.unique(lam))
+	print('before ', np.unique(lam))
 
 	K = I.shape[1]
 	all_ids = jnp.arange(N)
@@ -236,6 +235,8 @@ def update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_ma
 		spike_prior = isotonic_regressor.f_(I[n])
 		lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior - shape/(2 * rate) * arg)) # require spiking cells to be targeted
 
+	print('after ', np.unique(lam))
+	
 	return lam, isotonic_receptive_field
 
 @jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
