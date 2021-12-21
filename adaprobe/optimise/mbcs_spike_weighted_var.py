@@ -227,7 +227,7 @@ def update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_ma
 			if locs.shape[0] > 0:
 				inferred_spk_probs[n, p] = np.mean(lam[n, locs])
 
-		isotonic_regressor.fit(powers, inferred_spk_probs[i])
+		isotonic_regressor.fit(powers, inferred_spk_probs[n])
 		isotonic_receptive_field[n] = isotonic_regressor.f_(powers)
 		spike_prior = isotonic_regressor.f_(I[n])
 		lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior - shape/(2 * rate) * arg)) # require spiking cells to be targeted
