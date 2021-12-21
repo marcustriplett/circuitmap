@@ -30,10 +30,8 @@ EPS = 1e-10
 def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, iters=50,
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5,
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive',
-	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, max_phi_thresh_iters=20, init_phi_thresh=0.2,
-	phi_thresh_scale_factor=0.95, min_phi_thresh=0.095, proportion_allowable_missed_events=0.1, phi_tol=1e-1, phi_delay=0, phi_thresh=0.09,
-	outlier_penalty=10, orthogonal_outliers=True, minimum_spike_count=1, spont_rate=0., fit_excitability_intercept=True,
-	assignment_threshold=0.2, noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2):
+	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_delay=-1, phi_thresh=0.09,
+	minimum_spike_count=1, spont_rate=0., noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -99,7 +97,7 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 		if it > phi_delay:
 			mu, lam = isotonic_filtering(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
-			spont_rate=spont_rate, fit_excitability_intercept=fit_excitability_intercept, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
+			spont_rate=spont_rate, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
 
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
