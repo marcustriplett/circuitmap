@@ -92,7 +92,8 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		mu = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
-		lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N)
+		update_order = np.random.choice(N, N, replace=False)
+		lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_delay:
@@ -227,8 +228,8 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	else:
 		return coef
 
-@jax.partial(jit, static_argnums=(11, 12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
-def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N):
+@jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	K = I.shape[1]
@@ -239,13 +240,14 @@ def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, nu
 		scope.all_ids = jnp.arange(N)
 		scope.mask = jnp.zeros(N - 1, dtype=int)
 		scope.arg = jnp.zeros(K, dtype=float)
-		scope.key, scope.key_next = key, key
+		scope.key, scope.key_next = key, key # scope.key_next needs to be initiated outside of loop
 		scope.u = jnp.zeros((num_mc_samples, 2))
 		scope.mean, scope.sdev = jnp.zeros(2, dtype=float), jnp.zeros(2, dtype=float)
 		scope.mc_samps = jnp.zeros((num_mc_samples, 2), dtype=float)
 		scope.mcE = jnp.zeros(K)
 
-		for n in scope.range(N):
+		for m in scope.range(N):
+			n = update_order[m]
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
 			scope.arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[scope.mask], 1) * scope.lam[scope.mask], 0) \
 			+ (mu[n]**2 + beta[n]**2)
