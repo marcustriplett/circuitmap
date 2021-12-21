@@ -118,7 +118,7 @@ def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4)
 	rate = noise_scale * mu @ lam + 1/2 * mc_recon_err + eps
 	return shape, rate
 
-def isotonic_filtering(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont_rate=0.1, minimum_maximal_spike_prob=0.2):
+def isotonic_filtering(mu, lam, I, phi, minimum_spike_count=1, spont_rate=0.1, minimum_maximal_spike_prob=0.2):
 	# Enforce monotonicity
 	powers = np.unique(I)[1:]
 	connected_cells = np.where(mu != 0)[0]
@@ -126,7 +126,6 @@ def isotonic_filtering(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont
 	n_powers = len(powers)
 	inferred_spk_probs = np.zeros((n_connected, n_powers))
 	slopes = np.zeros(n_connected)
-	# lr = LinearRegression(fit_intercept=fit_excitability_intercept)
 	iso = IsotonicRegression(y_min=0, y_max=1, increasing=True)
 	max_power_response = np.zeros(mu.shape[0])
 
@@ -136,7 +135,6 @@ def isotonic_filtering(mu, lam, I, phi, phi_thresh, minimum_spike_count=1, spont
 			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
 			if locs.shape[0] > 0:
 				inferred_spk_probs[i, p] = np.mean(lam[n, locs])
-		# slopes[i] = linregress(powers, inferred_spk_probs[i]).slope
 		iso.fit(powers, inferred_spk_probs[i])
 		max_power_response[n] = iso.f_(powers[-1])
 
