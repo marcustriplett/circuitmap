@@ -185,6 +185,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	LamT = Lam.T
 	positive = constrain_weights in ['positive', 'negative']
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=positive)
+	ymax = np.max(y)
 	
 	if constrain_weights == 'negative':
 		# make sensing matrix and weight warm-start negative
@@ -203,6 +204,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 		coef = lasso.coef_
 		zlocs = np.where(np.sum(LamT, 0) == 0)[0]
 		coef[zlocs] = 0
+		coef[coef > ymax] = ymax
 		err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
 
 		if verbose:
