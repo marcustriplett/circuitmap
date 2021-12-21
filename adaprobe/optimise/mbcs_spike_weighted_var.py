@@ -211,7 +211,7 @@ def update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_ma
 	K = I.shape[1]
 	all_ids = jnp.arange(N)
 	powers = np.unique(I[I > 0])
-	n_power s= len(powers)
+	n_powers = len(powers)
 	inferred_spk_probs = np.zeros((N, n_powers))
 	isotonic_receptive_field = np.zeros((N, n_powers))
 	isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
