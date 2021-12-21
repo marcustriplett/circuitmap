@@ -208,6 +208,9 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 def update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
+
+	print(lam)
+
 	K = I.shape[1]
 	all_ids = jnp.arange(N)
 	powers = np.unique(I[I > 0])
