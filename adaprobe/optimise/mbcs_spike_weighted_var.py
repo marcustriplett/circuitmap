@@ -132,9 +132,9 @@ def adaptive_excitability_threshold(mu, lam, I, phi, phi_thresh, minimum_spike_c
 		for p, power in enumerate(powers):
 			locs = np.where(I[n] == power)[0]
 			spks = np.where(lam[n, locs] >= 0.5)[0].shape[0]
-			if locs.shape[0] > 0:
-				inferred_spk_probs[i, p] = spks/locs.shape[0]
-		slopes[i] = linregress(powers, inferred_spk_probs[i]).slope
+			# if locs.shape[0] > 0:
+			# 	inferred_spk_probs[i, p] = spks/locs.shape[0]
+		# slopes[i] = linregress(powers, inferred_spk_probs[i]).slope
 
 	# Enforce non-negative slope constraint
 	# disc_cells = connected_cells[slopes < 0]
@@ -185,7 +185,6 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	LamT = Lam.T
 	positive = constrain_weights in ['positive', 'negative']
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=positive)
-	# ymax = np.max(y)
 	
 	if constrain_weights == 'negative':
 		# make sensing matrix and weight warm-start negative
@@ -202,9 +201,6 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 
 		lasso.fit(LamT, y)
 		coef = lasso.coef_
-		# zlocs = np.where(np.sum(LamT, 0) == 0)[0]
-		# coef[zlocs] = 0
-		# coef[coef > ymax] = ymax
 		err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
 
 		if verbose:
