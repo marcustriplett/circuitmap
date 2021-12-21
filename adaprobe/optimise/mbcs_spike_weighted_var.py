@@ -210,6 +210,7 @@ def update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_ma
 	"""
 
 	print(lam)
+	print(np.unique(lam))
 
 	K = I.shape[1]
 	all_ids = jnp.arange(N)
