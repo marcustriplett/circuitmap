@@ -139,7 +139,7 @@ def isotonic_filtering(mu, lam, I, isotonic_receptive_field, minimum_spike_count
 def update_isotonic_receptive_field(lam, I):
 	N, K = lam.shape
 
-	powers = np.unique(I)
+	powers = np.unique(I) # includes zero
 	n_powers = len(powers)
 	inferred_spk_probs = np.zeros((N, n_powers))
 	receptive_field = np.zeros((N, n_powers))
