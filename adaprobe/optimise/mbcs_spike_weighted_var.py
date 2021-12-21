@@ -31,7 +31,7 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5,
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive',
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_delay=-1, phi_thresh=0.09,
-	minimum_spike_count=1, spont_rate=0., noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2):
+	minimum_spike_count=1, noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -96,8 +96,7 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_delay:
-			mu, lam = isotonic_filtering(mu, lam, I, phi, phi_thresh, minimum_spike_count=minimum_spike_count,
-			spont_rate=spont_rate, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
+			mu, lam = isotonic_filtering(mu, lam, I, phi, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
 
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
@@ -118,7 +117,7 @@ def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4)
 	rate = noise_scale * mu @ lam + 1/2 * mc_recon_err + eps
 	return shape, rate
 
-def isotonic_filtering(mu, lam, I, phi, minimum_spike_count=1, spont_rate=0.1, minimum_maximal_spike_prob=0.2):
+def isotonic_filtering(mu, lam, I, phi, minimum_spike_count=1, minimum_maximal_spike_prob=0.2):
 	# Enforce monotonicity
 	powers = np.unique(I)[1:]
 	connected_cells = np.where(mu != 0)[0]
