@@ -215,7 +215,7 @@ def update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_ma
 	all_ids = jnp.arange(N)
 	powers = np.unique(I[I > 0])
 	n_powers = len(powers)
-	inferred_spk_probs = np.zeros((N, n_powers))
+	inferred_spk_probs = np.zeros((N, n_powers + 1))
 	isotonic_receptive_field = np.zeros((N, n_powers))
 	isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
 
@@ -228,7 +228,7 @@ def update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_ma
 		for p, power in enumerate(powers):
 			locs = np.where(I[n] == power)[0]
 			if locs.shape[0] > 0:
-				inferred_spk_probs[n, p] = np.mean(lam[n, locs])
+				inferred_spk_probs[n, p + 1] = np.mean(lam[n, locs])
 
 		isotonic_regressor.fit(powers, inferred_spk_probs[n])
 		isotonic_receptive_field[n] = isotonic_regressor.f_(powers)
@@ -236,7 +236,7 @@ def update_lam_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_ma
 		lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior - shape/(2 * rate) * arg)) # require spiking cells to be targeted
 
 	print('after ', np.unique(lam))
-	
+
 	return lam, isotonic_receptive_field
 
 @jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
