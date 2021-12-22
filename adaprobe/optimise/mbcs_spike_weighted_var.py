@@ -102,7 +102,7 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 		update_order = np.random.choice(N, N, replace=False)
 		lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N, spont_rate)
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
-		mu[:-1], lam[:-1] = isotonic_filtering(mu[:-1], lam[:-1], I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
+		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
 		# (phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
@@ -127,12 +127,12 @@ def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4)
 
 def isotonic_filtering(mu, lam, I, isotonic_receptive_field, minimum_spike_count=1, minimum_maximal_spike_prob=0.2):
 	# Enforce minimum maximal spike probability
-	disc_locs = np.where(isotonic_receptive_field[:, -1] < minimum_maximal_spike_prob)[0]
+	disc_locs = np.where(isotonic_receptive_field[:-1, -1] < minimum_maximal_spike_prob)[0]
 	mu = index_update(mu, disc_locs, 0.)
 	lam = index_update(lam, disc_locs, 0.)
 
 	# Filter connection vector via spike counts
-	spks = np.array([len(np.where(lam[n] >= 0.5)[0]) for n in range(mu.shape[0])])
+	spks = np.array([len(np.where(lam[n] >= 0.5)[0]) for n in range(mu.shape[0] - 1)])
 	few_spk_locs = np.where(spks < minimum_spike_count)[0]
 	mu = index_update(mu, few_spk_locs, 0.)
 	lam = index_update(lam, few_spk_locs, 0.)
