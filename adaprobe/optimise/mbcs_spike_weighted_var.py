@@ -31,7 +31,8 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5,
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive',
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_delay=-1, phi_thresh=0.09,
-	minimum_spike_count=1, noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2):
+	minimum_spike_count=1, noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2,
+	ghost_prior_weight=1, ghost_prior_var=1e1, spont_rate=0.1):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -50,8 +51,8 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	N = mu_prior.shape[0]
 
 	# Declare scope types
-	mu 			= jnp.array(mu_prior)
-	beta 		= jnp.array(beta_prior)
+	mu 			= jnp.array(np.concatenate([mu_prior, [ghost_prior_weight]]))
+	beta 		= jnp.array(np.concatenate([beta_prior, [ghost_prior_var]]))
 	shape 		= shape_prior
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
@@ -68,17 +69,19 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	else:
 		lam = init_lam
 
+	# Extend lam to account for ghost cell
+	lam = np.vstack([lam, np.zeros(K)])
 	lam = jnp.array(lam)
 
 	# Define history arrays
-	mu_hist 		= jnp.zeros((iters, N))
-	beta_hist 		= jnp.zeros((iters, N))
-	lam_hist 		= jnp.zeros((iters, N, K))
+	mu_hist 		= jnp.zeros((iters, N+1))
+	beta_hist 		= jnp.zeros((iters, N+1))
+	lam_hist 		= jnp.zeros((iters, N+1, K))
 	shape_hist 		= jnp.zeros((iters, K))
 	rate_hist 		= jnp.zeros((iters, K))
 	phi_hist  		= jnp.zeros((iters, N, 2))
 	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
-	
+
 	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist]
 
@@ -103,7 +106,6 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 
 		# (phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		# lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N)
-
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
@@ -144,9 +146,9 @@ def update_isotonic_receptive_field(lam, I):
 	inferred_spk_probs = np.zeros((N, n_powers))
 	receptive_field = np.zeros((N, n_powers))
 	isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
-	spike_prior = np.zeros((N, K))
+	spike_prior = np.zeros((N, K)) # final row associated with ghost cell, leave zero
 
-	for n in range(N):
+	for n in range(N - 1):
 		for p, power in enumerate(powers[1:]):
 			locs = np.where(I[n] == power)[0]
 			if locs.shape[0] > 0:
@@ -155,6 +157,7 @@ def update_isotonic_receptive_field(lam, I):
 		isotonic_regressor.fit(powers, inferred_spk_probs[n])
 		receptive_field[n] = isotonic_regressor.f_(powers)
 		spike_prior[n] = isotonic_regressor.f_(I[n])
+		
 	return receptive_field, spike_prior
 
 @jit
@@ -230,19 +233,26 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	else:
 		return coef
 
-def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N):
+def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N, spont_rate):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 
 	K = I.shape[1]
 	all_ids = jnp.arange(N)
 
-	for m in range(N):
+	for m in range(N - 1):
 		n = update_order[m]
 		mask = jnp.unique(jnp.where(all_ids != n, all_ids, n - 1), size=N-1)
 		arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
 		+ (mu[n]**2 + beta[n]**2)
 		lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg)) # require spiking cells to be targeted
+
+	# Update ghost cell
+	n = N
+	mask = jnp.unique(jnp.where(all_ids != n, all_ids, n - 1), size=n-1)
+	arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
+	+ (mu[n]**2 + beta[n]**2)
+	lam = index_update(lam, n, lam_mask * sigmoid(spont_rate - shape/(2 * rate) * arg)) # ghost can spike on any trial
 
 	return lam
 
