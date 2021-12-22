@@ -53,6 +53,7 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	# Declare scope types
 	mu 			= jnp.array(np.concatenate([mu_prior, [ghost_prior_weight]]))
 	beta 		= jnp.array(np.concatenate([beta_prior, [ghost_prior_var]]))
+	beta_prior 	= jnp.array(np.concatenate([beta_prior, [ghost_prior_var]]))
 	shape 		= shape_prior
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
@@ -157,7 +158,7 @@ def update_isotonic_receptive_field(lam, I):
 		isotonic_regressor.fit(powers, inferred_spk_probs[n])
 		receptive_field[n] = isotonic_regressor.f_(powers)
 		spike_prior[n] = isotonic_regressor.f_(I[n])
-		
+
 	return receptive_field, spike_prior
 
 @jit
