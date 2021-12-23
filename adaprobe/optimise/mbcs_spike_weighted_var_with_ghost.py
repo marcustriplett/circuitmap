@@ -71,7 +71,7 @@ def mbcs_spike_weighted_var_with_ghost(obs, I, mu_prior, beta_prior, shape_prior
 		lam = init_lam
 
 	# Extend lam to account for ghost cell
-	lam = np.vstack([lam, spont_rate * np.ones(K)])
+	lam = np.vstack([lam, np.zeros(K)])
 	lam = jnp.array(lam)
 
 	# Define history arrays
