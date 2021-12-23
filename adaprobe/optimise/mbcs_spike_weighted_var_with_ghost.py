@@ -239,8 +239,8 @@ def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, l
 	"""
 
 	K = I.shape[1]
-	all_ids = jnp.arange(N) # includes ghost cell
-	for m in range(N - 1):
+	all_ids = jnp.arange(N + 1) # includes ghost cell
+	for m in range(N): # N does not include ghost
 		n = update_order[m]
 		# mask = jnp.unique(jnp.where(all_ids != n, all_ids, jnp.mod(n - 1, N)), size=N-1)
 		mask = jnp.array(np.delete(all_ids, n)).squeeze()
