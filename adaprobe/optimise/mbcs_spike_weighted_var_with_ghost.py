@@ -240,24 +240,24 @@ def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, l
 
 	K = I.shape[1]
 	all_ids = jnp.arange(N)
-	print('update order ', update_order)
+	# print('update order ', update_order)
 	for m in range(N - 1):
 		n = update_order[m]
 		# mask = jnp.unique(jnp.where(all_ids != n, all_ids, jnp.mod(n - 1, N)), size=N-1)
 		mask = jnp.array(np.delete(all_ids, n)).squeeze()
-		print(mask.shape)
-		print(mask)
-		print(mu[mask])
+		# print(mask.shape)
+		# print(mask)
+		# print(mu[mask])
 		arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
 		+ (mu[n]**2 + beta[n]**2)
 		lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg)) # require spiking cells to be targeted
 
 	# Update ghost cell
-	# n = N
-	mask = jnp.unique(jnp.where(all_ids != N, all_ids, n - 1), size=n-1)
-	arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
-	+ (mu[n]**2 + beta[n]**2)
-	lam = index_update(lam, n, lam_mask * sigmoid(spont_rate - shape/(2 * rate) * arg)) # ghost can spike on any trial
+	# mask = jnp.unique(jnp.where(all_ids != N, all_ids, n - 1), size=n-1)
+	mask = jnp.array(np.delete(all_ids, N-1)).squeeze()
+	arg = -2 * y * mu[N-1] + 2 * mu[N-1] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
+	+ (mu[N-1]**2 + beta[N-1]**2)
+	lam = index_update(lam, N-1, lam_mask * sigmoid(spont_rate - shape/(2 * rate) * arg)) # ghost can spike on any trial
 
 	return lam
 
