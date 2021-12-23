@@ -86,8 +86,8 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 	key = jax.random.PRNGKey(seed)
 
 	# init spike prior
-	# spike_prior = np.zeros_like(lam)
-	# spike_prior[lam > 0] = 0.5
+	spike_prior = np.zeros_like(lam)
+	spike_prior[lam > 0] = 0.5
 
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
@@ -96,14 +96,13 @@ def mbcs_spike_weighted_var(obs, I, mu_prior, beta_prior, shape_prior, rate_prio
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 		update_order = np.random.choice(N, N, replace=False)
-		lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N)
-		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-
-		# lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
-		
+		lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
+
+		# (phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
+		# lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov]):
