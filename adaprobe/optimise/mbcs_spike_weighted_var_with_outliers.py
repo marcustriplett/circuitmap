@@ -104,7 +104,7 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
 		shape, rate = update_noise(y - z, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
-		z = update_z_constr_l1(y - z, mu, lam, shape, rate, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
+		z = update_z_constr_l1(y, mu, lam, shape, rate, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose, 
 			orthogonal=orthogonal_outliers)
 
