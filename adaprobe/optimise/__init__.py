@@ -6,3 +6,4 @@ from .mbcs_multiplicative_noise import mbcs_multiplicative_noise
 from .mbcs_adaptive_threshold import mbcs_adaptive_threshold
 from .mbcs_cellwise_variance import mbcs_cellwise_variance
 from .mbcs_spike_weighted_var import mbcs_spike_weighted_var
+from .mbcs_spike_weighted_var_with_sigmoid_rf import mbcs_spike_weighted_var_with_sigmoid_rf
