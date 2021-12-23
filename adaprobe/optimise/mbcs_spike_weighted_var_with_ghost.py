@@ -253,11 +253,11 @@ def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, l
 
 	# Update ghost cell
 	# mask = jnp.unique(jnp.where(all_ids != N, all_ids, n - 1), size=n-1)
-	mask = jnp.array(np.delete(all_ids, N-1)).squeeze()
-	arg = -2 * y * mu[N-1] + 2 * mu[N-1] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
-	+ (mu[N-1]**2 + beta[N-1]**2)
-	print(shape/(2 * rate) * arg)
-	lam = index_update(lam, N-1, lam_mask * sigmoid(spont_rate - shape/(2 * rate) * arg)) # ghost can spike on any trial
+	# mask = jnp.array(np.delete(all_ids, N-1)).squeeze()
+	mask = all_ids
+	arg = -2 * y * mu[N] + 2 * mu[N] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
+	+ (mu[N]**2 + beta[N]**2)
+	lam = index_update(lam, N, lam_mask * sigmoid(spont_rate - shape/(2 * rate) * arg)) # ghost can spike on any trial
 
 	return lam
 
