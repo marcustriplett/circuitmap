@@ -33,7 +33,7 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive',
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_delay=-1, phi_thresh=0.09,
 	minimum_spike_count=1, noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, 
-	orthogonal_outliers=True, outlier_penalty=5e1, baseline_noise_sdev=0.25):
+	orthogonal_outliers=True, outlier_penalty=5e1):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -96,7 +96,7 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
 		beta = update_beta(lam, shape, rate, beta_prior)
-		mu = update_mu_constr_l1(y - z, mu, lam, shape, rate, baseline_noise_sdev=baseline_noise_sdev, penalty=penalty, scale_factor=scale_factor, 
+		mu = update_mu_constr_l1(y - z, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 		update_order = np.random.choice(N, N, replace=False)
@@ -106,7 +106,7 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 		shape, rate = update_noise(y - z, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
 		if it > phi_delay:
-			z = update_z_constr_l1(y, mu, lam, shape, rate, lam_mask, baseline_noise_sdev=baseline_noise_sdev, penalty=outlier_penalty, scale_factor=scale_factor,
+			z = update_z_constr_l1(y, mu, lam, shape, rate, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose, 
 				orthogonal=orthogonal_outliers)
 
@@ -125,7 +125,7 @@ def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4)
 	w_samps = np.random.normal(mu, std, [num_mc_samples, N])
 	s_samps = (np.random.rand(num_mc_samples, N, K) <= lam[None, :, :]).astype(float)
 	mc_ws_sq = np.mean([(w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
-	mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i])**2 * (np.sum(s_samps[i], axis=0) > 0) for i in range(num_mc_samples)], axis=0) # multiply by s_samps here to ensure zero noise on no-spike trials
+	mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0) # multiply by s_samps here to ensure zero noise on no-spike trials
 	shape = noise_scale**2 * mc_ws_sq + 1/2
 	rate = noise_scale * mu @ lam + 1/2 * mc_recon_err + eps
 	return shape, rate
@@ -185,14 +185,14 @@ def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 				+ mu_prior[n]/(beta_prior[n]**2)))
 	return scope.mu
 
-def update_mu_constr_l1(y, mu, Lam, shape, rate, baseline_noise_sdev=0.25, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
+def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
 	warm_start_lasso=False, constrain_weights='positive', verbose=False, tol=1e-5):
 	""" Constrained L1 solver with iterative penalty shrinking
 	"""
 	if verbose:
 		print(' ====== Updating mu via constrained L1 solver with iterative penalty shrinking ======')
 	N, K = Lam.shape
-	constr = np.sqrt(np.sum(rate/shape)) + np.sqrt(K) * baseline_noise_sdev
+	constr = np.sqrt(np.sum(rate/shape))
 	LamT = Lam.T
 	positive = constrain_weights in ['positive', 'negative']
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=positive)
@@ -238,7 +238,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, baseline_noise_sdev=0.25, penal
 	else:
 		return coef
 
-def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, baseline_noise_sdev=0.25, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
+def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
 	verbose=False, orthogonal=True):
 	""" Soft thresholding with iterative penalty shrinkage
 	"""
@@ -246,7 +246,7 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, baseline_noise_sdev=0.
 		print(' ====== Updating z via soft thresholding with iterative penalty shrinking ======')
 
 	N, K = Lam.shape
-	constr = np.sqrt(np.sum(rate/shape)) + np.sqrt(K) * baseline_noise_sdev
+	constr = np.sqrt(np.sum(rate/shape))
 	resid = np.array(y - Lam.T @ mu) # copy to np array, possible memory overhead problem here
 
 	for it in range(max_penalty_iters):
