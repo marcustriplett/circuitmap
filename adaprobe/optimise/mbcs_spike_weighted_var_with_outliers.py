@@ -33,7 +33,7 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive',
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_delay=-1, phi_thresh=0.09,
 	minimum_spike_count=1, noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, 
-	orthogonal_outliers=True, outlier_penalty=5e1):
+	orthogonal_outliers=True, outlier_penalty=5e1, init_spike_prior=0.75):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -91,7 +91,7 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 
 	# init spike prior
 	spike_prior = np.zeros_like(lam)
-	spike_prior[lam > 0] = 0.5
+	spike_prior[lam > 0] = init_spike_prior
 
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
