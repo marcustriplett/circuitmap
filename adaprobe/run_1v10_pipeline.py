@@ -45,7 +45,7 @@ if __name__ == '__main__':
 	minimum_maximal_spike_prob = 0.25
 	noise_scale = 0.5
 	init_spike_prior = 0.5
-	spont_rate = 0.2
+	spont_rate = 0
 	num_mc_samples = 500
 	penalty = 2
 	max_lasso_iters = 1000
