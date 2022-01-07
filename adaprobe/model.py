@@ -2,7 +2,7 @@ import numpy as np
 from adaprobe import optimise
 from scipy.stats import norm as normal
 from adaprobe.utils import CrossValidation, sigmoid, sample_truncnorm, load_CV, load_CV_dir
-from adaprobe.optimise.mbcs_spike_weighted_var import update_mu_constr_l1, update_isotonic_receptive_field, isotonic_filtering
+from optimise.mbcs_spike_weighted_var import update_mu_constr_l1, update_isotonic_receptive_field, isotonic_filtering
 import time
 import os
 
