@@ -11,7 +11,7 @@ if __name__ == '__main__':
 	parser.add_argument('--ensemble_size')
 	parser.add_argument('--denoiser')
 	parser.add_argument('--iters')
-	args = vars(parser.parse_args())
+	args = parser.parse_args()
 
 	# Load data
 	f = np.load(args.data)
