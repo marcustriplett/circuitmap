@@ -15,8 +15,8 @@ if __name__ == '__main__':
 
 	# Load data
 	f = np.load(args.data)
-		psc_single_tar, psc_multi_tar = [f[param] for param in ['psc_single_tar', 'psc_multi_tar']]
-		stimulus_matrix_single_tar, stimulus_matrix_multi_tar = [f[param] for param in ['stimulus_matrix_single_tar', 'stimulus_matrix_multi_tar']]
+	psc_single_tar, psc_multi_tar = [f[param] for param in ['psc_single_tar', 'psc_multi_tar']]
+	stimulus_matrix_single_tar, stimulus_matrix_multi_tar = [f[param] for param in ['stimulus_matrix_single_tar', 'stimulus_matrix_multi_tar']]
 	N, K_single = stimulus_matrix_single_tar.shape
 	K_multi = stimulus_matrix_multi_tar.shape[-1]
 
