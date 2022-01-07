@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
 	# Fit models
 	model_single = adaprobe.Model(N, model_type='mbcs', priors=priors_single)
-	models_multi = [adaprobe.Model(N, model_type='mbcs', priors=priors_multi) for _ in range(args.ensemble_size)]
+	models_multi = [adaprobe.Model(N, model_type='mbcs', priors=priors_multi) for _ in range(ensemble_size)]
 
 	model_single.fit((y_single, den_psc_single_tar), stimulus_matrix_single_tar, fit_options=fit_options, method='mbcs_spike_weighted_var')
 	for model in models_multi:
