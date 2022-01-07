@@ -11,6 +11,8 @@ if __name__ == '__main__':
 	parser.add_argument('--ensemble_size')
 	parser.add_argument('--denoiser')
 	parser.add_argument('--iters')
+	parser.add_argument('--minimax_spike_prob')
+	parser.add_argument('--spont_rate')
 	args = parser.parse_args()
 
 	# Load data
@@ -42,10 +44,10 @@ if __name__ == '__main__':
 	verbose = False
 	minimum_spike_count = 3
 	num_mc_samples_noise_model = 100
-	minimum_maximal_spike_prob = 0.25
+	minimax_spike_prob = float(args.minimax_spike_prob)
 	noise_scale = 0.5
 	init_spike_prior = 0.5
-	spont_rate = 0
+	spont_rate = float(args.spont_rate)
 	num_mc_samples = 500
 	penalty = 2
 	max_lasso_iters = 1000
@@ -82,7 +84,7 @@ if __name__ == '__main__':
 		'verbose': verbose,
 		'warm_start_lasso': warm_start_lasso,
 		'minimum_spike_count': minimum_spike_count,
-		'minimum_maximal_spike_prob': minimum_maximal_spike_prob,
+		'minimum_maximal_spike_prob': minimax_spike_prob,
 		'noise_scale': noise_scale,
 		'init_spike_prior': init_spike_prior,
 		'spont_rate': spont_rate
