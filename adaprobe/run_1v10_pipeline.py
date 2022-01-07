@@ -10,6 +10,7 @@ if __name__ == '__main__':
 	parser.add_argument('--data')
 	parser.add_argument('--ensemble_size')
 	parser.add_argument('--denoiser')
+	parser.add_argument('--iters')
 	args = vars(parser.parse_args())
 
 	# Load data
@@ -31,7 +32,7 @@ if __name__ == '__main__':
 	rate_prior_single, rate_prior_multi = 1e-1 * np.ones(K_single), 1e-1 * np.ones(K_multi)
 
 	# Configure fit options
-	iters = 50
+	iters = np.float(args.iters)
 	seed = 1
 	y_xcorr_thresh = 1e-2
 	max_penalty_iters = 50
