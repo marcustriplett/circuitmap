@@ -33,7 +33,7 @@ class Ensemble:
 		mu, lam = np.array(mu), np.array(lam) # convert from DeviceArray to ndarray array
 
 		# Create new model 
-		model = adaprobe.Model(mu.shape[0], priors=self.ensemble[0].priors, model_type=self.ensemble[0].model_type)
+		model = Model(mu.shape[0], priors=self.ensemble[0].priors, model_type=self.ensemble[0].model_type)
 
 		for key, val in zip(params, [lam, mu, shape, rate]):
 			model.state[key] = val
