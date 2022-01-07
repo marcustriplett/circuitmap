@@ -14,6 +14,7 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	# Load data
+	print(args.data)
 	f = np.load(args.data)
 	psc_single_tar, psc_multi_tar = [f[param] for param in ['psc_single_tar', 'psc_multi_tar']]
 	stimulus_matrix_single_tar, stimulus_matrix_multi_tar = [f[param] for param in ['stimulus_matrix_single_tar', 'stimulus_matrix_multi_tar']]
