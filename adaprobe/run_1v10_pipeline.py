@@ -33,7 +33,8 @@ if __name__ == '__main__':
 	rate_prior_single, rate_prior_multi = 1e-1 * np.ones(K_single), 1e-1 * np.ones(K_multi)
 
 	# Configure fit options
-	iters = np.float(args.iters)
+	ensemble_size = int(args.ensemble_size)
+	iters = int(args.iters)
 	seed = 1
 	y_xcorr_thresh = 1e-2
 	max_penalty_iters = 50
