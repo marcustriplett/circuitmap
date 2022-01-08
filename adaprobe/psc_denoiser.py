@@ -16,8 +16,6 @@ class NeuralDenoiser():
 		if path is not None:
 			self.denoiser = DenoisingUNet().load_from_checkpoint(path)
 		else:
-			# self.denoiser = DenoisingNetwork(n_layers=n_layers, kernel_size=kernel_size,
-			# 	padding=padding, stride=stride, channels=channels)
 			self.denoiser = DenoisingUNet()
 
 		# Move denoiser to device
@@ -74,10 +72,6 @@ class NeuralDenoiser():
 		test_dataloader = DataLoader(test_data, batch_size=batch_size, 
 			pin_memory=pin_memory, num_workers=num_workers)
 
-		# loss_fn = nn.MSELoss()
-		# self.train_loss, self.test_loss = [], []
-		# optimizer = torch.optim.SGD(self.denoiser.parameters(), lr=learning_rate)
-
 		# Run torch update loops
 		print('Initiating neural net training...')
 		t_start = time.time()
@@ -85,13 +79,6 @@ class NeuralDenoiser():
 		self.trainer.fit(self.denoiser, train_dataloader, test_dataloader)
 		t_stop = time.time()
 
-		# for t in range(epochs):
-		# 	self.train_loss.append(_train_loop(train_dataloader, self, loss_fn, optimizer))
-		# 	self.test_loss.append(_test_loop(test_dataloader, self, loss_fn))
-		# 	print('Epoch %i/%i  Train loss: %.8f  Test loss: %.8f'%(t+1, epochs, self.train_loss[t], self.test_loss[t]))
-
-		# 	if (save_every is not None) and (t % save_every == 0) and (t > 0) and (save_path is not None):
-		# 		torch.save(self.denoiser, save_path + '_chkpt_%i.pt'%t)
 		print("Training complete. Elapsed time: %.2f min."%((t_stop-t_start)/60))
 
 	def generate_training_data(self, trial_dur=900, size=1000, training_fraction=0.9, lp_cutoff=500, 
@@ -331,49 +318,3 @@ def _monotone_decay_filter(arr, monotone_start=500, inplace=True):
 		for t in range(monotone_start, arr.shape[1]):
 			_arr[:, t] = np.min([arr[:, t], _arr[:, t-1]], axis=0)
 	return _arr
-
-# def _train_loop(dataloader, model, loss_fn, optimizer):
-# 	n_batches = len(dataloader)
-# 	train_loss = 0
-# 	scaler = torch.cuda.amp.GradScaler()
-# 	for batch, (X, y) in enumerate(dataloader):
-# 		# send the batch to GPU
-# 		X = X.to(device=model.device)
-# 		y = y.to(device=model.device)
-
-# 		# Compute prediction and loss
-# 		pred = model.denoiser(X)
-# 		with torch.cuda.amp.autocast():
-# 			loss = loss_fn(pred, y)
-# 		train_loss += loss
-
-# 		# Backpropagation
-# 		optimizer.zero_grad()
-
-# 		# loss.backward()
-# 		# optimizer.step()
-# 		scaler.scale(loss).backward()
-# 		scaler.step(optimizer)
-# 		scaler.update()
-
-# 	train_loss /= n_batches
-# 	return train_loss
-# 	# return train_loss.detach().cpu().numpy()
-		
-# def _test_loop(dataloader, model, loss_fn):
-# 	n_batches = len(dataloader)
-# 	test_loss = 0
-# 	with torch.no_grad():
-# 		for X, y in dataloader:
-# 			X = X.to(device=model.device)
-# 			y = y.to(device=model.device)
-# 			# X.to("cuda" if torch.cuda.is_available() else "cpu")
-# 			# y.to("cuda" if torch.cuda.is_available() else "cpu")
-
-# 			pred = model.denoiser(X)
-# 			test_loss += loss_fn(pred, y).item()
-
-# 	test_loss /= n_batches
-# 	return test_loss
-
-
