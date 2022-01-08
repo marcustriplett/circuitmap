@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 import adaprobe
 from adaprobe.psc_denoiser import NeuralDenoiser
+from datetime import date
 import _pickle as cpickle # pickle compression
 import bz2
 
@@ -13,6 +14,7 @@ if __name__ == '__main__':
 	parser.add_argument('--iters')
 	parser.add_argument('--minimax_spike_prob')
 	parser.add_argument('--spont_rate')
+	parser.add_argument('--token')
 	args = parser.parse_args()
 
 	# Load data
@@ -116,7 +118,7 @@ if __name__ == '__main__':
 		'targets': f['targets']
 	}
 
-	with bz2.BZ2File(args.data + '-analysis.pkl', 'wb') as savefile:
+	with bz2.BZ2File(args.data + '-analysis_%s_%s.pkl'%(args.token, date.today().__str__()), 'wb') as savefile:
 		cpickle.dump(d, savefile)
 
 # sbatch run_pipeline.sh path/to/folder 10 
