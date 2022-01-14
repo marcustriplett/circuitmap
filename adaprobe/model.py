@@ -32,7 +32,7 @@ class Ensemble:
 			minimum_maximal_spike_prob=minimum_maximal_spike_prob)
 
 		if method == 'linear_regression':
-			mu = LinearRegression(positive=constrain_weights).fit(lam, mu).coef_
+			mu = LinearRegression(positive=constrain_weights).fit(lam.T, mu).coef_
 		elif method == 'lasso':
 			mu = update_mu_constr_l1(y, mu, lam, shape, rate)
 
