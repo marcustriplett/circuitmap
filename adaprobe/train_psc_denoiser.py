@@ -1,35 +1,18 @@
-import yaml
-import sys
-import os
-
+import argparse
 from adaprobe.psc_denoiser import NeuralDenoiser
-# from psc_denoiser import NeuralDenoiser
 
 if __name__ == '__main__':
-	with open(sys.argv[1]) as file:
-		config = yaml.full_load(file)
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--size')
+	parser.add_argument('--epochs')
+	args = parser.parse_args()
 
-	# Define denoiser object
-	denoiser = NeuralDenoiser(
-		n_layers=config['n_layers'], 
-		channels=config['channels'], 
-		kernel_size=config['kernel_size'], 
-		padding=config['padding']
-	)
+	size = int(args.size)
+	epochs = int(args.epochs)
 
-	# Generate training data
-	denoiser.generate_training_data(trial_dur=900, size=config['size'], gp_scale=0.03, min_delta=160, 
-		delta_upper=140, next_min_delta=300, next_delta_upper=600)
-
-	if not os.path.isdir(config['save_path']):
-		os.mkdir(config['save_path'])
-
-	if config['save_path'][-1] != '/':
-		config['save_path'] += '/'
-
-	# Train
-	denoiser.train(
-		epochs=config['epochs'], 
-		save_path=config['save_path'], 
-		save_every=config['save_every']
-	)
+	denoiser = NeuralDenoiser()
+	denoiser.generate_training_data(trial_dur=900, size=size, gp_scale=0.045, delta_lower=160,
+								delta_upper=400, next_delta_lower=400, next_delta_upper=899,
+								prev_delta_upper=150, tau_diff_lower=2, tau_diff_upper=150,
+								tau_r_lower=10, tau_r_upper=80)
+	denoiser.train(epochs=epochs)

@@ -3,6 +3,7 @@ from adaprobe import optimise
 from scipy.stats import norm as normal
 from adaprobe.utils import CrossValidation, sigmoid, sample_truncnorm, load_CV, load_CV_dir
 from adaprobe.optimise.mbcs_spike_weighted_var import update_mu_constr_l1, update_isotonic_receptive_field, isotonic_filtering
+from sklearn.linear_model import LinearRegression
 import time
 import os
 
@@ -21,7 +22,8 @@ class Ensemble:
 		self.ensemble = ensemble
 
 	def merge(self, y, stim_matrix, minimum_spike_count=3, minimum_maximal_spike_prob=0.25, max_penalty_iters=50, max_lasso_iters=1000,
-		constrain_weights=True):
+		constrain_weights=True, method='linear_regression'):
+		assert method in ['linear_regression', 'lasso']
 		params = ['lam', 'mu', 'shape', 'rate']
 		lam, mu, shape, rate = [np.mean(np.array([model.state[param] for model in self.ensemble]), axis=0) for param in params]
 		
@@ -29,14 +31,24 @@ class Ensemble:
 		mu, lam = isotonic_filtering(mu, lam, stim_matrix, receptive_field, minimum_spike_count=minimum_spike_count, 
 			minimum_maximal_spike_prob=minimum_maximal_spike_prob)
 
-		mu = update_mu_constr_l1(y, mu, lam, shape, rate)
+		if method == 'linear_regression':
+			mu = LinearRegression(positive=constrain_weights).fit(lam, mu)
+		elif method == 'lasso':
+			mu = update_mu_constr_l1(y, mu, lam, shape, rate)
+
 		mu, lam = np.array(mu), np.array(lam) # convert from DeviceArray to ndarray array
+
+		# Compute confidence in connections and appropriately rescale weights
+		confidence = np.sum(np.array([mod.state['mu'] != 0 for mod in self.ensemble]), 0)/len(self.ensemble)
+		mu *= confidence
 
 		# Create new model 
 		model = Model(mu.shape[0], priors=self.ensemble[0].priors, model_type=self.ensemble[0].model_type)
 
 		for key, val in zip(params, [lam, mu, shape, rate]):
 			model.state[key] = val
+
+		model.state['connection_confidence'] = confidence
 
 		return model
 
