@@ -19,17 +19,20 @@ class Ensemble:
 		'''
 		ensemble: list of Model class instances
 		'''
+		assert len(ensemble) > 1, 'Ensemble must consist of at least two models'
 		self.ensemble = ensemble
 
 	def merge(self, y, stim_matrix, minimum_spike_count=3, minimum_maximal_spike_prob=0.25, max_penalty_iters=50, max_lasso_iters=1000,
-		constrain_weights=True, method='linear_regression'):
+		constrain_weights=True, method='linear_regression', enforce_minimax=True):
 		assert method in ['linear_regression', 'lasso']
+
 		params = ['lam', 'mu', 'shape', 'rate']
 		lam, mu, shape, rate = [np.mean(np.array([model.state[param] for model in self.ensemble]), axis=0) for param in params]
 		
-		receptive_field, spike_prior = update_isotonic_receptive_field(lam, stim_matrix)
-		mu, lam = isotonic_filtering(mu, lam, stim_matrix, receptive_field, minimum_spike_count=minimum_spike_count, 
-			minimum_maximal_spike_prob=minimum_maximal_spike_prob)
+		if enforce_minimax:
+			receptive_field, spike_prior = update_isotonic_receptive_field(lam, stim_matrix)
+			mu, lam = isotonic_filtering(mu, lam, stim_matrix, receptive_field, minimum_spike_count=minimum_spike_count, 
+				minimum_maximal_spike_prob=minimum_maximal_spike_prob)
 
 		if method == 'linear_regression':
 			mu = LinearRegression(positive=constrain_weights).fit(lam.T, y).coef_
@@ -39,7 +42,7 @@ class Ensemble:
 		mu, lam = np.array(mu), np.array(lam) # convert from DeviceArray to ndarray array
 
 		# Compute confidence in connections and appropriately rescale weights
-		confidence = np.sum(np.array([mod.state['mu'] != 0 for mod in self.ensemble]), 0)/len(self.ensemble)
+		confidence = np.sum(np.array([mod.state['mu'] != 0 for mod in self.ensemble]), axis=0)/len(self.ensemble)
 		mu *= confidence
 
 		# Create new model 
