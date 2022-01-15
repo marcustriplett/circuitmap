@@ -105,10 +105,12 @@ class NeuralDenoiser():
 		for i in range(size):
 			# target PSCs initiate between 100 and 300 frames (5-15ms after trial onset)
 
-			sample_pscs, (tau_r_samples, tau_diff_samples) = _sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+			sample_pscs, tau_samples = _sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
 							delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i], return_kernel_parameters=True)
 			targets[i] = np.sum(sample_pscs, 0)
+			
+			tau_r_samples, tau_diff_samples = tau_samples
 
 			next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, delta_lower=next_delta_lower, delta_upper=next_delta_upper, 
 				n_samples=n_modes_next[i], tau_r_samples=tau_r_samples, tau_diff_samples=tau_diff_samples), 0)
