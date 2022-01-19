@@ -194,6 +194,8 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 		print(' ====== Updating mu via constrained L1 solver with iterative penalty shrinking ======')
 	N, K = Lam.shape
 	constr = np.sqrt(np.sum(rate/shape))
+	mu, Lam = np.array(mu), np.array(Lam) # cast to ndarray
+
 	LamT = Lam.T
 	positive = constrain_weights in ['positive', 'negative']
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=positive)
@@ -202,7 +204,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 		# make sensing matrix and weight warm-start negative
 		LamT = -LamT
 		mu = -mu
-	lasso.coef_ = np.array(mu)
+	lasso.coef_ = mu
 
 	err_prev = 0
 	for it in range(max_penalty_iters):
