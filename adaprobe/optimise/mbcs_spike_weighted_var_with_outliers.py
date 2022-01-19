@@ -97,7 +97,7 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
 		beta = update_beta(lam, shape, rate, beta_prior)
 		# ignore z during mu and lam updates
-		mu = update_mu_constr_l1(y, mu, lam, shape, rate, z, penalty=penalty, scale_factor=scale_factor, 
+		mu = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 		update_order = np.random.choice(N, N, replace=False)
@@ -186,7 +186,7 @@ def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 				+ mu_prior[n]/(beta_prior[n]**2)))
 	return scope.mu
 
-def update_mu_constr_l1(y, mu, Lam, shape, rate, z, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
+def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
 	warm_start_lasso=False, constrain_weights='positive', verbose=False, tol=1e-5):
 	""" Constrained L1 solver with iterative penalty shrinking
 	"""
@@ -213,7 +213,7 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, z, penalty=1, scale_factor=0.5,
 
 		lasso.fit(LamT, y)
 		coef = lasso.coef_
-		err = np.sqrt(np.sum(np.square(y - LamT @ coef - z)))
+		err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
 
 		if verbose:
 			print('lasso err: ', err)
