@@ -239,6 +239,50 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	else:
 		return coef
 
+def update_z_l1_with_residual_tolerance(y, mu, Lam, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
+	verbose=False, orthogonal=True, tol=0.05):
+	""" Soft thresholding with iterative penalty shrinkage
+	"""
+	if verbose:
+		print(' ====== Updating z via soft thresholding with iterative penalty shrinking ======')
+
+	N, K = Lam.shape
+	resid = np.array(y - Lam.T @ mu) # copy to np array, possible memory overhead problem here
+
+	for it in range(max_penalty_iters):
+		# iteratively shrink penalty until constraint is met
+		if verbose:
+			print('penalty iter: ', it)
+			print('current penalty: ', penalty)
+		
+		z = np.zeros(K)
+		hard_thresh_locs = np.where(resid < penalty)[0]
+		soft_thresh_locs = np.where(resid >= penalty)[0]
+		z[hard_thresh_locs] = 0
+		z[soft_thresh_locs] = resid[soft_thresh_locs] - penalty
+		z[z < 0] = 0
+
+		if orthogonal:
+			# enforce orthogonality
+			z[np.any(Lam >= 0.5, axis=0)] = 0
+
+		z = z * lam_mask
+		err = np.sum(np.square(resid - z))/np.sum(np.square(y))
+
+		if verbose:
+			print('soft thresh err: ', err)
+			print('constr: ', constr)
+			print('')
+
+		if err <= tol:
+			if verbose:
+				print(' ==== converged on iteration: %i ===='%it)
+			break
+		else:
+			penalty *= scale_factor # exponential backoff
+		
+	return z
+
 def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
 	verbose=False, orthogonal=True):
 	""" Soft thresholding with iterative penalty shrinkage
