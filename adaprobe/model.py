@@ -23,7 +23,7 @@ class Ensemble:
 		self.ensemble = ensemble
 
 	def merge(self, y, stim_matrix, minimum_spike_count=3, minimum_maximal_spike_prob=0.25, max_penalty_iters=50, max_lasso_iters=1000,
-		constrain_weights=True, method='linear_regression', enforce_minimax=True):
+		constrain_weights=True, method='linear_regression', enforce_minimax=False):
 		assert method in ['linear_regression', 'lasso']
 
 		params = ['lam', 'mu', 'shape', 'rate']
@@ -37,7 +37,8 @@ class Ensemble:
 		if method == 'linear_regression':
 			mu = LinearRegression(positive=constrain_weights).fit(lam.T, y).coef_
 		elif method == 'lasso':
-			mu = update_mu_constr_l1(y, mu, lam, shape, rate)
+			mu = update_mu_constr_l1(y, mu, lam, shape, rate, max_penalty_iters=max_penalty_iters, constrain_weights=constrain_weights,
+				max_lasso_iters=max_lasso_iters)
 
 		mu, lam = np.array(mu), np.array(lam) # convert from DeviceArray to ndarray array
 
