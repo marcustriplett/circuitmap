@@ -82,7 +82,7 @@ class NeuralDenoiser():
 		print("Training complete. Elapsed time: %.2f min."%((t_stop-t_start)/60))
 
 	def generate_training_data(self, trial_dur=900, size=1000, training_fraction=0.9, lp_cutoff=500, 
-		srate=2000, tau_r_lower=2, tau_r_upper=80, tau_diff_lower=2, tau_diff_upper=150, 
+		srate=2000, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=2, tau_diff_upper=150, 
 		delta_lower=160, delta_upper=400, next_delta_lower=400, next_delta_upper=899,
 		prev_delta_lower=-400, prev_delta_upper=-100, mode_probs=[0.3, 0.5, 0.1, 0.1], 
 		noise_std_lower=0.01, noise_std_upper=0.1, gp_lengthscale=25, gp_scale=0.01, 
@@ -109,7 +109,7 @@ class NeuralDenoiser():
 							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
 							delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i], return_kernel_parameters=True)
 			targets[i] = np.sum(sample_pscs, 0)
-			
+
 			tau_r_samples, tau_diff_samples = tau_samples
 
 			next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, delta_lower=next_delta_lower, delta_upper=next_delta_upper, 
