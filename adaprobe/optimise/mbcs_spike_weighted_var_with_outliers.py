@@ -97,7 +97,7 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 	for it in tqdm(range(iters), desc='CAVI', leave=False):
 		beta = update_beta(lam, shape, rate, beta_prior)
 		# ignore z during mu and lam updates
-		mu = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
+		mu, lam = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 		update_order = np.random.choice(N, N, replace=False)
@@ -234,10 +234,13 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 			if it == 0:
 				lasso.warm_start = True
 
+	# zero-out spikes for disconnected cells
+	Lam[np.where(mu) == 0] = 0
+
 	if constrain_weights == 'negative':
-		return -coef
+		return -coef, Lam
 	else:
-		return coef
+		return coef, Lam
 
 def update_z_l1_with_residual_tolerance(y, mu, Lam, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
 	verbose=False, orthogonal=True, tol=0.05):
