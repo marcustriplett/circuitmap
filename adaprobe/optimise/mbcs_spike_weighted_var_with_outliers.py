@@ -271,7 +271,7 @@ def update_z_l1_with_residual_tolerance(y, mu, Lam, lam_mask, penalty=1, scale_f
 
 		if verbose:
 			print('soft thresh err: ', err)
-			print('constr: ', constr)
+			print('tol: ', tol)
 			print('')
 
 		if err <= tol:
