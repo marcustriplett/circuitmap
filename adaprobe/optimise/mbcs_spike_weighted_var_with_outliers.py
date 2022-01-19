@@ -33,7 +33,7 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive',
 	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_delay=-1, phi_thresh=0.09,
 	minimum_spike_count=1, noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, 
-	orthogonal_outliers=True, outlier_penalty=5e1, init_spike_prior=0.75, outlier_tol=0.05):
+	orthogonal_outliers=True, outlier_penalty=5e1, init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 	if lam_masking:
@@ -103,13 +103,14 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 		update_order = np.random.choice(N, N, replace=False)
 		lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
-		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob)
+		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
 		if it > phi_delay:
 			z = update_z_l1_with_residual_tolerance(y, mu, lam, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose, 
 				orthogonal=orthogonal_outliers, tol=outlier_tol)
+			spont_rate = np.mean(z != 0)
 
 		# (phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		# lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N)
@@ -342,11 +343,12 @@ def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, l
 
 	for m in range(N):
 		n = update_order[m]
-		# mask = jnp.unique(jnp.where(all_ids != n, all_ids, n - 1), size=N-1)
-		mask = jnp.array(np.delete(all_ids, n)).squeeze()
-		arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
-		+ (mu[n]**2 + beta[n]**2)
-		lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg)) # require spiking cells to be targeted
+		if mu[n] != 0:
+			# mask = jnp.unique(jnp.where(all_ids != n, all_ids, n - 1), size=N-1)
+			mask = jnp.array(np.delete(all_ids, n)).squeeze()
+			arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
+			+ (mu[n]**2 + beta[n]**2)
+			lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg)) # require spiking cells to be targeted
 
 	return lam
 
