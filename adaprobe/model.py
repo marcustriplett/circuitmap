@@ -41,7 +41,7 @@ class Ensemble:
 			mu = update_mu_constr_l1(y, mu, lam, shape, rate, max_penalty_iters=max_penalty_iters, constrain_weights=constrain_weights,
 				max_lasso_iters=max_lasso_iters)
 
-		mu, lam = np.array(mu), np.array(lam) # convert from DeviceArray to ndarray array
+		# mu, lam = np.array(mu), np.array(lam) # convert from DeviceArray to ndarray array
 
 		# Compute confidence in connections and appropriately rescale weights
 		confidence = np.sum(np.array([mod.state['mu'] != 0 for mod in self.ensemble]), axis=0)/len(self.ensemble)

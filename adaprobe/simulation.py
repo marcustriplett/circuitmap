@@ -1,487 +1,134 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-DEFAULT_OMEGA = np.array([0.00389425, 0.00391111, 0.00074478])
-DEFAULT_PHI = np.array([0.03203156, 5.216092])
-
-class Simulation3d:
-	def __init__(self, dimx=125, dimy=125, dimz=100, spacing=10, grid_density=5, N=16, a=0.5, sigma=3, phi_0=None,
-		phi_1=None, min_w=3, max_w=20, mode='online', spont_prob=0.05, spont_mean=5, spont_max=20, multiplicative_std=0.1,
-		min_mult_noise=0.05):
-		""" Initialise a 3d adaprobe simulation object.
-		"""
-		self.gridx, self.gridy, self.gridz, self.xr, self.yr, self.zr = _generate_3d_grid(dimx, dimy, dimz, grid_density)
-		self.grid = np.c_[self.gridx.flatten(), self.gridy.flatten(), self.gridz.flatten()]
-		self.cell_locs = _generate_3d_locs(dimx, dimy, dimz, N, spacing)
-
-		z, u = _generate_weights(N, a, min_w=min_w, max_w=max_w)
-		self.z = z
-		self.u = u
-		self.w = u * z
-		self.N = N
-		self.sigma = sigma
-
-		self.spont_prob = spont_prob
-		self.spont_mean = spont_mean
-		self.spont_max = spont_max
-
-		self.multiplicative_std = multiplicative_std
-		self.min_mult_noise = min_mult_noise
-
-		if phi_0 is None:
-			self.phi_0 = np.random.uniform(0.1, 0.2, N)
-		else:
-			self.phi_0 = phi_0
-
-		if phi_1 is None:
-			self.phi_1 = np.random.uniform(2.5, 5.5, N)
-		else:
-			self.phi_1 = phi_1
-
-		self.reset()
-
-	def reset(self):
-		"""Reset trials.
-		"""
-		self.tars = []
-		self.I = []
-		self.fr = []
-		self.spks = []
-		self.mult_noise = []
-		self.spont = []
-		self.y = []
-		self.trials = 0
-		return
-
-	def next_trial(self, tar, I):
-		""" Simulate next trial at neuron n with power I.
-		"""
-		cell_inds = np.arange(self.N)
-		fr = _sigmoid(self.phi_0 * I * (cell_inds == tar) - self.phi_1) * (cell_inds == tar)
-		spks = np.random.rand(self.N) <= fr
-		mult_noise = np.random.normal(1, self.multiplicative_std, self.N) # multiplicative noise
-		mult_noise[mult_noise < self.min_mult_noise] = self.min_mult_noise # prevent multipliers <= 0
-		spont = (np.random.rand() <= self.spont_prob) * np.random.exponential(self.spont_mean) # spontaneous effects
-		spont = np.min([spont, self.spont_max])
-		y = np.random.normal(self.w @ (mult_noise * spks), self.sigma) - spont
-
-		# Save simulation result to object
-		self.tars += [tar]
-		self.I += [I]
-		self.fr += [fr]
-		self.spks += [spks]
-		self.mult_noise += [mult_noise]
-		self.spont += [spont]
-		self.y += [y]
-		self.trials += 1
-		return
-
-	def simulate(self, trials=1000, powers=None):
-		"""Simulate fixed number of trials.
-		"""
-
-		# Reset sim
-		self.reset()
-
-		# Configure available laser powers
-		if powers is None:
-			powers = np.arange(10, 51, 10) # default power range
-
-		# Run trials
-		for k in range(trials):
-			tar = np.mod(k, self.N)
-			power = np.random.choice(powers)
-			self.next_trial(tar, power)
-
-		self.tars = np.array(self.tars)
-		self.I = np.array(self.I)
-		self.y = np.array(self.y)
-		self.fr = np.array(self.fr).T
-		self.spks = np.array(self.spks).T
-		self.mult_noise = np.array(self.mult_noise).T
-		self.spont = np.array(self.spont)
-		return
-
-	def next_trial_multistim(self, tars, I):
-		""" Simulate next trial at set of neurons tars with power I.
-		"""
-		cell_inds = np.arange(self.N)
-		I_multi = np.zeros(self.N)
-		I_multi[tars] = I
-		fr = _sigmoid(self.phi_0 * I_multi - self.phi_1) * (I_multi > 0)
-		spks = np.random.rand(self.N) <= fr
-		mult_noise = np.random.normal(1, self.multiplicative_std, self.N) # multiplicative noise
-		mult_noise[mult_noise < self.min_mult_noise] = self.min_mult_noise # prevent multipliers <= 0
-		spont = (np.random.rand() <= self.spont_prob) * np.random.exponential(self.spont_mean) # spontaneous effects
-		spont = np.min([spont, self.spont_max])
-		y = np.random.normal(self.w @ (mult_noise * spks), self.sigma) - spont
-
-		# Save simulation result to object
-		self.tars += [tars]
-		self.I += [I]
-		self.fr += [fr]
-		self.spks += [spks]
-		self.mult_noise += [mult_noise]
-		self.spont += [spont]
-		self.y += [y]
-		self.trials += 1
-		return
-
-	def simulate_multistim(self, trials=1000, num_targets=4, powers=None):
-		# Reset sim
-		self.reset()
-
-		# Configure available laser powers
-		if powers is None:
-			powers = np.arange(10, 51, 10) # default power range
-
-		# Run trials
-		for k in range(trials):
-			tars = np.random.choice(self.N, num_targets, replace=False)
-			power = np.random.choice(powers)
-			self.next_trial_multistim(tars, power)
-
-		self.tars = np.array(self.tars)
-		self.I = np.array(self.I)
-		self.y = np.array(self.y)
-		self.fr = np.array(self.fr).T
-		self.mult_noise = np.array(self.mult_noise).T
-		self.spont = np.array(self.spont)
-		self.spks = np.array(self.spks).T
-		return
-
-class Simulation2d:
-	def __init__(self, layout='grid', dimension=2, dim2d=None, spacing=10, N=16, a=0.75, b=10, sigma=3, omega=None, phi_0=None, phi_1=None, rho=1e-2, min_w=3, max_w=20, 
-		grid_density=1,	mode='online'):
-		"""Initialise an adaprobe simulation object.
-		"""
-		assert layout in ['linear', 'grid', 'random'], """Kwarg 'layout' must be either 'linear', 'grid' or 'random'."""
-		self.layout = layout
-		self.spacing = spacing # in um
-		if dim2d is None:
-			# generate grid from cell_locs
-			self.cell_locs = _generate_locs(N, layout, spacing)
-			self.gridx, self.gridy, self.xr, self.yr = _generate_grid(self.cell_locs, spacing, grid_density) 
-		else:
-			# generate cell_locs from grid
-			self.cell_locs, self.gridx, self.gridy, self.xr, self.yr = _generate_grid_with_given_dim(dim2d, N, spacing=spacing) 
-
-		# Configure default params for neural population
-		self.sigma = sigma
-		self.N = N
-
-		if omega is None:
-			omega = 1e-2 * np.ones(N)
-		self.omega = omega
-
-		z, u = _generate_weights(N, a, max_w=max_w)
-		self.u = u
-		self.z = z
-		self.w = u * z
-
-		if phi_0 is None:
-			phi_0 = np.random.uniform(0.08, 0.15, N)
-		if phi_1 is None:
-			half_prob = np.random.uniform(70, 90, N)
-			phi_1 = phi_0 * half_prob
-		self.phi_0 = phi_0
-		self.phi_1 = phi_1
-		self.rho = rho
-
-		if mode == 'online':
-			self.L = []
-			self.I = []
-			self.fr = []
-			self.spks = []
-			self.y = []
-			self.spike_noise = []
-
-		self.trials = None
-
-	def reset(self):
-		"""Reset simulation trials.
-		"""
-		self.L = []
-		self.I = []
-		self.fr = []
-		self.spks = []
-		self.spike_noise = []
-		self.y = []
-		self.trials = 0
-
-	def next_trial(self, L, I):
-		"""Simulate a single trial. Location can be either a user-provided 2d-coordinate, a random 
-		location, or a random soma.
-		"""
-
-		fr = _sigmoid(self.phi_0 * I * np.exp(-self.omega * np.sum(np.square(L - self.cell_locs), 1)) - self.phi_1)
-		spks = np.random.rand(self.N) <= fr
-		y = np.random.normal(self.w @ spks, self.sigma)
-
-		# Save simulation result to object
-		self.L += [L]
-		self.I += [I]
-		self.fr += [fr]
-		self.spks += [spks]
-		self.y += [y]
-
-	def next_trial_multistim(self, L, I):
-		"""Simulate a single trial. Location can be either a user-provided 2d-coordinate, a random 
-		location, or a random soma.
-		"""
-
-		mk = np.array([np.sum(I * np.exp(-self.omega[n] * np.sum(np.square(L - self.cell_locs[n]), 1))) for n in range(self.N)])
-		fr = _sigmoid(self.phi_0 * mk - self.phi_1)
-		spks = np.random.rand(self.N) <= fr
-		y = np.random.normal(self.w @ spks, self.sigma)
-
-		# Save simulation result to object
-		self.L += [L]
-		self.I += [I]
-		self.fr += [fr]
-		self.spks += [spks]
-		self.y += [y]
-
-	def next_trial_spike_noise(self, L, I):
-		fr = _sigmoid(self.phi_0 * I * np.exp(-self.omega * np.sum(np.square(L - self.cell_locs), 1)) - self.phi_1)
-		spks = np.random.rand(self.N) <= fr
-		no_spike_locs = np.where(1 - spks)[0]
-		spike_noise = np.random.normal(1, self.rho, self.N) * spks
-		spike_noise[no_spike_locs] = 1
-		y = np.random.normal(np.sum(self.w * spike_noise * spks), self.sigma)
-
-		# Save simulation result to object
-		self.L += [L]
-		self.I += [I]
-		self.fr += [fr]
-		self.spike_noise += [spike_noise]
-		self.spks += [spks]
-		self.y += [y]
-
-	def simulate(self, trials=100, burnin=0, powers=None, design='ordered', jitter=1):
-		"""Simulate fixed number of trials with the given experimental design.
-		"""
-
-		if design == 'ordered':
-			self._simulate_ordered(trials, powers, jitter=jitter) # no changes needed for burnin with an already ordered design.
-		elif design == 'random':
-			self._simulate_random(trials, burnin, powers)
-		elif design == 'random_grid':
-			self._simulate_random_grid(trials, burnin, powers)
-		else:
-			raise Exception("""Kwarg 'design' must be either 'ordered' for ordered
-		 soma-targeted holograms, 'random' for uniformly random hologram targets, or 'random_grid'.""")
-
-	def _simulate_ordered(self, trials, powers, jitter=1):
-		"""Simulate mapping experiment with ordered soma-targeted holograms.
-		"""
-
-		# Set up vars
-		spks = np.zeros((self.N, trials))
-		y = np.zeros(trials)
-		fr = np.zeros((self.N, trials))
-		L = np.zeros((trials, 2))
-
-		# Configure available laser powers
-		if powers is None:
-			powers = np.arange(80, 120, 10)
-
-		I = np.random.choice(powers, trials, replace=True)
-
-		# Run simulation
-		for k in range(trials):
-			L[k] = self.cell_locs[np.mod(k, self.N)] + np.random.normal(0, jitter, 2)
-			fr[:, k] = _sigmoid(self.phi_0 * I[k] \
-				* np.exp(-self.omega * np.sum(np.square(L[k] - self.cell_locs), 1)) - self.phi_1)
-			spks[:, k] = np.random.rand(self.N) <= fr[:, k]
-			y[k] = np.random.normal(self.w @ spks[:, k], self.sigma)
-
-		# Save simulation results to object
-		self.trials 	= trials
-		self.L 			= list(L)
-		self.I 			= list(I)
-		self.fr 		= list(fr.T)
-		self.spks 		= list(spks.T)
-		self.y 			= list(y)
-
-	def _simulate_random(self, trials, burnin, powers):
-		"""Simulate mapping experiment with uniformly random hologram targets.
-		"""
-
-		# Set up vars
-		spks = np.zeros((self.N, trials))
-		y = np.zeros(trials)
-		fr = np.zeros((self.N, trials))
-		L = np.zeros((trials, 2))
-
-		# Configure available laser powers
-		if powers is None:
-			powers = np.arange(80, 120, 10)
-
-		I = np.random.choice(powers, trials, replace=True)
-
-		# Run simulation
-		for k in range(trials):
-			if k < burnin:
-				L[k] = self.cell_locs[np.mod(k, self.N)]
+def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55, 65], min_latency=160, gamma_beta=1.5e1, sigma=6e-4,
+			frac_strongly_connected=0.2, strong_weight_lower=20, strong_weight_upper=40, weak_exp_mean=4, min_weight=5, phi_0_lower=0.2, phi_0_upper=0.25,
+			phi_1_lower=10, phi_1_upper=15, mult_noise_log_var=0.01, tau_r_min=25, tau_r_max=60, tau_delta_min=75, 
+			tau_delta_max=250, weights=None, kernel=None, phi_0=None, phi_1=None, gp_scale=4e-3, gp_lengthscale=50, spont_prob=0.05):
+	
+	Trange = np.arange(T)
+	
+	# Design stimulus
+	K = nreps * N * len(powers)
+	stim_matrix = np.zeros((N, K))
+	if H == 1:
+		k = 0
+		for n in range(N):
+			for p in powers:
+				stim_matrix[n, k: k+nreps] = p
+				k += nreps
+		stim_order = np.random.choice(K, K, replace=False)
+		stim_matrix = stim_matrix[:, stim_order]
+	else:
+		# case H > 1
+		power_order = np.random.choice(np.concatenate(np.array([p * arr for p, arr in zip(powers, np.split(np.ones(K), len(powers)))])), K, replace=False)
+		for k in range(K):
+			if H == 1:
+				tars = np.mod(k, N)
 			else:
-				L[k] = np.array([
-					np.random.uniform(np.min(self.cell_locs[:, 0]) - self.spacing, 
-						np.max(self.cell_locs[:, 0]) + self.spacing),
-					np.random.uniform(np.min(self.cell_locs[:, 1]) - self.spacing,
-						np.max(self.cell_locs[:, 1]) + self.spacing)
-				])
-			fr[:, k] = _sigmoid(self.phi_0 * I[k] \
-				* np.exp(-self.omega * np.sum(np.square(L[k] - self.cell_locs), 1)) - self.phi_1)
-			spks[:, k] = np.random.rand(self.N) <= fr[:, k]
-			y[k] = np.random.normal(self.w @ spks[:, k], self.sigma)
+				tars = np.random.choice(N, H)
+			power = power_order[k]
+			stim_matrix[tars, k] = power
 
-		# Save simulation results to object
-		self.trials 	= trials
-		self.L 			= list(L)
-		self.I 			= list(I)
-		self.fr 		= list(fr.T)
-		self.spks 		= list(spks.T)
-		self.y 			= list(y)
+	I = np.array([np.unique(stim_matrix[:, k])[-1] for k in range(K)])
+	
+	# Sample kernel parameters
+	if kernel is None:
+		tau_r = np.random.uniform(tau_r_min, tau_r_max, N)
+		tau_delta = np.random.uniform(tau_delta_min, tau_delta_max, N)
+		tau_d = tau_r + tau_delta
+		kernel = get_kernels(tau_r, tau_d)
+	
+	# Biophysical parameters
+	if phi_0 is None or phi_1 is None:
+		phi_0 = np.random.uniform(phi_0_lower, phi_0_upper, N)
+		phi_1 = np.random.uniform(phi_1_lower, phi_1_upper, N)
+	sigmoid = lambda x: 1/(1 + np.exp(-x))
+	frates = np.array([sigmoid(phi_0 * stim_matrix[:, k] - phi_1) for k in range(K)]).T * (stim_matrix > 0)
+	spks = (np.random.rand(N, K) <= frates).astype(float)
+	noise = np.random.normal(0, sigma, [K, T])
+	mult_noise = np.random.lognormal(0, mult_noise_log_var, [N, K])
+	
+	spk_times = np.zeros((N, K))
+	for n in range(N):
+		for k in range(K):
+			if spks[n, k]:
+				spk_times[n, k] = sample_spike_time(stim_matrix[n, k], gamma_beta=gamma_beta)
+	
+	if weights is None:
+		connected = np.random.rand(N) <= connection_prob
+		n_connected = len(np.where(connected)[0])
+		n_strongly_connected = int(np.ceil(frac_strongly_connected * n_connected))
+		strongly_connected = np.random.choice(np.where(connected)[0], n_strongly_connected, replace=False)
+		n_weakly_connected = n_connected - n_strongly_connected
+		weakly_connected = np.setdiff1d(np.where(connected)[0], strongly_connected)
 
-	def _simulate_random_grid(self, trials, burnin, powers):
-		"""Simulate mapping experiment with uniformly random hologram targets.
-		"""
+		weights = np.zeros(N)
+		weights[strongly_connected] = np.random.uniform(strong_weight_lower, strong_weight_upper, n_strongly_connected)
+		weights[weakly_connected] = np.random.exponential(weak_exp_mean, n_weakly_connected) + min_weight
+		
+	else:
+		connected = weights != 0
+	
+	# Generate traces
+	population_pscs = np.zeros((N, K, T))
+	spont_pscs = []
+	for n in tqdm(range(N)):
+		kern = kernel[n](Trange[:, None], spk_times[n]).T
+		population_pscs[n] = (mult_noise[n] * spks[n])[:, None] * weights[n] * kern/np.trapz(kern, axis=-1)[:, None]
+	
+	spont_pscs = np.zeros((K, T))
+	for k in range(K):
+		if np.random.rand() <= spont_prob:
+			# spontaneous event
+			tau_r_sample = np.random.uniform(tau_r_min, tau_r_max)
+			tau_delta_sample = np.random.uniform(tau_delta_min, tau_delta_max)
+			tau_d_sample = tau_r_sample + tau_delta_sample
+			spont_kern = get_kernel(tau_r_sample, tau_d_sample)
+			spike_time_sample = np.random.randint(10, 500)
+			weight_sample = np.random.uniform(np.min(weights[connected]), np.max(weights[connected]))
+			kern = spont_kern(Trange, spike_time_sample)
+			spont_psc = weight_sample * kern/np.trapz(kern)
+			spont_pscs[k] = spont_psc
+	
+	# Sample correlated noise
+	gp_noise = sample_gp(trial_dur=T, n_samples=K, gp_scale=gp_scale, gp_lengthscale=gp_lengthscale)
 
-		# Set up vars
-		spks = np.zeros((self.N, trials))
-		y = np.zeros(trials)
-		fr = np.zeros((self.N, trials))
-		L = np.zeros((trials, 2))
+	psc = np.sum(population_pscs, axis=0) + spont_pscs + gp_noise + noise
+	
+	sim = {
+		'weights': weights,
+		'phi_0': phi_0,
+		'phi_1': phi_1,
+		'mult_noise': mult_noise,
+		'sigma': sigma,
+		'stim_matrix': stim_matrix,
+		'psc': psc,
+		'gp_noise': gp_noise,
+		'kernel': kernel,
+		'spks': spks,
+		'spk_times': spk_times,
+		'spont_pscs': spont_pscs,
+		'I': I,
+	}
+	
+	return sim
 
-		# Configure available laser powers
-		if powers is None:
-			powers = np.arange(80, 120, 10)
+def alpha(power, scale=1e4):
+	return scale/(power**2)
 
-		I = np.random.choice(powers, trials, replace=True)
+def get_kernel(tau_r, tau_d):
+	def func(t, delta):
+		return (np.exp(-(t - delta)/tau_d) - np.exp(-(t - delta)/tau_r)) * (t > delta)
+	return func
 
-		grid_len = 26
-		nsqrt = np.sqrt(self.N) * self.spacing
+def get_kernels(tau_r, tau_d):
+	return [get_kernel(tr, td) for (tr, td) in zip(tau_r, tau_d)]
 
-		# Run simulation
-		for k in range(trials):
-			if k < burnin:
-				L[k] = self.cell_locs[np.mod(k, self.N)]
-			else:
-				L[k] = np.random.choice(np.arange(-self.spacing, nsqrt + self.spacing, (nsqrt + 2*self.spacing)/grid_len), 2, replace=True)
-			fr[:, k] = _sigmoid(self.phi_0 * I[k] \
-				* np.exp(-self.omega * np.sum(np.square(L[k] - self.cell_locs), 1)) - self.phi_1)
-			spks[:, k] = np.random.rand(self.N) <= fr[:, k]
-			y[k] = np.random.normal(self.w @ spks[:, k], self.sigma)
+def sample_spike_time(power, gamma_beta=1.5e1, min_latency=160):
+	return min_latency + np.random.gamma(alpha(power), gamma_beta)
 
-		# Save simulation results to object
-		self.trials 	= trials
-		self.L 			= list(L)
-		self.I 			= list(I)
-		self.fr 		= list(fr.T)
-		self.spks 		= list(spks.T)
-		self.y 			= list(y)
-
-	def view_spike_prob_map(self, n, power=100, figsize=(4.5, 4), fontsize=12, save=None):
-		grid = np.c_[self.gridx.flatten(), self.gridy.flatten()]
-		spk_map = _sigmoid(self.phi_0[n] * power \
-			* np.exp(-self.omega[n] * np.sum(np.square(self.cell_locs[n] - grid), 1)) - self.phi_1[n])
-		plt.figure(figsize=figsize)
-		plt.title('Spike probability map', fontsize=fontsize)
-		plt.contourf(self.gridx, self.gridy, spk_map.reshape(len(self.yr), len(self.xr)), 50)
-		plt.colorbar()
-		plt.scatter(self.cell_locs[:, 0], self.cell_locs[:, 1], s=100, edgecolor='white', facecolor='None', linewidth=1)
-		plt.scatter(self.cell_locs[:, 0], self.cell_locs[:, 1], marker='x', s=50, color='r', linewidth=1)
-		if save is not None:
-			plt.savefig(save, format='png', bbox_inches='tight')
-		else:
-			plt.show()
-
-def _generate_3d_grid(dimx, dimy, dimz, grid_density):
-	xr = np.arange(0, dimx + 1, grid_density)
-	yr = np.arange(0, dimy + 1, grid_density)
-	zr = np.arange(0, dimz + 1, grid_density)
-	gridx, gridy, gridz = np.meshgrid(xr, yr, zr)
-	return gridx, gridy, gridz, xr, yr, zr
-
-def _generate_3d_locs(dimx, dimy, dimz, N, spacing, max_attempts=100):
-	"""
-	"""
-	dims = [dimx, dimy, dimz]
-	total_dims = 3
-	C = np.zeros((N, total_dims))
-	for i in range(total_dims):
-		C[0, i] = np.random.uniform(0, dims[i])
-	for n in range(1, N):
-		while i < max_attempts:
-			loc = np.array([np.random.uniform(0, dims[i]) for i in range(total_dims)])
-			if len(np.where(np.sqrt(np.sum(np.square(C[:n] - loc), 1)) <= spacing)[0]) == 0:
-				break # break while loop, continue with placing next cell
-			i += 1
-		C[n] = loc
-	return C
-
-def _generate_weights(N, a, min_w=3, max_w=20):
-	z = np.random.rand(N) < a
-	u = np.random.uniform(-max_w, -min_w, N)
-	return z, u
-
-def _generate_locs(N, layout, spacing):
-	if layout == 'linear':
-		C = np.array([[spacing * n, 0] for n in range(N)])
-		return C
-	elif layout == 'grid':
-		nsqrt = int(np.sqrt(N))
-		assert nsqrt**2 == N, """N must be square for layout of type 'grid'.""" 
-		C = np.array([
-			np.array([n * spacing, m * spacing]) for n in range(nsqrt) for m in range(nsqrt)
-		])
-		return C
-	elif layout == 'random':
-		# rejection sampling placement, occupies the sqrt(N)*spacing x sqrt(N)*spacing square
-		nsqrt = int(np.ceil(np.sqrt(N)) * spacing)
-		C = np.zeros((N, 2))
-		max_attempts = 100 # number of placement attempts before giving up
-		min_dist = 10 # microns
-		C[0] = np.random.uniform(0, nsqrt, 2)
-		for n in range(1, N):
-			i = 0
-			while i < max_attempts:
-				loc = np.random.uniform(0, nsqrt, 2)
-				if len(np.where(np.sqrt(np.sum(np.square(C[:n] - loc), 1)) < min_dist)[0]) == 0:
-					break # break while loop, continue with placing next cell
-				i += 1
-			C[n] = loc
-		return C
-
-def _generate_grid(cell_locs, spacing, grid_density=1):
-	"""Generate mesh grid encompassing cell locations.
-	"""
-	minx, maxx = np.min(cell_locs[:, 0]), np.max(cell_locs[:, 0])
-	miny, maxy = np.min(cell_locs[:, 1]), np.max(cell_locs[:, 1])
-	xr = np.arange(minx - spacing, maxx + spacing, grid_density)
-	yr = np.arange(miny - spacing, maxy + spacing, grid_density)
-	xgrid, ygrid = np.meshgrid(xr, yr)
-	return xgrid, ygrid, xr, yr
-
-def _generate_grid_with_given_dim(dim, N, spacing=10, border=5, max_attempts=100):
-	"""Generate mesh grid with given dimension and fill with random cell locations.
-	"""
-	xr, yr = np.arange(0, dim), np.arange(0, dim)
-	xgrid, ygrid = np.meshgrid(xr, yr)
-
-	C = np.zeros((N, 2))
-	C[0] = np.random.uniform(border, dim - border, 2)
-	for n in range(1, N):
-		i = 0
-		while i < max_attempts:
-			loc = np.random.uniform(border, dim - border, 2)
-			if len(np.where(np.sqrt(np.sum(np.square(C[:n] - loc), 1)) < spacing)[0]) == 0:
-				break # break while loop, continue with placing next cell
-			i += 1
-		C[n] = loc
-
-	return C, xgrid, ygrid, xr, yr
-
-def _sigmoid(x):
-	return 1./(1. + np.exp(-x))
+def sample_gp(trial_dur=900, gp_lengthscale=25, gp_scale=0.01, n_samples=1):
+	D = np.array([[i - j for i in range(trial_dur)] for j in range(trial_dur)])
+	K = np.exp(-D**2/(2 * gp_lengthscale**2))
+	mean = np.zeros(trial_dur)
+	return gp_scale * np.random.multivariate_normal(mean, K, size=n_samples)

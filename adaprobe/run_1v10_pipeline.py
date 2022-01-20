@@ -48,7 +48,6 @@ if __name__ == '__main__':
 	minimax_spike_prob = float(args.minimax_spike_prob)
 	noise_scale = 0.5
 	init_spike_prior = 0.5
-	spont_rate = float(args.spont_rate)
 	num_mc_samples = 500
 	penalty = 2
 	max_lasso_iters = 1000
@@ -56,7 +55,7 @@ if __name__ == '__main__':
 	constrain_weights = 'positive'
 	lam_masking = True
 	orthogonal_outliers = True
-
+	lam_mask_fraction = 0.05
 
 	priors_single = {
 		'beta': beta_prior,
@@ -89,7 +88,8 @@ if __name__ == '__main__':
 		'minimum_maximal_spike_prob': minimax_spike_prob,
 		'noise_scale': noise_scale,
 		'init_spike_prior': init_spike_prior,
-		'orthogonal_outliers': orthogonal_outliers
+		'orthogonal_outliers': orthogonal_outliers,
+		'lam_mask_fraction': lam_mask_fraction
 	}
 
 	# Fit models
