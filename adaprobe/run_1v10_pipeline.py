@@ -104,7 +104,7 @@ if __name__ == '__main__':
 	ensemble_model = adaprobe.Ensemble(models_multi).merge(
 		y_multi, stimulus_matrix_multi_tar, method='linear_regression', enforce_minimax=False, constrain_weights=True,
 		max_penalty_iters=max_penalty_iters
-		)
+	)
 
 	d = {
 		'ensemble_model_multi_tar': ensemble_model,
@@ -122,5 +122,3 @@ if __name__ == '__main__':
 
 	with bz2.BZ2File(args.data + '-analysis_%s_%s.pkl'%(args.token, date.today().__str__()), 'wb') as savefile:
 		cpickle.dump(d, savefile)
-
-# sbatch run_pipeline.sh path/to/folder 10 
