@@ -43,7 +43,7 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 
 		# Setup lam mask
 		lam_mask = (np.array([np.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh)
-		lam_mask[np.max(y_psc, axis=1) < lam_mask_fraction * np.percentile(y_multi, 99)] = 0 # mask events that are too small
+		lam_mask[np.max(y_psc, axis=1) < lam_mask_fraction * np.percentile(y_psc, 99)] = 0 # mask events that are too small
 
 	else:
 		y = obs
