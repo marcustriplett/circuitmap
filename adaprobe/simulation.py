@@ -33,7 +33,7 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 		# case H > 1
 		if design == 'blockwise':
 			assert target_trials is not None
-			
+
 			stim_matrix = []
 			K = 0
 			while K < target_trials:
@@ -108,12 +108,14 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 		connected = weights != 0
 	
 	# Generate traces
+	print('Generating PSC traces...')
 	population_pscs = np.zeros((N, K, T))
 	spont_pscs = []
 	for n in tqdm(range(N)):
 		kern = kernel[n](Trange[:, None], spk_times[n]).T
 		population_pscs[n] = (mult_noise[n] * spks[n])[:, None] * weights[n] * kern/np.trapz(kern, axis=-1)[:, None]
-	
+
+	print('Generating spontaneous PSCs...')
 	spont_pscs = np.zeros((K, T))
 	for k in range(K):
 		if np.random.rand() <= spont_prob:
@@ -129,6 +131,7 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 			spont_pscs[k] = spont_psc
 	
 	# Sample correlated noise
+	print('Sampling correlated noise from Gaussian process...')
 	gp_noise = sample_gp(trial_dur=T, n_samples=K, gp_scale=gp_scale, gp_lengthscale=gp_lengthscale)
 
 	psc = np.sum(population_pscs, axis=0) + spont_pscs + gp_noise + noise
@@ -149,6 +152,7 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 		'I': I,
 	}
 	
+	print('Complete.')
 	return sim
 
 def alpha(power, scale=1e4):
