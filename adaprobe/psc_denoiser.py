@@ -7,6 +7,13 @@ import numpy as np
 import time
 import scipy.signal as sg
 
+# Conditionally import progress bar
+try:
+	get_ipython()
+	from tqdm.notebook import tqdm
+except:
+	from tqdm import tqdm
+
 class NeuralDenoiser():
 	def __init__(self, path=None):
 		# Set device dynamically
@@ -99,11 +106,9 @@ class NeuralDenoiser():
 		next_pscs = np.zeros((size, trial_dur))
 		noise_stds = np.random.uniform(noise_std_lower, noise_std_upper, size)
 		iid_noise = np.zeros((size, trial_dur))
-		gp_noise = _sample_gp(n_samples=size, trial_dur=trial_dur, gp_lengthscale=gp_lengthscale,
-			gp_scale=gp_scale)
 
 		# generate PSC traces
-		for i in range(size):
+		for i in tqdm(range(size), desc='Trace generation', leave=True):
 			# target PSCs initiate between 100 and 300 frames (5-15ms after trial onset)
 
 			targets[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
@@ -119,6 +124,9 @@ class NeuralDenoiser():
 							delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i]), 0)
 			
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
+
+		gp_noise = _sample_gp(n_samples=size, trial_dur=trial_dur, gp_lengthscale=gp_lengthscale,
+			gp_scale=gp_scale)
 
 		# lowpass filter inputs as with experimental data
 		b_lp, a_lp = sg.butter(4, lp_cutoff, btype='low', fs=srate)
