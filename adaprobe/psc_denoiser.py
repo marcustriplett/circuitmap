@@ -122,10 +122,10 @@ class NeuralDenoiser():
 		# lowpass filter inputs as with experimental data
 		b_lp, a_lp = sg.butter(4, lp_cutoff, btype='low', fs=srate)
 		inputs = sg.filtfilt(b_lp, a_lp, prev_pscs + targets + next_pscs + gp_noise + iid_noise, axis=-1)
-		ampl = np.random.uniform(observed_amplitude_lower, observed_amplitude_upper, size)[:, None]
+		# ampl = np.random.uniform(observed_amplitude_lower, observed_amplitude_upper, size)[:, None]
 		maxv = np.max(inputs, 1)[:, None]
-		inputs = inputs/maxv * ampl
-		targets = targets/maxv * ampl
+		inputs = inputs/maxv
+		targets = targets/maxv
 
 		# save training data in object
 		training_trials = int(training_fraction * size)
