@@ -14,7 +14,13 @@ if __name__ == '__main__':
 	parser.add_argument('--iters')
 	parser.add_argument('--minimax_spike_prob')
 	parser.add_argument('--token')
+	parser.add_argument('--frac_data')
 	args = parser.parse_args()
+
+	if args.frac_data is None:
+		frac_data = 1
+	else:
+		frac_data = float(args.frac_data)
 
 	# Load data
 	print(args.data)
@@ -22,6 +28,12 @@ if __name__ == '__main__':
 	psc_single_tar, psc_multi_tar = [f[param] for param in ['psc_single_tar', 'psc_multi_tar']]
 	stimulus_matrix_single_tar, stimulus_matrix_multi_tar = [f[param] for param in ['stimulus_matrix_single_tar', 'stimulus_matrix_multi_tar']]
 	N, K_single = stimulus_matrix_single_tar.shape
+	K_multi = stimulus_matrix_multi_tar.shape[-1]
+	valid_trials = int(frac_data * K_multi)
+
+	# Trim data based on frac_data arg
+	psc_multi_tar = psc_multi_tar[:valid_trials]
+	stimulus_matrix_multi_tar = stimulus_matrix_multi_tar[:, :valid_trials]
 	K_multi = stimulus_matrix_multi_tar.shape[-1]
 
 	# Denoise traces
@@ -98,7 +110,8 @@ if __name__ == '__main__':
 
 	model_single.fit((y_single, den_psc_single_tar), stimulus_matrix_single_tar, fit_options=fit_options, method='mbcs_spike_weighted_var_with_outliers')
 	for model in models_multi:
-		model.fit((y_multi, den_psc_multi_tar), stimulus_matrix_multi_tar, fit_options=fit_options, method='mbcs_spike_weighted_var_with_outliers')
+		model.fit((y_multi, den_psc_multi_tar), stimulus_matrix_multi_tar,
+		 fit_options=fit_options, method='mbcs_spike_weighted_var_with_outliers')
 
 	# Merge ensemble
 	ensemble_model = adaprobe.Ensemble(models_multi).merge(

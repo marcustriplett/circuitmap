@@ -1,16 +1,27 @@
 import numpy as np
 
+# Conditionally import progress bar
+try:
+	get_ipython()
+	from tqdm.notebook import tqdm
+except:
+	from tqdm import tqdm
+
 def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55, 65], min_latency=160, gamma_beta=1.5e1, sigma=6e-4,
 			frac_strongly_connected=0.2, strong_weight_lower=20, strong_weight_upper=40, weak_exp_mean=4, min_weight=5, phi_0_lower=0.2, phi_0_upper=0.25,
 			phi_1_lower=10, phi_1_upper=15, mult_noise_log_var=0.01, tau_r_min=25, tau_r_max=60, tau_delta_min=75, 
-			tau_delta_max=250, weights=None, kernel=None, phi_0=None, phi_1=None, gp_scale=4e-3, gp_lengthscale=50, spont_prob=0.05):
+			tau_delta_max=250, weights=None, kernel=None, phi_0=None, phi_1=None, gp_scale=4e-3, gp_lengthscale=50, spont_prob=0.05,
+			design='random', target_trials=None):
 	
+	assert design in ['random', 'blockwise']
+
 	Trange = np.arange(T)
 	
-	# Design stimulus
-	K = nreps * N * len(powers)
-	stim_matrix = np.zeros((N, K))
 	if H == 1:
+		# Design stimulus
+		K = nreps * N * len(powers)
+		stim_matrix = np.zeros((N, K))
+
 		k = 0
 		for n in range(N):
 			for p in powers:
@@ -20,14 +31,41 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 		stim_matrix = stim_matrix[:, stim_order]
 	else:
 		# case H > 1
-		power_order = np.random.choice(np.concatenate(np.array([p * arr for p, arr in zip(powers, np.split(np.ones(K), len(powers)))])), K, replace=False)
-		for k in range(K):
-			if H == 1:
-				tars = np.mod(k, N)
-			else:
+		if design == 'blockwise':
+			assert target_trials is not None
+			
+			stim_matrix = []
+			K = 0
+			while K < target_trials:
+				neuron_order = np.random.choice(N, N, replace=False)
+				holos = [neuron_order[i*H: (i+1)*H] for i in range(int(np.ceil(N/H)))]
+
+				trial_counter = 0
+				for holo in holos:
+					for power in powers:
+						for rep in range(nreps):
+							stim_trial = np.zeros(N)
+							stim_trial[holo] = power
+							# stim_matrix[holo, trial_counter] = power
+							stim_matrix += [stim_trial]
+							trial_counter += 1
+
+				K += trial_counter
+
+			reorder = np.random.choice(K, K, replace=False)
+			stim_matrix = np.array(stim_matrix).T
+			stim_matrix = stim_matrix[:, reorder]
+
+		if design == 'random':
+			K = nreps * N * len(powers)
+
+			power_order = np.random.choice(np.concatenate(np.array([p * arr for p, arr in zip(powers, np.split(np.ones(K), len(powers)))])), \
+				K, replace=False) # equal power representation
+
+			for k in range(K):
 				tars = np.random.choice(N, H)
-			power = power_order[k]
-			stim_matrix[tars, k] = power
+				power = power_order[k]
+				stim_matrix[tars, k] = power
 
 	I = np.array([np.unique(stim_matrix[:, k])[-1] for k in range(K)])
 	

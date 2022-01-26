@@ -27,7 +27,7 @@ from jax.experimental import loops
 
 EPS = 1e-10
 
-def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, 
+def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, 
 	phi_cov_prior, iters=50,
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, lam_masking=False, scale_factor=0.5,
 	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive',
@@ -37,18 +37,13 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 	lam_mask_fraction=0.05):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
-	if lam_masking:
-		y, y_psc = obs
-		K = y.shape[0]
+	
+	y = np.trapz(y_psc, axis=-1)
+	K = y.shape[0]
 
-		# Setup lam mask
-		lam_mask = (np.array([np.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh)
-		lam_mask[np.max(y_psc, axis=1) < lam_mask_fraction * np.max(y_psc)] = 0 # mask events that are too small
-
-	else:
-		y = obs
-		K = y.shape[0]
-		lam_mask = np.ones(K)
+	# Setup lam mask
+	lam_mask = (np.array([np.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh)
+	lam_mask[np.max(y_psc, axis=1) < lam_mask_fraction * np.max(y_psc)] = 0 # mask events that are too small
 
 	# Initialise new params
 	N = mu_prior.shape[0]
@@ -63,17 +58,11 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 	z 			= np.zeros(K)
 	
 	# Spike initialisation
-	if init_lam is None:
-		lam = np.zeros_like(I) 
-		if lam_masking:
-			lam[I > 0] = 0.95
-			lam = lam * lam_mask
-		else:
-			lam[I > 0] = 0.5
-	else:
-		lam = init_lam
+	lam = np.zeros_like(I) 
+	lam[I > 0] = 0.95
+	lam = lam * lam_mask
 
-	lam = jnp.array(lam)
+	lam = jnp.array(lam) # move to DeviceArray
 
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
@@ -113,9 +102,6 @@ def mbcs_spike_weighted_var_with_outliers(obs, I, mu_prior, beta_prior, shape_pr
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose, 
 				orthogonal=orthogonal_outliers, tol=outlier_tol)
 			spont_rate = np.mean(z != 0)
-
-		# (phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		# lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N)
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
@@ -172,22 +158,6 @@ def update_isotonic_receptive_field(lam, I):
 @jit
 def update_beta(lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(jnp.sum((shape/rate)[None, :] * lam, 1) + 1/(beta_prior**2))
-
-@jax.partial(jit, static_argnums=(8))
-def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
-	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
-
-	sig = shape/rate
-	with loops.Scope() as scope:
-		scope.mu = mu
-		scope.mask = jnp.zeros(N - 1, dtype=int)
-		scope.all_ids = jnp.arange(N)
-		for n in scope.range(N):
-			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
-			scope.mu = index_update(scope.mu, n, (beta[n]**2) * (sig * jnp.dot(y, lam[n]) - sig \
-				* jnp.dot(lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask], 1) * lam[scope.mask], 0)) \
-				+ mu_prior[n]/(beta_prior[n]**2)))
-	return scope.mu
 
 def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
 	warm_start_lasso=False, constrain_weights='positive', verbose=False, tol=1e-5):
@@ -400,74 +370,3 @@ def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
 	return jnp.log(fn/(1 - fn))
 _vmap_eval_lam_update_monte_carlo = jit(vmap(_eval_lam_update_monte_carlo, in_axes=(None, 0, 0)))
 
-@jit
-def update_phi(lam, I, phi_prior, phi_cov_prior, key):
-	"""Returns updated sigmoid coefficients estimated using a log-barrier penalty with backtracking Newton's method
-	"""
-	(posterior, logliks), keys = laplace_approx(lam, phi_prior, phi_cov_prior, I, key) # N keys returned due to vmapped LAs
-	return posterior, keys[-1]
-	
-def _laplace_approx(y, phi_prior, phi_cov, I, key, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
-	"""Laplace approximation to sigmoid coefficient posteriors $phi$.
-	"""
-
-	newton_steps = 10 # need to figure out how to make this dynamic
-
-	def backtrack_cond(carry):
-		it, _, lhs, rhs, _, _, _ = carry
-		return jnp.logical_and(it < max_backtrack_iters, jnp.logical_or(jnp.isnan(lhs), lhs > rhs))
-
-	def backtrack(carry):
-		it, step, lhs, rhs, v, J, phi = carry
-		it += 1
-		step *= backtrack_beta
-		lhs, rhs = get_ineq(y, phi, step, v, t, J, backtrack_alpha)
-		return (it, step, lhs, rhs, v, J, phi)
-
-	def get_ineq(y, phi, step, v, t, J, backtrack_alpha):
-		return negloglik_with_barrier(y, phi + step * v, phi_prior, prior_prec, I, t), \
-			negloglik_with_barrier(y, phi, phi_prior, prior_prec, I, t) + backtrack_alpha * step * J @ v
-
-	def get_stepv(phi, t):
-		f = sigmoid(phi[0] * I - phi[1])
-
-		# grad of negative log-likelihood
-		j1 = -jnp.sum(I * (y - f))
-		j2 = jnp.sum(y - f)
-		J = jnp.array([j1, j2]) + prior_prec @ (phi - phi_prior) - 1/(t * phi)
-
-		# hessian of negative log-likelihood
-		h11 = jnp.sum(I**2 * f * (1 - f))
-		h12 = -jnp.sum(I * f * (1 - f))
-		h21 = h12
-		h22 = jnp.sum(f * (1 - f))
-		H = jnp.array([[h11, h12], [h21, h22]]) + prior_prec + jnp.diag(1/(t * phi**2))
-
-		H_inv = jnp.linalg.inv(H)
-		v = -H_inv @ J
-		return v, J, H_inv
-
-	def newton_step(phi_carry, _):
-		phi, _ = phi_carry
-		v, J, cov = get_stepv(phi, t)  
-		step = 1.
-		lhs, rhs = get_ineq(y, phi, step, v, t, J, backtrack_alpha)
-		init_carry = (0, step, lhs, rhs, v, J, phi)
-		carry = while_loop(backtrack_cond, backtrack, init_carry)
-		_, step, lhs, _, _, _, _ = carry
-		phi += step * v
-		return (phi, cov), lhs
-
-	key, key_next = jax.random.split(key)
-	phi = jnp.array(phi_prior, copy=True)
-	prior_prec = jnp.linalg.inv(phi_cov)
-	phi_carry = (phi, jnp.zeros((phi.shape[0], phi.shape[0])))
-	return scan(newton_step, phi_carry, jnp.arange(newton_steps)), key_next
-
-laplace_approx = jit(vmap(_laplace_approx, (0, 0, 0, 0, None))) # parallel LAs across all cells
-
-@jit
-def negloglik_with_barrier(y, phi, phi_prior, prec, I, t):
-	lam = sigmoid(phi[0] * I - phi[1])
-	return -jnp.sum(jnp.nan_to_num(y * jnp.log(lam) + (1 - y) * jnp.log(1 - lam))) - jnp.sum(jnp.log(phi))/t \
-		+ 1/2 * (phi - phi_prior) @ prec @ (phi - phi_prior)
