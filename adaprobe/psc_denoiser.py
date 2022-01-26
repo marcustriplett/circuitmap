@@ -124,7 +124,7 @@ class NeuralDenoiser():
 		b_lp, a_lp = sg.butter(4, lp_cutoff, btype='low', fs=srate)
 		inputs = sg.filtfilt(b_lp, a_lp, prev_pscs + targets + next_pscs, axis=-1)
 		# ampl = np.random.uniform(observed_amplitude_lower, observed_amplitude_upper, size)[:, None]
-		maxv = np.max(inputs, 1)[:, None]
+		maxv = np.max(inputs, 1)[:, None] + 1e-5
 		inputs = inputs/maxv + gp_noise + iid_noise
 		targets = targets/maxv
 
