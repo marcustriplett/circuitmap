@@ -111,7 +111,7 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 	print('Generating PSC traces...')
 	population_pscs = np.zeros((N, K, T))
 	spont_pscs = []
-	for n in tqdm(range(N)):
+	for n in tqdm(range(N), desc='Neuron', leave=True):
 		kern = kernel[n](Trange[:, None], spk_times[n]).T
 		population_pscs[n] = (mult_noise[n] * spks[n])[:, None] * weights[n] * kern/np.trapz(kern, axis=-1)[:, None]
 

@@ -37,7 +37,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	lam_mask_fraction=0.05):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
-	
+
 	y = np.trapz(y_psc, axis=-1)
 	K = y.shape[0]
 
@@ -85,7 +85,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	spike_prior[lam > 0] = init_spike_prior
 
 	# Iterate CAVI updates
-	for it in tqdm(range(iters), desc='CAVI', leave=False):
+	for it in tqdm(range(iters), desc='CAVI', leave=True):
 		beta = update_beta(lam, shape, rate, beta_prior)
 		# ignore z during mu and lam updates
 		mu, lam = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
