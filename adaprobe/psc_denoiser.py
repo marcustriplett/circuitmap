@@ -105,18 +105,17 @@ class NeuralDenoiser():
 		for i in range(size):
 			# target PSCs initiate between 100 and 300 frames (5-15ms after trial onset)
 
-			sample_pscs, tau_samples = _sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+			targets[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-							delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i], return_kernel_parameters=True)
-			targets[i] = np.sum(sample_pscs, 0)
+							delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i]), 0)
 
-			tau_r_samples, tau_diff_samples = tau_samples
+			next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
+							delta_lower=next_delta_lower, delta_upper=next_delta_upper, n_samples=n_modes_next[i]), 0)
 
-			next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, delta_lower=next_delta_lower, delta_upper=next_delta_upper, 
-				n_samples=n_modes_next[i], tau_r_samples=tau_r_samples, tau_diff_samples=tau_diff_samples), 0)
-
-			prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, 
-				n_samples=n_modes_prev[i], tau_r_samples=tau_r_samples, tau_diff_samples=tau_diff_samples), 0)
+			prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper, 
+							delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i]), 0)
 			
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
@@ -291,16 +290,13 @@ def _kernel_func(tau_r, tau_d, delta):
 
 def _sample_psc_kernel(trial_dur=900, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, 
 	tau_diff_upper=150, delta_lower=100, delta_upper=200, n_samples=1,
-	amplitude_lower=0.1, amplitude_upper=1.5, tau_r_samples=None, tau_diff_samples=None,
-	return_kernel_parameters=False):
+	amplitude_lower=0.1, amplitude_upper=1.5):
 	'''Sample PSCs with random time constants, onset times, and amplitudes.
 	'''
 	if n_samples == 0:
 		return np.zeros((1, trial_dur))
-	if tau_r_samples == None:
-		tau_r_samples = np.random.uniform(tau_r_lower, tau_r_upper, n_samples)
-	if tau_diff_samples == None:
-		tau_diff_samples = np.random.uniform(tau_diff_lower, tau_diff_upper, n_samples)
+	tau_r_samples = np.random.uniform(tau_r_lower, tau_r_upper, n_samples)
+	tau_diff_samples = np.random.uniform(tau_diff_lower, tau_diff_upper, n_samples)
 	tau_d_samples = tau_r_samples + tau_diff_samples
 	delta_samples = np.random.uniform(delta_lower, delta_upper, n_samples)
 	xeval = np.arange(trial_dur)
@@ -309,10 +305,7 @@ def _sample_psc_kernel(trial_dur=900, tau_r_lower=10, tau_r_upper=80, tau_diff_l
 	max_vec = np.max(pscs, 1)[:, None]
 	amplitude = np.random.uniform(amplitude_lower, amplitude_upper, n_samples)[:, None]
 
-	if return_kernel_parameters:
-		return pscs/max_vec * amplitude, (tau_r_samples, tau_diff_samples)
-	else:
-		return pscs/max_vec * amplitude
+	return pscs/max_vec * amplitude
 
 def _monotone_decay_filter(arr, monotone_start=500, inplace=True):
 	'''Enforce monotone decay beyond kwarg monotone_start. Performed in-place by default.
