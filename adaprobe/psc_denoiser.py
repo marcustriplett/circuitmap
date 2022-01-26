@@ -84,15 +84,16 @@ class NeuralDenoiser():
 	def generate_training_data(self, trial_dur=900, size=1000, training_fraction=0.9, lp_cutoff=500, 
 		srate=2000, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=2, tau_diff_upper=150, 
 		delta_lower=160, delta_upper=400, next_delta_lower=400, next_delta_upper=899,
-		prev_delta_lower=-400, prev_delta_upper=-100, mode_probs=[0.3, 0.5, 0.1, 0.1], 
+		prev_delta_lower=-400, prev_delta_upper=-100, mode_probs=[0.3, 0.5, 0.1, 0.1],
+		prev_mode_probs=[0.3, 0.6, 0.05, 0.05], next_mode_probs=[0.3, 0.6, 0.05, 0.05],
 		noise_std_lower=0.01, noise_std_upper=0.1, gp_lengthscale=25, gp_scale=0.01, 
 		max_modes=4, observed_amplitude_lower=0.75, observed_amplitude_upper=1.25, save_path=None):
 		'''Simulate data for training a PSC denoiser. 
 		'''
 
 		n_modes = np.random.choice(max_modes, size, p=mode_probs)
-		n_modes_prev = np.random.choice(max_modes, size, p=mode_probs)
-		n_modes_next = np.random.choice(max_modes, size, p=mode_probs)
+		n_modes_prev = np.random.choice(max_modes, size, p=prev_mode_probs)
+		n_modes_next = np.random.choice(max_modes, size, p=next_mode_probs)
 		targets = np.zeros((size, trial_dur))
 		prev_pscs = np.zeros((size, trial_dur))
 		next_pscs = np.zeros((size, trial_dur))
