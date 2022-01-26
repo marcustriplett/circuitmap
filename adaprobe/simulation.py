@@ -46,7 +46,6 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 						for rep in range(nreps):
 							stim_trial = np.zeros(N)
 							stim_trial[holo] = power
-							# stim_matrix[holo, trial_counter] = power
 							stim_matrix += [stim_trial]
 							trial_counter += 1
 
@@ -57,7 +56,9 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 			stim_matrix = stim_matrix[:, reorder]
 
 		if design == 'random':
-			K = nreps * N * len(powers)
+			# variable `nreps` not used
+			K = target_trials
+			stim_matrix = np.zeros((N, K))
 
 			power_order = np.random.choice(np.concatenate(np.array([p * arr for p, arr in zip(powers, np.split(np.ones(K), len(powers)))])), \
 				K, replace=False) # equal power representation
