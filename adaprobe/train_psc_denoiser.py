@@ -6,13 +6,24 @@ if __name__ == '__main__':
 	parser.add_argument('--size')
 	parser.add_argument('--epochs')
 	parser.add_argument('--templates')
+	parser.add_argument('--pretrained')
 	args = parser.parse_args()
 
 	size = int(args.size)
 	epochs = int(args.epochs)
-	templates = np.load(args.templates)
 
-	denoiser = NeuralDenoiser()
+	# Optionally load negative training templates
+	if args.templates is None:
+		templates = None
+	else:
+		templates = np.load(args.templates)
+
+	# Optionally load pretrained model
+	if args.pretrained is None:
+		denoiser = NeuralDenoiser()
+	else:
+		denoiser = NeuralDenoiser(path=args.pretrained)
+
 	denoiser.generate_training_data(trial_dur=900, size=size, gp_scale=0.045, delta_lower=160,
 								delta_upper=400, next_delta_lower=400, next_delta_upper=899,
 								prev_delta_upper=150, tau_diff_lower=150, tau_diff_upper=340,
