@@ -1,4 +1,5 @@
 import argparse
+import numpy as np
 from adaprobe.psc_denoiser import NeuralDenoiser
 
 if __name__ == '__main__':
