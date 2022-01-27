@@ -89,12 +89,13 @@ class NeuralDenoiser():
 		print("Training complete. Elapsed time: %.2f min."%((t_stop-t_start)/60))
 
 	def generate_training_data(self, trial_dur=900, size=1000, training_fraction=0.9, lp_cutoff=500, 
-		srate=2000, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=2, tau_diff_upper=150, 
+		srate=20000, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=2, tau_diff_upper=150, 
 		delta_lower=160, delta_upper=400, next_delta_lower=400, next_delta_upper=899,
-		prev_delta_lower=-400, prev_delta_upper=-100, mode_probs=[0.3, 0.5, 0.1, 0.1],
-		prev_mode_probs=[0.3, 0.6, 0.05, 0.05], next_mode_probs=[0.3, 0.6, 0.05, 0.05],
+		prev_delta_lower=-400, prev_delta_upper=-100, mode_probs=[0.4, 0.4, 0.1, 0.1],
+		prev_mode_probs=[0.5, 0.4, 0.05, 0.05], next_mode_probs=[0.5, 0.4, 0.05, 0.05],
 		noise_std_lower=0.01, noise_std_upper=0.1, gp_lengthscale=25, gp_scale=0.01, 
-		max_modes=4, observed_amplitude_lower=0.75, observed_amplitude_upper=1.25, save_path=None):
+		max_modes=4, observed_amplitude_lower=0.75, observed_amplitude_upper=1.25, 
+		prob_zero_event=0.001, templates=None, template_prob=0.075, save_path=None):
 		'''Simulate data for training a PSC denoiser. 
 		'''
 
@@ -107,31 +108,37 @@ class NeuralDenoiser():
 		noise_stds = np.random.uniform(noise_std_lower, noise_std_upper, size)
 		iid_noise = np.zeros((size, trial_dur))
 
+		b_lp, a_lp = sg.butter(4, lp_cutoff, btype='low', fs=srate)
+
 		# generate PSC traces
 		for i in tqdm(range(size), desc='Trace generation', leave=True):
 			# target PSCs initiate between 100 and 300 frames (5-15ms after trial onset)
 
-			targets[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
-							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-							delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i]), 0)
+			if (templates is not None) and (np.random.rand() <= template_prob):
+				inputs[i] = templates[np.random.choice(templates.shape[0], 1)]
+				targets[i] = np.zeros(templates.shape[1])
 
-			next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
-							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-							delta_lower=next_delta_lower, delta_upper=next_delta_upper, n_samples=n_modes_next[i]), 0)
+			else:
+				targets[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
+								delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i]), 0)
 
-			prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
-							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper, 
-							delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i]), 0)
+				next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
+								delta_lower=next_delta_lower, delta_upper=next_delta_upper, n_samples=n_modes_next[i]), 0)
+
+				prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper, 
+								delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i]), 0)
+
+						# lowpass filter inputs as with experimental data
+				inputs[i] = sg.filtfilt(b_lp, a_lp, prev_pscs[i] + targets[i] + next_pscs[i], axis=-1)
 			
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
 		gp_noise = _sample_gp(n_samples=size, trial_dur=trial_dur, gp_lengthscale=gp_lengthscale,
-			gp_scale=gp_scale)
+			gp_scale=gp_scale) * np.random.uniform(0, 1, size)[:, None]
 
-		# lowpass filter inputs as with experimental data
-		b_lp, a_lp = sg.butter(4, lp_cutoff, btype='low', fs=srate)
-		inputs = sg.filtfilt(b_lp, a_lp, prev_pscs + targets + next_pscs, axis=-1)
-		# ampl = np.random.uniform(observed_amplitude_lower, observed_amplitude_upper, size)[:, None]
 		maxv = np.max(inputs, 1)[:, None] + 1e-5
 		inputs = inputs/maxv + gp_noise + iid_noise
 		targets = targets/maxv
