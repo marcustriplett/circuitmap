@@ -105,6 +105,7 @@ class NeuralDenoiser():
 		targets = np.zeros((size, trial_dur))
 		prev_pscs = np.zeros((size, trial_dur))
 		next_pscs = np.zeros((size, trial_dur))
+		inputs = np.zeros((size, trial_dur))
 		noise_stds = np.random.uniform(noise_std_lower, noise_std_upper, size)
 		iid_noise = np.zeros((size, trial_dur))
 
@@ -131,7 +132,7 @@ class NeuralDenoiser():
 								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper, 
 								delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i]), 0)
 
-						# lowpass filter inputs as with experimental data
+				# lowpass filter inputs as with experimental data
 				inputs[i] = sg.filtfilt(b_lp, a_lp, prev_pscs[i] + targets[i] + next_pscs[i], axis=-1)
 			
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
