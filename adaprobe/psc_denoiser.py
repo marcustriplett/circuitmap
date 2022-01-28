@@ -40,8 +40,8 @@ class NeuralDenoiser():
 			torch.Tensor((traces/tmax).copy()[:, None, :]).to(device=self.device)
 		).cpu().detach().numpy().squeeze() * tmax
 
-		den = _monotone_decay_filter(den, inplace=monotone_filter_inplace, 
-			monotone_start=monotone_filter_start)
+		# den = _monotone_decay_filter(den, inplace=monotone_filter_inplace, 
+		# 	monotone_start=monotone_filter_start)
 
 		t2 = time.time()
 		if verbose: print('complete (elapsed time %.2fs).'%(t2 - t1))
