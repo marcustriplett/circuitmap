@@ -41,7 +41,7 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 				holos = [neuron_order[i*H: (i+1)*H] for i in range(int(np.ceil(N/H)))]
 
 				for rep in range(nreps):
-					if K > target_trials:
+					if K >= target_trials:
 						break
 					else:
 						for holo in holos:
