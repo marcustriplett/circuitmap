@@ -40,16 +40,16 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 				neuron_order = np.random.choice(N, N, replace=False)
 				holos = [neuron_order[i*H: (i+1)*H] for i in range(int(np.ceil(N/H)))]
 
-				trial_counter = 0
-				for holo in holos:
-					for power in powers:
-						for rep in range(nreps):
-							stim_trial = np.zeros(N)
-							stim_trial[holo] = power
-							stim_matrix += [stim_trial]
-							trial_counter += 1
-
-				K += trial_counter
+				for rep in range(nreps):
+					if K > target_trials:
+						break
+					else:
+						for holo in holos:
+							for power in powers:
+								stim_trial = np.zeros(N)
+								stim_trial[holo] = power
+								stim_matrix += [stim_trial]
+								K += 1
 
 			reorder = np.random.choice(K, K, replace=False)
 			stim_matrix = np.array(stim_matrix).T
