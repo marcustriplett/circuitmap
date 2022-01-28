@@ -41,7 +41,7 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 			while K < trials:
 				neuron_order = np.random.choice(N, N, replace=False)
 				holos = [neuron_order[i*H: (i+1)*H] for i in range(int(np.ceil(N/H)))]
-				for (rep, holo, power) in itertools.product(range(nreps), holos, powers):
+				for (power, holo, rep) in itertools.product(powers, holos, range(nreps)):
 					if K >= trials:
 						break
 					stim_trial = np.zeros(N)
