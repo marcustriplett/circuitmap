@@ -16,6 +16,16 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 	
 	assert design in ['random', 'blockwise']
 
+	print('Creating simulation with specifications:')
+	print('N', N)
+	print('T', T)
+	print('H', H)
+	print('Hologram repetitions', nreps)
+	print('Connection density', connection_prob)
+	print('Spontaneous PSC probability', spont_prob)
+	print('Powers', powers)
+	if trials is not None: print('Trials', trials)
+
 	Trange = np.arange(T)
 	
 	if H == 1:
@@ -151,7 +161,7 @@ def simulate(N=300, T=900, H=10, nreps=10, connection_prob=0.05, powers=[45, 55,
 		'I': I,
 	}
 	
-	print('Complete.')
+	print('Complete.\n')
 	return sim
 
 def alpha(power, scale=1e4):

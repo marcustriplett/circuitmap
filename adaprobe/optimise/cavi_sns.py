@@ -17,7 +17,7 @@ from jax.experimental import loops
 EPS = 1e-10
 
 def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, lam_masking=False, y_xcorr_thresh=0.05, learn_noise=False, phi_thresh=None,
+	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, learn_noise=False, phi_thresh=None,
 	phi_thresh_delay=1):
 	y = np.trapz(y_psc, axis=-1)
 	K = y.shape[0]
