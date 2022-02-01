@@ -720,8 +720,7 @@ class Model:
 
 		t_end = time.time()
 
-		mu, beta, lam, shape, rate, phi, phi_cov, z, mu_hist, beta_hist, lam_hist, shape_hist, \
-		rate_hist, phi_hist, phi_cov_hist, z_hist = result
+		mu, beta, lam, shape, rate, z, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist = result
 
 		# move from GPU back to CPU
 		## param vectors
@@ -730,8 +729,6 @@ class Model:
 		lam 		= np.array(lam)
 		shape 		= np.array(shape)
 		rate 		= np.array(rate)
-		phi 		= np.array(phi)
-		phi_cov 	= np.array(phi_cov)
 		z 			= np.array(z)
 
 		## history vectors
@@ -740,16 +737,12 @@ class Model:
 		lam_hist 		= np.array(lam_hist)
 		shape_hist 		= np.array(shape_hist)
 		rate_hist 		= np.array(rate_hist)
-		phi_hist 		= np.array(phi_hist)
-		phi_cov_hist 	= np.array(phi_cov_hist)
 		z_hist 			= np.array(z_hist)
 
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta
 		self.state['shape'] 	= shape
 		self.state['rate'] 		= rate
-		self.state['phi'] 		= phi
-		self.state['phi_cov'] 	= phi_cov
 		self.state['lam'] 		= lam
 		self.state['z'] 		= z
 		self.trial_count 		= lam.shape[1]
@@ -762,7 +755,5 @@ class Model:
 			'lam': lam_hist,
 			'shape': shape_hist,
 			'rate': rate_hist,
-			'phi': phi_hist,
-			'phi_cov': phi_cov_hist,
 			'z': z_hist
 		}

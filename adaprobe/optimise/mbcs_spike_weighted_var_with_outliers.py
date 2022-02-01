@@ -30,7 +30,7 @@ EPS = 1e-10
 def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, iters=50, 
 	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, scale_factor=0.5, max_penalty_iters=10, 
 	max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', verbose=False, 
-	learn_noise=False, init_lam=None, learn_lam=True, phi_delay=-1, minimum_spike_count=1, noise_scale=0.5, 
+	learn_noise=False, init_lam=None, learn_lam=True, delay_spont_estimation=1, minimum_spike_count=1, noise_scale=0.5, 
 	num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, orthogonal_outliers=True, outlier_penalty=5e1, 
 	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
@@ -51,8 +51,6 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	beta 		= jnp.array(beta_prior)
 	shape 		= shape_prior
 	rate 		= rate_prior
-	phi 		= jnp.array(phi_prior)
-	phi_cov 	= jnp.array(phi_cov_prior)
 	z 			= np.zeros(K)
 	
 	# Spike initialisation
@@ -69,12 +67,9 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	lam_hist 		= jnp.zeros((iters, N, K))
 	shape_hist 		= jnp.zeros((iters, K))
 	rate_hist 		= jnp.zeros((iters, K))
-	phi_hist  		= jnp.zeros((iters, N, 2))
-	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
 	z_hist 			= jnp.zeros((iters, K))
 
-	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
-		phi_hist, phi_cov_hist, z_hist]
+	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist]
 
 	# init key
 	key = jax.random.PRNGKey(seed)
@@ -96,14 +91,14 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
-		if it > phi_delay:
+		if it > delay_spont_estimation:
 			z = update_z_l1_with_residual_tolerance(y, mu, lam, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
 				max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose, 
 				orthogonal=orthogonal_outliers, tol=outlier_tol)
 			spont_rate = np.mean(z != 0)
 
 		# record history
-		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
+		for hindx, pa in enumerate([mu, beta, lam, shape, rate, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
 	print()
