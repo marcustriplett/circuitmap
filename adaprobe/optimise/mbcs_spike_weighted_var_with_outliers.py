@@ -160,7 +160,7 @@ def update_mu_constr_l1(y, mu, lam, shape, rate, penalty=1, scale_factor=0.5, ma
 	"""
 	if verbose:
 		print(' ====== Updating mu via constrained L1 solver with iterative penalty shrinking ======')
-	N, K = Lam.shape
+	N, K = lam.shape
 	constr = np.sqrt(np.sum(rate/shape))
 	mu, lam = np.array(mu), np.array(lam) # cast to ndarray
 
