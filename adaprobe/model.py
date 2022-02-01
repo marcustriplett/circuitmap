@@ -84,7 +84,7 @@ class Model:
 		elif model_type == 'mbcs_multiplicative_noise':
 			self.priors.setdefault('rho', 1e-1)
 
-		elif model_type='mbcs':
+		elif model_type == 'mbcs':
 			self.priors.setdefault('shape', 1. * _ones)
 			self.priors.setdefault('rate', 1e-1 * _ones)
 
