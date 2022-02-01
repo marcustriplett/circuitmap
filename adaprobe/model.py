@@ -62,16 +62,12 @@ class Model:
 		"""Initialise adaprobe model.
 		"""
 
-		# assert model_type in ['mbcs', 'variational_sns',]
-
-		# self.cell_locs = cell_locs
 		self.n_presynaptic = N
 		self.priors = priors
 		self.trial_count = 0
 		self.I = []
 		self.L = []
 		self.y = []
-		self._cv = None
 		self.model_type = model_type
 
 		# Set up priors
@@ -79,18 +75,21 @@ class Model:
 
 		if model_type == 'variational_sns':
 			self.priors.setdefault('alpha', 1/2 * _ones)
+			self.priors.setdefault('shape', 1.)
+			self.priors.setdefault('rate', 1e-1)
+			self.priors.setdefault('phi', np.c_[1e-1 * _ones, 5e0 * _ones])
+			self.priors.setdefault('phi_cov', np.array([np.array([[1e-1, 0], [0, 1e0]]) 
+				for _ in range(self.n_presynaptic)]))
 
 		elif model_type == 'mbcs_multiplicative_noise':
 			self.priors.setdefault('rho', 1e-1)
 
-		# self.priors.setdefault('shape', 1.)
-		# self.priors.setdefault('rate', 1.)
-		self.priors.setdefault('sigma', np.ones(self.n_presynaptic))
+		elif model_type='mbcs':
+			self.priors.setdefault('shape', 1. * _ones)
+			self.priors.setdefault('rate', 1e-1 * _ones)
+
 		self.priors.setdefault('mu', np.zeros(self.n_presynaptic))
 		self.priors.setdefault('beta', 1e1 * _ones)
-		self.priors.setdefault('phi', np.c_[1e-1 * _ones, 5e0 * _ones])
-		self.priors.setdefault('phi_cov', np.array([np.array([[1e-1, 0], [0, 1e0]]) 
-			for _ in range(self.n_presynaptic)]))
 		
 		# Set initial state to prior
 		self.reset()
@@ -141,7 +140,10 @@ class Model:
 			raise Exception
 
 	def cross_validate(self, obs, stimuli, params, vals, method='mbcs', nfolds=10, fit_options=dict(), save_dir=None, token=None):
-		'''Cross-validation.
+		''' NOW DEPRECATED
+
+
+		Cross-validation.
 
 		Args
 			obs: 		postsynaptic responses
@@ -713,7 +715,7 @@ class Model:
 		t_start = time.time()
 		result = optimise.mbcs_spike_weighted_var_with_outliers(
 			obs, stimuli, self.state['mu'], self.state['beta'],	self.state['shape'], self.state['rate'], 
-			self.state['phi'], self.state['phi_cov'], **fit_options 
+			**fit_options
 		)
 
 		t_end = time.time()

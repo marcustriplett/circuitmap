@@ -24,26 +24,11 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=10, connection_prob=0.05, po
 	print('Connection density', connection_prob)
 	print('Spontaneous PSC probability', spont_prob)
 	print('Powers', powers)
-	if trials is not None: print('Trials', trials)
+	print('Trials', trials)
 
 	Trange = np.arange(T)
 	
-	# if H == 1:
-	# 	# Design stimulus
-	# 	K = nreps * N * len(powers)
-	# 	stim_matrix = np.zeros((N, K))
-
-	# 	k = 0
-	# 	for n in range(N):
-	# 		for p in powers:
-	# 			stim_matrix[n, k: k+nreps] = p
-	# 			k += nreps
-	# 	stim_order = np.random.choice(K, K, replace=False)
-	# 	stim_matrix = stim_matrix[:, stim_order]
-	# else:
-	# case H > 1
 	if design == 'blockwise':
-		assert trials is not None
 
 		stim_matrix = []
 		K = 0

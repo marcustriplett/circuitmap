@@ -27,13 +27,12 @@ from jax.experimental import loops
 
 EPS = 1e-10
 
-def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, 
-	phi_cov_prior, iters=50, num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, scale_factor=0.5,
-	max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive',
-	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_delay=-1, phi_thresh=0.09,
-	minimum_spike_count=1, noise_scale=0.5, num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, 
-	orthogonal_outliers=True, outlier_penalty=5e1, init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0,
-	lam_mask_fraction=0.05):
+def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, iters=50, 
+	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, scale_factor=0.5, max_penalty_iters=10, 
+	max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', verbose=False, 
+	learn_noise=False, init_lam=None, learn_lam=True, phi_delay=-1, minimum_spike_count=1, noise_scale=0.5, 
+	num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, orthogonal_outliers=True, outlier_penalty=5e1, 
+	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -64,6 +63,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	lam = jnp.array(lam) # move to DeviceArray
 
 	# Define history arrays
+	# % Will need to be disabled for very large matrices
 	mu_hist 		= jnp.zeros((iters, N))
 	beta_hist 		= jnp.zeros((iters, N))
 	lam_hist 		= jnp.zeros((iters, N, K))
@@ -106,6 +106,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
+	print()
 	return mu, beta, lam, shape, rate, phi, phi_cov, z, *hist_arrs
 
 def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
@@ -114,7 +115,7 @@ def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4)
 	w_samps = np.random.normal(mu, std, [num_mc_samples, N])
 	s_samps = (np.random.rand(num_mc_samples, N, K) <= lam[None, :, :]).astype(float)
 	mc_ws_sq = np.mean([(w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
-	mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0) # multiply by s_samps here to ensure zero noise on no-spike trials
+	mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
 	shape = noise_scale**2 * mc_ws_sq + 1/2
 	rate = noise_scale * mu @ lam + 1/2 * mc_recon_err + eps
 	return shape, rate
@@ -158,7 +159,7 @@ def update_isotonic_receptive_field(lam, I):
 def update_beta(lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(jnp.sum((shape/rate)[None, :] * lam, 1) + 1/(beta_prior**2))
 
-def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
+def update_mu_constr_l1(y, mu, lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
 	warm_start_lasso=False, constrain_weights='positive', verbose=False, tol=1e-5):
 	""" Constrained L1 solver with iterative penalty shrinking
 	"""
@@ -166,15 +167,15 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 		print(' ====== Updating mu via constrained L1 solver with iterative penalty shrinking ======')
 	N, K = Lam.shape
 	constr = np.sqrt(np.sum(rate/shape))
-	mu, Lam = np.array(mu), np.array(Lam) # cast to ndarray
+	mu, lam = np.array(mu), np.array(lam) # cast to ndarray
 
-	LamT = Lam.T
+	lamT = lam.T
 	positive = constrain_weights in ['positive', 'negative']
 	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=positive)
 	
 	if constrain_weights == 'negative':
 		# make sensing matrix and weight warm-start negative
-		LamT = -LamT
+		lamT = -lamT
 		mu = -mu
 	lasso.coef_ = mu
 
@@ -185,9 +186,9 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 			print('penalty iter: ', it)
 			print('current penalty: ', lasso.alpha)
 
-		lasso.fit(LamT, y)
+		lasso.fit(lamT, y)
 		coef = lasso.coef_
-		err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
+		err = np.sqrt(np.sum(np.square(y - lamT @ coef)))
 
 		if verbose:
 			print('lasso err: ', err)
@@ -209,22 +210,22 @@ def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, ma
 				lasso.warm_start = True
 
 	# zero-out spikes for disconnected cells
-	Lam[np.where(mu) == 0] = 0
+	lam[np.where(mu) == 0] = 0
 
 	if constrain_weights == 'negative':
-		return -coef, Lam
+		return -coef, lam
 	else:
-		return coef, Lam
+		return coef, lam
 
-def update_z_l1_with_residual_tolerance(y, mu, Lam, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
+def update_z_l1_with_residual_tolerance(y, mu, lam, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
 	verbose=False, orthogonal=True, tol=0.05):
 	""" Soft thresholding with iterative penalty shrinkage
 	"""
 	if verbose:
-		print(' ====== Updating z via soft thresholding with iterative penalty shrinking ======')
+		print(' ==== Updating z via soft thresholding with iterative penalty shrinking ==== ')
 
-	N, K = Lam.shape
-	resid = np.array(y - Lam.T @ mu) # copy to np array, possible memory overhead problem here
+	N, K = lam.shape
+	resid = np.array(y - lam.T @ mu)
 
 	for it in range(max_penalty_iters):
 		# iteratively shrink penalty until constraint is met
@@ -241,7 +242,7 @@ def update_z_l1_with_residual_tolerance(y, mu, Lam, lam_mask, penalty=1, scale_f
 
 		if orthogonal:
 			# enforce orthogonality
-			z[np.any(Lam >= 0.5, axis=0)] = 0
+			z[np.any(lam >= 0.5, axis=0)] = 0
 
 		z = z * lam_mask
 		err = np.sum(np.square(resid - z))/np.sum(np.square(y))
@@ -253,23 +254,23 @@ def update_z_l1_with_residual_tolerance(y, mu, Lam, lam_mask, penalty=1, scale_f
 
 		if err <= tol:
 			if verbose:
-				print(' ==== converged on iteration: %i ===='%it)
+				print(' ==== converged on iteration: %i ==== '%it)
 			break
 		else:
 			penalty *= scale_factor # exponential backoff
 		
 	return z
 
-def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
+def update_z_constr_l1(y, mu, lam, shape, rate, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
 	verbose=False, orthogonal=True):
 	""" Soft thresholding with iterative penalty shrinkage
 	"""
 	if verbose:
-		print(' ====== Updating z via soft thresholding with iterative penalty shrinking ======')
+		print(' ==== Updating z via soft thresholding with iterative penalty shrinking ==== ')
 
-	N, K = Lam.shape
+	N, K = lam.shape
 	constr = np.sqrt(np.sum(rate/shape))
-	resid = np.array(y - Lam.T @ mu) # copy to np array, possible memory overhead problem here
+	resid = np.array(y - lam.T @ mu) # copy to np array, possible memory overhead problem here
 
 	for it in range(max_penalty_iters):
 		# iteratively shrink penalty until constraint is met
@@ -286,7 +287,7 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_facto
 
 		if orthogonal:
 			# enforce orthogonality
-			z[np.any(Lam >= 0.5, axis=0)] = 0
+			z[np.any(lam >= 0.5, axis=0)] = 0
 
 		z = z * lam_mask
 		err = np.sqrt(np.sum(np.square(resid - z)))
@@ -298,7 +299,7 @@ def update_z_constr_l1(y, mu, Lam, shape, rate, lam_mask, penalty=1, scale_facto
 
 		if err <= constr:
 			if verbose:
-				print(' ==== converged on iteration: %i ===='%it)
+				print(' ==== converged on iteration: %i ==== '%it)
 			break
 		else:
 			penalty *= scale_factor # exponential backoff
@@ -319,13 +320,14 @@ def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, l
 			mask = jnp.array(np.delete(all_ids, n)).squeeze()
 			arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
 			+ (mu[n]**2 + beta[n]**2)
-			lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg)) # require spiking cells to be targeted
+			lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
 
 	return lam
 
-@jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@jax.partial(jit, static_argnums=(12, 13))
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N):
-	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
+	"""JIT-compiled inference of latent spikes using Monte Carlo samples of sigmoid coefficients.
+
 	"""
 	K = I.shape[1]
 	with loops.Scope() as scope:
@@ -356,12 +358,8 @@ def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_
 			# monte carlo approximation of expectation
 			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
 			
-			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg)) # require spiking cells to be targeted
-			
-			# scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg \
-			# 	+ coact_penalty * jnp.sum(scope.lam >= 0.5, 0)))
+			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg))
 
-			# scope.lam = index_update(scope.lam, n, scope.lam[n] * lam_mask)
 	return scope.lam, scope.key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
@@ -369,3 +367,66 @@ def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
 	return jnp.log(fn/(1 - fn))
 _vmap_eval_lam_update_monte_carlo = jit(vmap(_eval_lam_update_monte_carlo, in_axes=(None, 0, 0)))
 
+def _laplace_approx(y, phi_prior, phi_cov, I, key, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
+	"""Laplace approximation to sigmoid coefficient posteriors (phi).
+	"""
+
+	newton_steps = 10
+
+	def backtrack_cond(carry):
+		it, _, lhs, rhs, _, _, _ = carry
+		return jnp.logical_and(it < max_backtrack_iters, jnp.logical_or(jnp.isnan(lhs), lhs > rhs))
+
+	def backtrack(carry):
+		it, step, lhs, rhs, v, J, phi = carry
+		it += 1
+		step *= backtrack_beta
+		lhs, rhs = get_ineq(y, phi, step, v, t, J, backtrack_alpha)
+		return (it, step, lhs, rhs, v, J, phi)
+
+	def get_ineq(y, phi, step, v, t, J, backtrack_alpha):
+		return negloglik_with_barrier(y, phi + step * v, phi_prior, prior_prec, I, t), \
+			negloglik_with_barrier(y, phi, phi_prior, prior_prec, I, t) + backtrack_alpha * step * J @ v
+
+	def get_stepv(phi, t):
+		f = sigmoid(phi[0] * I - phi[1])
+
+		# grad of negative log-likelihood
+		j1 = -jnp.sum(I * (y - f))
+		j2 = jnp.sum(y - f)
+		J = jnp.array([j1, j2]) + prior_prec @ (phi - phi_prior) - 1/(t * phi)
+
+		# hessian of negative log-likelihood
+		h11 = jnp.sum(I**2 * f * (1 - f))
+		h12 = -jnp.sum(I * f * (1 - f))
+		h21 = h12
+		h22 = jnp.sum(f * (1 - f))
+		H = jnp.array([[h11, h12], [h21, h22]]) + prior_prec + jnp.diag(1/(t * phi**2))
+
+		H_inv = jnp.linalg.inv(H)
+		v = -H_inv @ J
+		return v, J, H_inv
+
+	def newton_step(phi_carry, _):
+		phi, _ = phi_carry
+		v, J, cov = get_stepv(phi, t)  
+		step = 1.
+		lhs, rhs = get_ineq(y, phi, step, v, t, J, backtrack_alpha)
+		init_carry = (0, step, lhs, rhs, v, J, phi)
+		carry = while_loop(backtrack_cond, backtrack, init_carry)
+		_, step, lhs, _, _, _, _ = carry
+		phi += step * v
+		return (phi, cov), lhs
+
+	key, key_next = jax.random.split(key)
+	phi = jnp.array(phi_prior, copy=True)
+	prior_prec = jnp.linalg.inv(phi_cov)
+	phi_carry = (phi, jnp.zeros((phi.shape[0], phi.shape[0])))
+	return scan(newton_step, phi_carry, jnp.arange(newton_steps)), key_next
+
+laplace_approx = jit(vmap(_laplace_approx, (0, 0, 0, 0, None))) # parallel LAs across all cells
+
+@jit
+def negloglik_with_barrier(y, phi, phi_prior, prec, I, t):
+	lam = sigmoid(phi[0] * I - phi[1])
+	return -jnp.sum(jnp.nan_to_num(y * jnp.log(lam) + (1 - y) * jnp.log(1 - lam))) - jnp.sum(jnp.log(phi))/t + 1/2 * (phi - phi_prior) @ prec @ (phi - phi_prior)
