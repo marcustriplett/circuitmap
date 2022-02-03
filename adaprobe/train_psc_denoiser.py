@@ -8,7 +8,6 @@ if __name__ == '__main__':
 	parser.add_argument('--epochs')
 	parser.add_argument('--templates')
 	parser.add_argument('--pretrained')
-	parser.add_argument('')
 	args = parser.parse_args()
 
 	size = int(args.size)
