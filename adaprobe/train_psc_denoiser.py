@@ -26,6 +26,14 @@ if __name__ == '__main__':
 	else:
 		denoiser = NeuralDenoiser(path=args.pretrained)
 
+	# Params for chrome2f + interneuron -> pyramidal currents
+	# tau_diff_lower=150
+	# tau_diff_upper=340
+
+	# Params for chrome1 + pyramidal -> pyramidal currents
+	tau_diff_lower=60
+	tau_diff_upper=80
+
 	denoiser.generate_training_data(trial_dur=900, size=size, gp_scale=0.045, delta_lower=160,
 								delta_upper=400, next_delta_lower=400, next_delta_upper=899,
 								prev_delta_upper=150, tau_diff_lower=150, tau_diff_upper=340,
