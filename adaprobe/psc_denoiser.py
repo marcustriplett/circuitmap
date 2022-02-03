@@ -97,7 +97,8 @@ class NeuralDenoiser():
 		prev_mode_probs=[0.5, 0.4, 0.05, 0.05], next_mode_probs=[0.5, 0.4, 0.05, 0.05],
 		noise_std_lower=0.01, noise_std_upper=0.1, gp_lengthscale=25, gp_scale=0.01, 
 		max_modes=4, observed_amplitude_lower=0.75, observed_amplitude_upper=1.25, 
-		prob_zero_event=0.001, templates=None, convolve=False, template_prob=0.075, save_path=None):
+		prob_zero_event=0.001, templates=None, convolve=False, sigma=20, template_prob=0.075, 
+		save_path=None):
 		'''Simulate data for training a PSC denoiser. 
 		'''
 
