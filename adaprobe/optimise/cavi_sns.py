@@ -65,7 +65,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 	z_hist = np.zeros((iters, K))
 	
 	hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
-		phi_hist, phi_cov_hist]
+		phi_hist, phi_cov_hist, z_hist]
 
 	# init key
 	key = jax.random.PRNGKey(seed)
@@ -98,10 +98,10 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 			# 	lam = index_update(lam, n, (phi[n, 0] >= phi_thresh) * lam[n]) * (it > phi_thresh_delay) \
 			# 	+ lam * (it <= phi_thresh_delay)
 
-		for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov]):
+		for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
-	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, *hist_arrs
+	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, *hist_arrs
 
 def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 	N, K = _lam.shape
