@@ -55,14 +55,14 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 	z 			= np.zeros(K)
 
 	# Define history arrays
-	mu_hist 		= jnp.zeros((iters, N))
+	mu_hist 	= jnp.zeros((iters, N))
 	beta_hist 	= jnp.zeros((iters, N))
 	alpha_hist 	= jnp.zeros((iters, N))
-	lam_hist 		= jnp.zeros((iters, N, K))
+	lam_hist 	= jnp.zeros((iters, N, K))
 	shape_hist 	= jnp.zeros(iters)
 	rate_hist 	= jnp.zeros(iters)
 	phi_hist  	= jnp.zeros((iters, N, 2))
-	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
+	phi_cov_hist = jnp.zeros((iters, N, 2, 2))
 	z_hist = np.zeros((iters, K))
 	
 	hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \

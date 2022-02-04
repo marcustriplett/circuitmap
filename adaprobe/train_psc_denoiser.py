@@ -37,9 +37,16 @@ if __name__ == '__main__':
 
 	# Params for chrome1 + pyramidal -> pyramidal currents
 	tau_diff_lower = 60
-	tau_diff_upper = 80
-	convolve = True
+	tau_diff_upper = 120
+	convolve = False
 	sigma = 30
+
+	# # BAD
+	# # Params for chrome1 + pyramidal -> pyramidal currents
+	# tau_diff_lower = 60
+	# tau_diff_upper = 80
+	# convolve = True
+	# sigma = 30
 
 	denoiser.generate_training_data(trial_dur=900, size=size, gp_scale=0.045, delta_lower=160,
 								delta_upper=400, next_delta_lower=400, next_delta_upper=899,
