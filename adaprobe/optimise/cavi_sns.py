@@ -88,7 +88,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 				alpha = index_update(alpha, n, alpha[n] * (1. - disc_cells[n]))
 				# mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]))
 				lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]))
-			z = update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask)
+			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask)
 			spont_rate = np.mean(z != 0.)
 
 			## Filter connection vector via opsin expression threshold
