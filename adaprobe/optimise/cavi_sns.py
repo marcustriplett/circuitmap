@@ -95,7 +95,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 	return scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov, *scope.hist_arrs
 
 def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
-	N, K = lam.shape
+	N, K = _lam.shape
 	lam = np.array(_lam) # convert to ndarray
 	powers = np.unique(I) # includes zero
 	n_powers = len(powers)
