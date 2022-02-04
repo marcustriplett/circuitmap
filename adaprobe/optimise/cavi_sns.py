@@ -78,8 +78,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 			shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
+		disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob)
 		for n in range(N):
-			disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob)
 			mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]))
 			lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]))
 
