@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.isotonic import IsotonicRegression
 
 # Jax imports
 import jax
@@ -18,17 +19,17 @@ EPS = 1e-10
 
 def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, learn_noise=False, phi_thresh=None,
-	phi_thresh_delay=1):
+	phi_thresh_delay=1, minimax_spk_prob=0.3):
 	y = np.trapz(y_psc, axis=-1)
 	K = y.shape[0]
 	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
 
 	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay)
+	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob)
 
-@jax.partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
+# @jax.partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay):
+	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -76,19 +77,46 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 				scope.shape, scope.rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
 			(scope.phi, scope.phi_cov), scope.key = update_phi(scope.lam, I, phi_prior, phi_cov_prior, scope.key)
 
-			if phi_thresh is not None:
-				# Filter connection vector via opsin expression threshold
-				scope.phi_expand = scope.phi[:, 0][0] * jnp.ones((N, K)) # does NOT select first element, instead selects entire vector
-				scope.mu = jnp.where(scope.phi[:, 0] >= phi_thresh, scope.mu, 0.) * (it > phi_thresh_delay) + scope.mu * (it <= phi_thresh_delay)
-				# scope.lam = jnp.where(scope.phi[:, 0] >= phi_thresh, scope.lam, 0.) * (it > phi_thresh_delay) + scope.lam * (it <= phi_thresh_delay)
+			if it > phi_thresh_delay:
+				disc_cells = update_isotonic_receptive_field(scope.lam, I, minimax_spk_prob=minimax_spk_prob)
 				for n in scope.range(N):
-					scope.lam = index_update(scope.lam, n, (scope.phi[n, 0] >= phi_thresh) * scope.lam[n]) * (it > phi_thresh_delay) \
-					+ scope.lam * (it <= phi_thresh_delay)
+					if n in disc_cells:
+						scope.mu = index_update(scope.mu, n, 0.)
+						scope.lam = index_update(scope.lam, n, 0.)
+
+				## Filter connection vector via opsin expression threshold
+				# scope.phi_expand = scope.phi[:, 0][0] * jnp.ones((N, K)) # does NOT select first element, instead selects entire vector
+				# scope.mu = jnp.where(scope.phi[:, 0] >= phi_thresh, scope.mu, 0.) * (it > phi_thresh_delay) + scope.mu * (it <= phi_thresh_delay)
+				# for n in scope.range(N):
+				# 	scope.lam = index_update(scope.lam, n, (scope.phi[n, 0] >= phi_thresh) * scope.lam[n]) * (it > phi_thresh_delay) \
+				# 	+ scope.lam * (it <= phi_thresh_delay)
 
 			for hindx, pa in enumerate([scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
 				scope.hist_arrs[hindx] = index_update(scope.hist_arrs[hindx], it, pa)
 
 	return scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov, *scope.hist_arrs
+
+def update_isotonic_receptive_field(lam, I, minimax_spk_prob=0.3):
+	N, K = lam.shape
+
+	powers = np.unique(I) # includes zero
+	n_powers = len(powers)
+	inferred_spk_probs = np.zeros((N, n_powers))
+	receptive_field = np.zeros((N, n_powers))
+	isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
+
+	for n in range(N):
+		for p, power in enumerate(powers[1:]):
+			locs = np.where(I[n] == power)[0]
+			if locs.shape[0] > 0:
+				inferred_spk_probs[n, p + 1] = np.mean(lam[n, locs])
+
+		isotonic_regressor.fit(powers, inferred_spk_probs[n])
+		receptive_field[n] = isotonic_regressor.f_(powers)
+
+	disc_cells = np.where(receptive_field[:, -1] < minimax_spk_prob)[0]
+
+	return disc_cells
 
 @jit
 def update_beta(alpha, lam, shape, rate, beta_prior):
