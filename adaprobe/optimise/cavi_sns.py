@@ -81,7 +81,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 		if it > phi_thresh_delay:
 			disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob)
 			for n in range(N):
-				mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]))
+				alpha = index_update(alpha, n, alpha[n] * (1. - disc_cells[n]))
+				# mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]))
 				lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]))
 
 			## Filter connection vector via opsin expression threshold
