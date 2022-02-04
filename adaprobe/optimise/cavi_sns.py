@@ -82,7 +82,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 				scope.mu = jnp.where(scope.phi[:, 0] >= phi_thresh, scope.mu, 0.) * (it > phi_thresh_delay) + scope.mu * (it <= phi_thresh_delay)
 				# scope.lam = jnp.where(scope.phi[:, 0] >= phi_thresh, scope.lam, 0.) * (it > phi_thresh_delay) + scope.lam * (it <= phi_thresh_delay)
 				for n in scope.range(N):
-					scope.lam = index_update(scope.lam, n, (scope.phi[n, 0] >= phi_thresh) * scope.lam[n])
+					scope.lam = index_update(scope.lam, n, (scope.phi[n, 0] >= phi_thresh) * scope.lam[n]) * (it > phi_thresh_delay) \
+					+ scope.lam * (it <= phi_thresh_delay)
 
 			for hindx, pa in enumerate([scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
 				scope.hist_arrs[hindx] = index_update(scope.hist_arrs[hindx], it, pa)
