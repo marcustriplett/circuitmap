@@ -133,9 +133,8 @@ def update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask, penalty=
 	if verbose:
 		print(' ==== Updating z via soft thresholding with iterative penalty shrinking ==== ')
 
-	N, K = lam.shape
 	alpha, mu, lam = np.array(_alpha), np.array(_mu), np.array(_lam)
-
+	N, K = lam.shape
 	resid = np.array(y - lam.T @ (mu * alpha))
 
 	for it in range(max_penalty_iters):
