@@ -26,7 +26,7 @@ def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prio
 	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay)
 
-@jax.partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
+# @jax.partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
@@ -80,7 +80,9 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 				# Filter connection vector via opsin expression threshold
 				scope.phi_expand = scope.phi[:, 0][0] * jnp.ones((N, K)) # does NOT select first element, instead selects entire vector
 				scope.mu = jnp.where(scope.phi[:, 0] >= phi_thresh, scope.mu, 0.) * (it > phi_thresh_delay) + scope.mu * (it <= phi_thresh_delay)
-				scope.lam = jnp.where((scope.phi[:, 0] >= phi_thresh).T, scope.lam, 0.) * (it > phi_thresh_delay) + scope.lam * (it <= phi_thresh_delay)
+				print(scope.phi_expand.shape)
+
+				# scope.lam = jnp.where(scope.phi[:, 0] >= phi_thresh, scope.lam, 0.) * (it > phi_thresh_delay) + scope.lam * (it <= phi_thresh_delay)
 
 			for hindx, pa in enumerate([scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
 				scope.hist_arrs[hindx] = index_update(scope.hist_arrs[hindx], it, pa)
