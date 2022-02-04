@@ -262,7 +262,7 @@ class Model:
 		self.state['rate'] 		= rate
 		self.state['phi'] 		= phi
 		self.state['phi_cov'] 	= phi_cov
-		self.state['lam'] 		= lam.T
+		self.state['lam'] 		= lam
 		self.trial_count 		= lam.shape[1]
 		self.time 				= t_end - t_start
 
