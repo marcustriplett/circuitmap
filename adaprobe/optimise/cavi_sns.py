@@ -102,7 +102,7 @@ def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 	n_powers = len(powers)
 	inferred_spk_probs = np.zeros((N, n_powers))
 	isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
-	disconnected_cells = np.zeros(N)
+	disc_cells = np.zeros(N)
 
 	for n in range(N):
 		for p, power in enumerate(powers[1:]):
