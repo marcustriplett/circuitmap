@@ -19,7 +19,7 @@ EPS = 1e-10
 
 def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, learn_noise=False, phi_thresh=None,
-	phi_thresh_delay=1, minimax_spk_prob=0.3, scale_factor=0.75):
+	phi_thresh_delay=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=2e1):
 	y = np.trapz(y_psc, axis=-1)
 	K = y.shape[0]
 	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
@@ -89,7 +89,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 				alpha = index_update(alpha, n, alpha[n] * (1. - disc_cells[n]))
 				# mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]))
 				lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]))
-			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor)
+			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor, penalty=penalty)
 			spont_rate = np.mean(z != 0.)
 
 			## Filter connection vector via opsin expression threshold
@@ -127,8 +127,8 @@ def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 
 	return disc_cells
 
-def update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
-	verbose=False, orthogonal=True, tol=0.05):
+def update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask, penalty=2e1, scale_factor=0.5, max_penalty_iters=50, verbose=False, 
+	orthogonal=True, tol=0.05):
 	""" Soft thresholding with iterative penalty shrinkage
 	"""
 	if verbose:
