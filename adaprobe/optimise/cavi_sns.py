@@ -33,6 +33,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
+	spont_rate = 0.
+
 	# Initialise new params
 	N = mu_prior.shape[0]
 	K = y.shape[0]
@@ -49,6 +51,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 	phi_cov 	= jnp.array(phi_cov_prior)
 	lam 		= jnp.zeros((N, K))
 	phi_expand = jnp.ones((N, K))
+	z 			= np.zeros(K)
 
 	# Define history arrays
 	mu_hist 		= jnp.zeros((iters, N))
@@ -59,6 +62,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 	rate_hist 	= jnp.zeros(iters)
 	phi_hist  	= jnp.zeros((iters, N, 2))
 	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
+	z_hist = np.zeros((iters, K))
 	
 	hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist]
@@ -79,11 +83,13 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_thresh_delay:
-			disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob)
+			disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob + spont_rate)
 			for n in range(N):
 				alpha = index_update(alpha, n, alpha[n] * (1. - disc_cells[n]))
 				# mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]))
 				lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]))
+			z = update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask)
+			spont_rate = np.mean(z != 0.)
 
 			## Filter connection vector via opsin expression threshold
 			# phi_expand = phi[:, 0][0] * jnp.ones((N, K)) # does NOT select first element, instead selects entire vector
@@ -119,6 +125,53 @@ def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 		# disc_cells = np.where(receptive_field[:, -1] < minimax_spk_prob)[0]
 
 	return disc_cells
+
+def update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, 
+	verbose=False, orthogonal=True, tol=0.05):
+	""" Soft thresholding with iterative penalty shrinkage
+	"""
+	if verbose:
+		print(' ==== Updating z via soft thresholding with iterative penalty shrinking ==== ')
+
+	N, K = lam.shape
+	alpha, mu, lam = np.array(_alpha), np.array(_mu), np.array(_lam)
+
+	resid = np.array(y - lam.T @ (mu * alpha))
+
+	for it in range(max_penalty_iters):
+		# iteratively shrink penalty until constraint is met
+		if verbose:
+			print('penalty iter: ', it)
+			print('current penalty: ', penalty)
+		
+		z = np.zeros(K)
+		hard_thresh_locs = np.where(resid < penalty)[0]
+		soft_thresh_locs = np.where(resid >= penalty)[0]
+		z[hard_thresh_locs] = 0
+		z[soft_thresh_locs] = resid[soft_thresh_locs] - penalty
+		z[z < 0] = 0
+
+		if orthogonal:
+			# enforce orthogonality
+			z[np.any(lam >= 0.5, axis=0)] = 0
+
+		z = z * lam_mask
+		err = np.sum(np.square(resid - z))/np.sum(np.square(y))
+
+		if verbose:
+			print('soft thresh err: ', err)
+			print('tol: ', tol)
+			print('')
+
+		if err <= tol:
+			if verbose:
+				print(' ==== converged on iteration: %i ==== '%it)
+			break
+		else:
+			penalty *= scale_factor # exponential backoff
+		
+	return z
+
 
 @jit
 def update_beta(alpha, lam, shape, rate, beta_prior):
