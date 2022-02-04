@@ -67,7 +67,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 		scope.key = jax.random.PRNGKey(seed)
 
 		# Iterate CAVI updates
-		for it in scope.range(iters):
+		# for it in scope.range(iters):
+		for it in range(iters):
 			scope.beta = update_beta(scope.alpha, scope.lam, scope.shape, scope.rate, beta_prior)
 			scope.mu = update_mu(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, mu_prior, beta_prior, N)
 			scope.alpha = update_alpha(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, alpha_prior, N)
