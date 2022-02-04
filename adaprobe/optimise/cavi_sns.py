@@ -77,12 +77,10 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 				scope.shape, scope.rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
 			(scope.phi, scope.phi_cov), scope.key = update_phi(scope.lam, I, phi_prior, phi_cov_prior, scope.key)
 
-			if it > phi_thresh_delay:
+			for n in scope.range(N):
 				disc_cells = update_isotonic_receptive_field(scope.lam, I, minimax_spk_prob=minimax_spk_prob)
-				for n in scope.range(N):
-					if n in disc_cells:
-						scope.mu = index_update(scope.mu, n, 0.)
-						scope.lam = index_update(scope.lam, n, 0.)
+				scope.mu = index_update(scope.mu, n, scope.mu[n] * (1. - disc_cells[n]))
+				scope.lam = index_update(scope.lam, n, scope.lam[n] * (1. - disc_cells[n]))
 
 				## Filter connection vector via opsin expression threshold
 				# scope.phi_expand = scope.phi[:, 0][0] * jnp.ones((N, K)) # does NOT select first element, instead selects entire vector
@@ -102,8 +100,9 @@ def update_isotonic_receptive_field(lam, I, minimax_spk_prob=0.3):
 	powers = np.unique(I) # includes zero
 	n_powers = len(powers)
 	inferred_spk_probs = np.zeros((N, n_powers))
-	receptive_field = np.zeros((N, n_powers))
+	# receptive_field = np.zeros((N, n_powers))
 	isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
+	disconnected_cells = np.zeros(N)
 
 	for n in range(N):
 		for p, power in enumerate(powers[1:]):
@@ -112,9 +111,10 @@ def update_isotonic_receptive_field(lam, I, minimax_spk_prob=0.3):
 				inferred_spk_probs[n, p + 1] = np.mean(lam[n, locs])
 
 		isotonic_regressor.fit(powers, inferred_spk_probs[n])
-		receptive_field[n] = isotonic_regressor.f_(powers)
-
-	disc_cells = np.where(receptive_field[:, -1] < minimax_spk_prob)[0]
+		# receptive_field[n] = isotonic_regressor.f_(powers)
+		if isotonic_regressor.f_(powers[-1]) < minimax_spk_prob:
+			disc_cells[n] = 1.
+		# disc_cells = np.where(receptive_field[:, -1] < minimax_spk_prob)[0]
 
 	return disc_cells
 
