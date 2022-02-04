@@ -94,13 +94,12 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 
 	return scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov, *scope.hist_arrs
 
-def update_isotonic_receptive_field(lam, I, minimax_spk_prob=0.3):
+def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 	N, K = lam.shape
-
+	lam = np.array(_lam) # convert to ndarray
 	powers = np.unique(I) # includes zero
 	n_powers = len(powers)
 	inferred_spk_probs = np.zeros((N, n_powers))
-	# receptive_field = np.zeros((N, n_powers))
 	isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
 	disconnected_cells = np.zeros(N)
 
