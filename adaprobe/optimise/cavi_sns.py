@@ -37,63 +37,63 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 	N = mu_prior.shape[0]
 	K = y.shape[0]
 
-	with loops.Scope() as scope:
+	# with loops.Scope() as scope:
 
-		# Declare scope types
-		scope.mu 		= jnp.array(mu_prior)
-		scope.beta 		= jnp.array(beta_prior)
-		scope.alpha 	= jnp.array(alpha_prior)
-		scope.shape 	= shape_prior
-		scope.rate 		= rate_prior
-		scope.phi 		= jnp.array(phi_prior)
-		scope.phi_cov 	= jnp.array(phi_cov_prior)
-		scope.lam 		= jnp.zeros((N, K))
-		scope.phi_expand = jnp.ones((N, K))
+	# Declare scope types
+	mu 		= jnp.array(mu_prior)
+	beta 		= jnp.array(beta_prior)
+	alpha 	= jnp.array(alpha_prior)
+	shape 	= shape_prior
+	rate 		= rate_prior
+	phi 		= jnp.array(phi_prior)
+	phi_cov 	= jnp.array(phi_cov_prior)
+	lam 		= jnp.zeros((N, K))
+	phi_expand = jnp.ones((N, K))
 
-		# Define history arrays
-		scope.mu_hist 		= jnp.zeros((iters, N))
-		scope.beta_hist 	= jnp.zeros((iters, N))
-		scope.alpha_hist 	= jnp.zeros((iters, N))
-		scope.lam_hist 		= jnp.zeros((iters, N, K))
-		scope.shape_hist 	= jnp.zeros(iters)
-		scope.rate_hist 	= jnp.zeros(iters)
-		scope.phi_hist  	= jnp.zeros((iters, N, 2))
-		scope.phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
-		
-		scope.hist_arrs = [scope.mu_hist, scope.beta_hist, scope.alpha_hist, scope.lam_hist, scope.shape_hist, scope.rate_hist, \
-			scope.phi_hist, scope.phi_cov_hist]
+	# Define history arrays
+	mu_hist 		= jnp.zeros((iters, N))
+	beta_hist 	= jnp.zeros((iters, N))
+	alpha_hist 	= jnp.zeros((iters, N))
+	lam_hist 		= jnp.zeros((iters, N, K))
+	shape_hist 	= jnp.zeros(iters)
+	rate_hist 	= jnp.zeros(iters)
+	phi_hist  	= jnp.zeros((iters, N, 2))
+	phi_cov_hist 	= jnp.zeros((iters, N, 2, 2))
+	
+	hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+		phi_hist, phi_cov_hist]
 
-		# init key
-		scope.key = jax.random.PRNGKey(seed)
+	# init key
+	key = jax.random.PRNGKey(seed)
 
-		# Iterate CAVI updates
-		# for it in scope.range(iters):
-		for it in range(iters):
-			scope.beta = update_beta(scope.alpha, scope.lam, scope.shape, scope.rate, beta_prior)
-			scope.mu = update_mu(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, mu_prior, beta_prior, N)
-			scope.alpha = update_alpha(y, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, alpha_prior, N)
-			scope.lam, scope.key = update_lam(y, I, scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, \
-				scope.phi, scope.phi_cov, lam_mask, scope.key, num_mc_samples, N)
-			if learn_noise:
-				scope.shape, scope.rate = update_sigma(y, scope.mu, scope.beta, scope.alpha, scope.lam, shape_prior, rate_prior)
-			(scope.phi, scope.phi_cov), scope.key = update_phi(scope.lam, I, phi_prior, phi_cov_prior, scope.key)
+	# Iterate CAVI updates
+	# for it in range(iters):
+	for it in range(iters):
+		beta = update_beta(alpha, lam, shape, rate, beta_prior)
+		mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
+		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
+		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
+			phi, phi_cov, lam_mask, key, num_mc_samples, N)
+		if learn_noise:
+			shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
+		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
-			for n in scope.range(N):
-				disc_cells = update_isotonic_receptive_field(scope.lam, I, minimax_spk_prob=minimax_spk_prob)
-				scope.mu = index_update(scope.mu, n, scope.mu[n] * (1. - disc_cells[n]))
-				scope.lam = index_update(scope.lam, n, scope.lam[n] * (1. - disc_cells[n]))
+		for n in range(N):
+			disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob)
+			mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]))
+			lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]))
 
-				## Filter connection vector via opsin expression threshold
-				# scope.phi_expand = scope.phi[:, 0][0] * jnp.ones((N, K)) # does NOT select first element, instead selects entire vector
-				# scope.mu = jnp.where(scope.phi[:, 0] >= phi_thresh, scope.mu, 0.) * (it > phi_thresh_delay) + scope.mu * (it <= phi_thresh_delay)
-				# for n in scope.range(N):
-				# 	scope.lam = index_update(scope.lam, n, (scope.phi[n, 0] >= phi_thresh) * scope.lam[n]) * (it > phi_thresh_delay) \
-				# 	+ scope.lam * (it <= phi_thresh_delay)
+			## Filter connection vector via opsin expression threshold
+			# phi_expand = phi[:, 0][0] * jnp.ones((N, K)) # does NOT select first element, instead selects entire vector
+			# mu = jnp.where(phi[:, 0] >= phi_thresh, mu, 0.) * (it > phi_thresh_delay) + mu * (it <= phi_thresh_delay)
+			# for n in range(N):
+			# 	lam = index_update(lam, n, (phi[n, 0] >= phi_thresh) * lam[n]) * (it > phi_thresh_delay) \
+			# 	+ lam * (it <= phi_thresh_delay)
 
-			for hindx, pa in enumerate([scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov]):
-				scope.hist_arrs[hindx] = index_update(scope.hist_arrs[hindx], it, pa)
+		for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov]):
+			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
-	return scope.mu, scope.beta, scope.alpha, scope.lam, scope.shape, scope.rate, scope.phi, scope.phi_cov, *scope.hist_arrs
+	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, *hist_arrs
 
 def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 	N, K = _lam.shape
