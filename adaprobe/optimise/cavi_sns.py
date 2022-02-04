@@ -19,17 +19,18 @@ EPS = 1e-10
 
 def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, learn_noise=False, phi_thresh=None,
-	phi_thresh_delay=1, minimax_spk_prob=0.3):
+	phi_thresh_delay=1, minimax_spk_prob=0.3, scale_factor=0.75):
 	y = np.trapz(y_psc, axis=-1)
 	K = y.shape[0]
 	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
 
 	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob)
+	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, scale_factor)
 
 # @jax.partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob):
+	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob,
+	scale_factor):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -88,7 +89,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, 
 				alpha = index_update(alpha, n, alpha[n] * (1. - disc_cells[n]))
 				# mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]))
 				lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]))
-			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask)
+			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor)
 			spont_rate = np.mean(z != 0.)
 
 			## Filter connection vector via opsin expression threshold
