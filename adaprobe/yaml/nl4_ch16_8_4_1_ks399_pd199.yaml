@@ -1,0 +1,8 @@
+n_layers: 4
+channels: [16, 8, 4, 1]
+kernel_size: 399
+padding: 199
+epochs: 3000
+size: 5000
+save_every: 50
+save_path: 'results/denoisers/nl4_ch16_8_4_1_ks399_pad199'

@@ -1,16 +1,14 @@
 import numpy as np
-from numba import njit, bool_
+import jax
+from jax import jit
+import jax.numpy as jnp
 
-@njit
-def sigmoid(x):
-	return 1./(1. + np.exp(-x))
-
-@njit
+@jax.partial(jit, static_argnums=(0))
 def get_mask(N):
-	arr = np.ones((N, N))
-	np.fill_diagonal(arr, 0)
-	return arr.astype(bool_)
+    arr = jnp.ones((N, N))
+    arr = jax.ops.index_update(arr, jnp.diag_indices(arr.shape[0]), 0)
+    return arr.astype(bool)
 
-@njit
+@jit
 def soften(x):
 	return (1 - 1e-8) * x + 1e-10
