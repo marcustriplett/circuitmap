@@ -29,7 +29,8 @@ def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prio
 	lam = lam * lam_mask
 
 	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, scale_factor, penalty)
+	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, scale_factor, penalty
+	lam_iters)
 
 # @jax.partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
