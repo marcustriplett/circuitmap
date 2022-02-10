@@ -55,7 +55,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	
 	# Spike initialisation
 	lam = np.zeros_like(I) 
-	lam[I > 0] = 0.95
+	lam[I > 0] = init_spike_prior
 	lam = lam * lam_mask
 
 	lam = jnp.array(lam) # move to DeviceArray
@@ -75,8 +75,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	key = jax.random.PRNGKey(seed)
 
 	# init spike prior
-	spike_prior = np.zeros_like(lam)
-	spike_prior[lam > 0] = init_spike_prior
+	spike_prior = lam.copy()
 
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=True):
