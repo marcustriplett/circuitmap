@@ -81,7 +81,6 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
 		mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
-		print(mu)
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 			phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		if learn_noise:
