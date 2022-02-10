@@ -20,11 +20,11 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=10, connection_prob=0.05, po
 	print('N', N)
 	print('T', T)
 	print('H', H)
+	print('Trials', trials)
 	print('Hologram repetitions', nreps)
 	print('Connection density', connection_prob)
 	print('Spontaneous PSC probability', spont_prob)
 	print('Powers', powers)
-	print('Trials', trials)
 
 	Trange = np.arange(T)
 	
