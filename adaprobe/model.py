@@ -231,7 +231,7 @@ class Model:
 		)
 		t_end = time.time()
 
-		mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+		mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, rfs, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist, z_hist = result
 
 		# move from GPU back to CPU
@@ -245,6 +245,7 @@ class Model:
 		phi 		= np.array(phi)
 		phi_cov 	= np.array(phi_cov)
 		z 			= np.array(z)
+		rfs         = np.array(rfs)
 
 		## history vectors
 		mu_hist 		= np.array(mu_hist)
@@ -266,6 +267,7 @@ class Model:
 		self.state['phi_cov'] 	= phi_cov
 		self.state['lam'] 		= lam
 		self.state['z'] 		= z
+		self.state['rfs']       = rfs
 		self.trial_count 		= lam.shape[1]
 		self.time 				= t_end - t_start
 
@@ -724,7 +726,7 @@ class Model:
 
 		t_end = time.time()
 
-		mu, beta, lam, shape, rate, z, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist = result
+		mu, beta, lam, shape, rate, z, rfs, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist = result
 
 		# move from GPU back to CPU
 		## param vectors
@@ -734,6 +736,7 @@ class Model:
 		shape 		= np.array(shape)
 		rate 		= np.array(rate)
 		z 			= np.array(z)
+		rfs         = np.array(rfs)
 
 		## history vectors
 		mu_hist 		= np.array(mu_hist)
@@ -749,6 +752,7 @@ class Model:
 		self.state['rate'] 		= rate
 		self.state['lam'] 		= lam
 		self.state['z'] 		= z
+		self.state['rfs']       = rfs
 		self.trial_count 		= lam.shape[1]
 		self.time 				= t_end - t_start
 

@@ -26,23 +26,6 @@ def denoise_pscs_in_batches(psc, denoiser, batch_size=4096):
     return np.concatenate(den_psc_batched)
 
 
-# Make stim matrix for mbcs.
-# Matrix dimensions are num_trials x num_neurons
-# where element ij is the power used to stimulate neuron j
-# on trial i
-def make_stim_matrix(psc, I, L):
-    grid = util.make_grid_from_stim_locs(L)
-
-    # make map which takes location and maps to index
-    loc_map = {tuple(loc) : idx for idx, loc in enumerate(grid.flat_grid)}
-
-    num_neurons, num_trials = len(loc_map), psc.shape[0]
-    stim = np.zeros((num_neurons, num_trials))
-    neuron_idxs = np.array([loc_map[tuple(loc)] for loc in L])
-    stim[neuron_idxs, np.arange(num_trials)] = I
-
-    return stim
-
 def separate_data_by_plane(psc, I, L):
     grid = util.make_grid_from_stim_locs(L)
 
@@ -52,9 +35,6 @@ def separate_data_by_plane(psc, I, L):
     Ls = []
     for z_idx, z in enumerate(grid.zs):
 
-        # make map which takes location and maps to index
-        # for a single plane only
-#         import pdb; pdb.set_trace()
         this_plane = grid.flat_grid[:,-1] == z
         loc_map = {tuple(loc) : idx for idx, loc in enumerate(grid.flat_grid[this_plane])}
 
@@ -151,40 +131,33 @@ def denoise_grid(model_type, fit_options, den_pscs, stims, trial_keep_prob=0.1):
     return all_models
 
 
-
-
-
 def plot_multi_means(fig, mean_maps, depth_idxs, zs=None, powers=None, map_names=None):
-
+    
     for mean_idx, mean_map in enumerate(mean_maps):
-
+        
         num_powers, _, _, num_planes = mean_map.shape
-
         num_planes_to_plot = len(depth_idxs)
         assert num_planes_to_plot <= num_planes
-
-
+    
         # Create a new grid for each mean map
         subplot_args = int("1" + str(len(mean_maps)) + str(mean_idx + 1))
         ax_curr = plt.subplot(subplot_args)
-
-
-
+        
         if powers is not None and map_names is not None:
             ax_curr.set_title(map_names[mean_idx], y=1.08)
-
+            
         plt.axis('off')
-
+        
         grid = ImageGrid(fig, subplot_args,  # similar to subplot(111)
                          nrows_ncols=(num_planes_to_plot, num_powers),  # creates 2x2 grid of axes
                          axes_pad=0.05,  # pad between axes in inch.
                          cbar_mode='single',
                          cbar_pad=0.2
                          )
-
+        
         min_val = np.min(mean_map)
         max_val = np.max(mean_map)
-
+        
         for j, ax in enumerate(grid):
             row = j // num_powers
             col = j % num_powers
@@ -198,10 +171,12 @@ def plot_multi_means(fig, mean_maps, depth_idxs, zs=None, powers=None, map_names
 
             if powers is not None and row == 0:
                 ax.set_title(r'$%d mW$' % powers[col])
-
-            if min_val < 0:
+            
+            if min_val < 0: 
                 kwargs = {'cmap':'viridis_r'}
-
+            else:
+                kwargs = {'cmap': 'viridis'}
+                
             im = ax.imshow(mean_map[col,:,:,depth_idxs[row]],
                            origin='lower', vmin=min_val, vmax=max_val, **kwargs)
 
@@ -321,23 +296,27 @@ if __name__ == "__main__":
     	stims, den_pscs, Is, Ls = separate_data_by_plane(den_psc, data_dict['I'], data_dict['L'])
     	plane_models = denoise_grid(args.model_type, fit_options, den_pscs, stims, trial_keep_prob=1.0)
 
-
     	mean_raw = util.make_suff_stats(data_dict['psc'].sum(1), data_dict['I'], data_dict['L'])[0]
     	mean_demixed = util.make_suff_stats(-den_psc.sum(1), data_dict['I'], data_dict['L'])[0]
 
-    	# take weights from mbcs models and reshape to mean map
-    	# shape will be 1 x 26 x 26 x 5
-    	mean_mbcs = np.zeros((1, 26, 26, 5))
-    	for i, model in enumerate(plane_models):
-    	    mean_mbcs[0,:,:,i] = -np.reshape(model.state['mu'], (26,26)).T
+        rfs = plane_models[0].state['rfs'][:,1:] # rfs include zero power   
 
+        # take weights and firing rates from mbcs models and reshape to mean map
+        # shape will be 1 x 26 x 26 x 5
+        num_powers = rfs.shape[1] 
+        mean_mbcs = np.zeros((1, 26, 26, 5))
+        rfs_mbcs = np.zeros((num_powers, 26, 26, 5))
+        for i, model in enumerate(plane_models):
+            rfs = model.state['rfs'][:,1:]
+            mean_mbcs[0,:,:,i] = -np.reshape(model.state['mu'], (26,26)).T
+            for j in range(num_powers):
+                rfs_mbcs[j,:,:,i] = np.reshape(rfs[:,j], (26,26)).T
 
-    	depth_idxs = np.arange(5)
-    	fig = plt.figure(figsize=(8, 0.75 * 5), dpi=300, facecolor='white')
-    	plot_multi_means(fig, [mean_raw, mean_demixed, mean_mbcs], np.arange(5))
+        depth_idxs = np.arange(5)
+        fig = plt.figure(figsize=(10, 0.75 * 5), dpi=300, facecolor='white')
+        plot_multi_means(fig, [mean_raw, mean_demixed, rfs_mbcs, mean_mbcs], np.arange(5))
+        dataset_name = os.path.basename(file).split('.')[0]
+        plt.savefig(dataset_name + args.model_type + '.png', dpi=300)
 
-    	dataset_name = os.path.basename(file).split('.')[0]
-    	plt.savefig(dataset_name + args.model_type + '.png', dpi=300)
-
-    	with open(dataset_name + args.model_type + '_models.pkl', 'wb') as f:
-    	    pickle.dump(plane_models, f, pickle.HIGHEST_PROTOCOL)
+        with open(dataset_name + args.model_type + '_models.pkl', 'wb') as f:
+            pickle.dump(plane_models, f, pickle.HIGHEST_PROTOCOL)

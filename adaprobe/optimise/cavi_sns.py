@@ -59,6 +59,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	# lam 		= jnp.zeros((N, K))
 	phi_expand = jnp.ones((N, K))
 	z 			= np.zeros(K)
+	rfs = None # prevent error when num-iters < phi_thresh_delay
 
 	# Define history arrays
 	mu_hist 	= jnp.zeros((iters, N))
@@ -77,6 +78,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	# init key
 	key = jax.random.PRNGKey(seed)
 
+
 	# Iterate CAVI updates
 	# for it in range(iters):
 	for it in trange(iters):
@@ -91,7 +93,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_thresh_delay:
-			disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob + spont_rate)
+			rfs, disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob + spont_rate)
 			for n in range(N):
 				alpha = index_update(alpha, n, alpha[n] * (1. - disc_cells[n]))
 				# mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]))
@@ -109,7 +111,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
-	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, *hist_arrs
+	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, rfs, *hist_arrs
 
 def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 	N, K = _lam.shape
@@ -119,6 +121,7 @@ def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 	inferred_spk_probs = np.zeros((N, n_powers))
 	isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
 	disc_cells = np.zeros(N)
+	receptive_field = np.zeros((N, n_powers))
 
 	for n in range(N):
 		for p, power in enumerate(powers[1:]):
@@ -127,12 +130,12 @@ def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 				inferred_spk_probs[n, p + 1] = np.mean(lam[n, locs])
 
 		isotonic_regressor.fit(powers, inferred_spk_probs[n])
-		# receptive_field[n] = isotonic_regressor.f_(powers)
+		receptive_field[n] = isotonic_regressor.f_(powers)
 		if isotonic_regressor.f_(powers[-1]) < minimax_spk_prob:
 			disc_cells[n] = 1.
 		# disc_cells = np.where(receptive_field[:, -1] < minimax_spk_prob)[0]
 
-	return disc_cells
+	return receptive_field, disc_cells
 
 def update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask, penalty=2e1, scale_factor=0.5, max_penalty_iters=50, verbose=False, 
 	orthogonal=True, tol=0.05):
