@@ -14,6 +14,7 @@ from jax.config import config; config.update("jax_enable_x64", True)
 
 # Experimental loops
 from jax.experimental import loops
+from tqdm import trange
 
 EPS = 1e-10
 
@@ -78,7 +79,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 
 	# Iterate CAVI updates
 	# for it in range(iters):
-	for it in range(iters):
+	for it in trange(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
 		mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
