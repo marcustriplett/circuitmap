@@ -89,7 +89,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 			lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
-		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
+		shape, rate = update_noise(y, mu, beta, lam, z, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
 		if it > delay_spont_estimation:
 			z = update_z_l1_with_residual_tolerance(y, mu, lam, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
@@ -104,13 +104,13 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	print()
 	return mu, beta, lam, shape, rate, z, *hist_arrs
 
-def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
+def update_noise(y, mu, beta, lam, z, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
 	N, K = lam.shape
 	std = beta * (mu != 0)
 	w_samps = np.random.normal(mu, std, [num_mc_samples, N])
 	s_samps = (np.random.rand(num_mc_samples, N, K) <= lam[None, :, :]).astype(float)
 	mc_ws_sq = np.mean([(w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
-	mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
+	mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i] - z)**2 for i in range(num_mc_samples)], axis=0)
 	shape = noise_scale**2 * mc_ws_sq + 1/2
 	rate = noise_scale * mu @ lam + 1/2 * mc_recon_err + eps
 	return shape, rate
