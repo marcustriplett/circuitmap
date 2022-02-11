@@ -106,7 +106,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	print()
 	return mu, beta, lam, shape, rate, z, *hist_arrs
 
-def update_noise(y, mu, beta, lam, z, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
+def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
 	N, K = lam.shape
 	std = beta * (mu != 0)
 	w_samps = np.random.normal(mu, std, [num_mc_samples, N])
