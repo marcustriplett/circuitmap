@@ -14,7 +14,7 @@ except:
 # Jax imports
 import jax
 import jax.numpy as jnp
-from jax import jit, vmap, grad
+from jax import jit, vmap, grad, partial
 from jax.lax import scan, while_loop
 from jax.ops import index_update
 from jax.nn import sigmoid
