@@ -88,11 +88,12 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 
-		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu)
+		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask)
 
 		# update_order = np.random.choice(N, N, replace=False)
 		# for _ in range(lam_iters):
 		# 	lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
+
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
@@ -146,15 +147,15 @@ def inner_newton(y, spks, mask, weights, lam, t, max_backtrack_iters, backtrack_
 
 inner_newton_vmap = vmap(inner_newton, in_axes=(0, 1, 1, None, None, None, None, None, None))
 
-def backtracking_newton_with_vmap(y, spks, mask, weights, lam=1e2, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
+def backtracking_newton_with_vmap(y, spks, tar_matrix, weights, lam_mask, lam=1e2, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
 						max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75):
 	
 	for barrier_it in range(barrier_iters):
 		for it in range(iters):
-			spks = inner_newton_vmap(y, spks, mask, weights, lam, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
+			spks = inner_newton_vmap(y, spks, tar_matrix, weights, lam, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
 		t *= barrier_multiplier
 
-	return spks
+	return spks * lam_mask
 
 def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
 	N, K = lam.shape
