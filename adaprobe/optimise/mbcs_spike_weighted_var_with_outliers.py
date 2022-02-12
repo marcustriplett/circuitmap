@@ -88,8 +88,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 
-		print(mu)
-
+		lam = jnp.where(lam < 1e-5, 1e-5, lam)
 		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask)
 
 		# print(lam)
