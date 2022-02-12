@@ -57,11 +57,11 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	rfs         = None
 	
 	# Spike initialisation
-	lam = np.zeros_like(I) 
-	lam[I > 0] = init_spike_prior
-	lam = lam * lam_mask
-
-	lam = jnp.array(lam) # move to DeviceArray
+	lam 		= np.zeros_like(I) 
+	lam[I > 0] 	= init_spike_prior
+	lam 		= lam * lam_mask
+	lam 		= jnp.array(lam) # move to DeviceArray
+	tar_matrix 	= (I != 0.)
 
 	# Define history arrays
 	# % Will need to be disabled for very large matrices
@@ -87,9 +87,12 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		mu, lam = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
-		update_order = np.random.choice(N, N, replace=False)
-		for _ in range(lam_iters):
-			lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
+
+		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu)
+
+		# update_order = np.random.choice(N, N, replace=False)
+		# for _ in range(lam_iters):
+		# 	lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
@@ -106,6 +109,35 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 
 	print()
 	return mu, beta, lam, shape, rate, z, rfs, *hist_arrs
+
+@partial(jit, static_argnums=(6, 7, 8, 9))
+def inner_newton(y, spks, mask, weights, lam, t, max_backtrack_iters, backtrack_alpha, backtrack_beta, eps=1e-5):
+	step = 1
+	J = grad(y, weights, spks, lam, t, mask)
+	H = hess(y, weights, spks, t, mask)
+	H_inv = jnp.diag(1/jnp.diag(H))
+	search_dir = -H_inv @ J
+	for bit in range(max_backtrack_iters):
+		lhs = objective_with_barrier(y, weights, spks + step * search_dir, lam, t, mask)
+		rhs = objective_with_barrier(y, weights, spks, lam, t, mask) + backtrack_alpha * step * J @ search_dir
+		cond = jnp.min(jnp.array([(lhs > rhs) + jnp.isnan(lhs), 1])) # go condition
+		step = step * backtrack_beta * cond + step * (1 - cond)
+	spks += step * search_dir
+	spks = jnp.where(spks > 1 - eps, 1 - eps, spks)
+	spks = jnp.where(spks < eps, eps, spks)
+	return spks
+
+inner_newton_vmap = vmap(inner_newton, in_axes=(0, 1, 1, None, None, None, None, None, None))
+
+def backtracking_newton_with_vmap(y, spks, mask, weights, lam=1e2, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
+						max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75):
+	
+	for barrier_it in range(barrier_iters):
+		for it in range(iters):
+			spks = inner_newton_vmap(y, spks, mask, weights, lam, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
+		t *= barrier_multiplier
+
+	return spks
 
 def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
 	N, K = lam.shape

@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='adaprobe',
     version='0.1.0',    
-    description='Circuit mapping with 2p opto-stim',
+    description='Waveform demixing and synaptic connectivity inference for holographic optogenetics',
     url='',
     author='mtriplett',
     author_email='',
