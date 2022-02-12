@@ -90,6 +90,13 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 
 		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask)
 
+		print(lam)
+		print()
+		print(lam[0])
+		print()
+		print(lam[:, 0])
+		print()
+
 		# update_order = np.random.choice(N, N, replace=False)
 		# for _ in range(lam_iters):
 		# 	lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
