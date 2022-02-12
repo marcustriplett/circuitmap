@@ -32,7 +32,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', verbose=False, 
 	learn_noise=False, init_lam=None, learn_lam=True, delay_spont_estimation=1, minimum_spike_count=1, noise_scale=0.5, 
 	num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, orthogonal_outliers=True, outlier_penalty=5e1, 
-	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05, lam_iters=1):
+	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05, lam_iters=1, newton_penalty=1e1):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -89,7 +89,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 			constrain_weights=constrain_weights, verbose=verbose)
 
 		lam = jnp.where(lam < 1e-5, 1e-5, lam)
-		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask)
+		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, newton_penalty=newton_penalty)
 
 		# print(lam)
 		# print()
@@ -155,12 +155,12 @@ def inner_newton(y, spks, mask, weights, lam, t, max_backtrack_iters, backtrack_
 
 inner_newton_vmap = vmap(inner_newton, in_axes=(0, 1, 1, None, None, None, None, None, None))
 
-def backtracking_newton_with_vmap(y, spks, tar_matrix, weights, lam_mask, lam=1e2, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
+def backtracking_newton_with_vmap(y, spks, tar_matrix, weights, lam_mask, newton_penalty=1e2, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
 						max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75):
 	
 	for barrier_it in range(barrier_iters):
 		for it in range(iters):
-			spks = inner_newton_vmap(y, spks, tar_matrix, weights, lam, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
+			spks = inner_newton_vmap(y, spks, tar_matrix, weights, newton_penalty, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
 		t *= barrier_multiplier
 
 	return spks * lam_mask
