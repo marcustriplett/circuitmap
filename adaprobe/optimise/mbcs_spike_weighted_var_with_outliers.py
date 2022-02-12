@@ -110,11 +110,28 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	print()
 	return mu, beta, lam, shape, rate, z, rfs, *hist_arrs
 
+@jit
+def objective(y, u, v, lam):
+    return (y - u @ v)**2 + lam * jnp.sum(v)
+
+@jit
+def objective_with_barrier(y, u, v, lam, t, mask):
+    return (y - (u * mask) @ v)**2 + lam * jnp.sum(jnp.abs(v)) - 1/t * jnp.sum(jnp.log(v * (1 - v)))
+
+@jit
+def grad_fn(y, u, v, lam, t, mask):
+    u_mask = u * mask
+    return -2 * (y - u_mask @ v) * u_mask + lam - 1/t * (1 - 2*v)/(v * (1 - v))
+
+@jit
+def hess_fn(y, u, v, t, mask):
+    return jnp.diag(2 * (u * mask)**2 + 1/t * (2 + (1 - 2*v)**2)/(v * (1 - v)))
+
 @partial(jit, static_argnums=(6, 7, 8, 9))
 def inner_newton(y, spks, mask, weights, lam, t, max_backtrack_iters, backtrack_alpha, backtrack_beta, eps=1e-5):
 	step = 1
-	J = grad(y, weights, spks, lam, t, mask)
-	H = hess(y, weights, spks, t, mask)
+	J = grad_fn(y, weights, spks, lam, t, mask)
+	H = hess_fn(y, weights, spks, t, mask)
 	H_inv = jnp.diag(1/jnp.diag(H))
 	search_dir = -H_inv @ J
 	for bit in range(max_backtrack_iters):
