@@ -161,7 +161,9 @@ def backtracking_newton_with_vmap(y, spks, tar_matrix, weights, lam_mask, lam=1e
 	
 	for barrier_it in range(barrier_iters):
 		for it in range(iters):
+			print('newton iter %i/%i'%(it+1, iters))
 			spks = inner_newton_vmap(y, spks, tar_matrix, weights, lam, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
+			print(spks)
 		t *= barrier_multiplier
 
 	return spks * lam_mask
