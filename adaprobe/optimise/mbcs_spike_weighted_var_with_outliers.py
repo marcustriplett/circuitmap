@@ -167,7 +167,7 @@ def backtracking_newton_with_vmap(y, spks, tar_matrix, weights, lam_mask, newton
 
 def update_lam_backtracking_newton(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, 
 	warm_start_lasso=False, constrain_weights='positive', barrier_iters=5, t=1e0, barrier_multiplier=1e1, max_backtrack_iters=20, 
-	backtrack_alpha=0.05, backtrack_beta=0.75, verbose=verbose, tol=1e-3, newton_iters=20):
+	backtrack_alpha=0.05, backtrack_beta=0.75, verbose=False, tol=1e-3, newton_iters=20):
 	
 	N, K = lam.shape
 	constr = np.sqrt(np.sum(rate/shape))
