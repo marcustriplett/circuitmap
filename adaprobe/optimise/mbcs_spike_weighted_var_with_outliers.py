@@ -32,7 +32,8 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', verbose=False, 
 	learn_noise=False, init_lam=None, learn_lam=True, delay_spont_estimation=1, minimum_spike_count=1, noise_scale=0.5, 
 	num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, orthogonal_outliers=True, outlier_penalty=5e1, 
-	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05, lam_iters=1, newton_penalty=1e1):
+	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05, lam_iters=1, newton_penalty=1e1,
+	newton_iters=20):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -84,19 +85,18 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	for it in tqdm(range(iters), desc='CAVI', leave=True):
 		beta = update_beta(lam, shape, rate, beta_prior)
 		# ignore z during mu and lam updates
+		print('Updating mu')
 		mu, lam = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
+		print()
 
 		lam = jnp.where(lam < 1e-5, 1e-5, lam)
-		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, newton_penalty=newton_penalty)
-
-		# print(lam)
-		# print()
-		# print(lam[0])
-		# print()
-		# print(lam[:, 0])
-		# print()
+		print('Updating lam')
+		lam = update_lam_backtracking_newton(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=newton_penalty, scale_factor=scale_factor, 
+			max_penalty_iters=max_penalty_iters, barrier_iters=5, t=1e0, barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05,
+			backtrack_beta=0.75, verbose=verbose, newton_iters=newton_iters)
+		print()
 
 		# update_order = np.random.choice(N, N, replace=False)
 		# for _ in range(lam_iters):
@@ -164,6 +164,42 @@ def backtracking_newton_with_vmap(y, spks, tar_matrix, weights, lam_mask, newton
 		t *= barrier_multiplier
 
 	return spks * lam_mask
+
+def update_lam_backtracking_newton(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, 
+	warm_start_lasso=False, constrain_weights='positive', barrier_iters=5, t=1e0, barrier_multiplier=1e1, max_backtrack_iters=20, 
+	backtrack_alpha=0.05, backtrack_beta=0.75, verbose=verbose, tol=1e-3, newton_iters=20):
+	
+	N, K = lam.shape
+	constr = np.sqrt(np.sum(rate/shape))
+	err_prev = 0
+
+	for it in range(max_penalty_iters):
+		if verbose:
+			print('penalty iter: ', it)
+			print('current penalty: ', penalty)
+
+		nlam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, newton_penalty=penalty, iters=newton_iters, barrier_iters=barrier_iters,
+			t=t, barrier_multiplier=barrier_multiplier, max_backtrack_iters=max_backtrack_iters, backtrack_alpha=backtrack_alpha, backtrack_beta=backtrack_beta)
+
+		err = np.sqrt(np.sum(np.square(y - mu @ nlam)))
+
+		if verbose:
+			print('newton err: ', err)
+			print('constr: ', constr)
+			print('')
+		if err <= constr:
+			if verbose:
+				print(' ==== converged on iteration: %i ===='%it)
+			break
+		elif np.abs(err - err_prev) < tol:
+			if verbose:
+				print(' !!! converged without meeting constraint on iteration: %i !!!'%it)
+			break
+		else:
+			penalty *= scale_factor # exponential backoff
+
+	return nlam
+	
 
 def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
 	N, K = lam.shape
