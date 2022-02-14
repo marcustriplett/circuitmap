@@ -160,7 +160,7 @@ def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=5):
 		err = y - mu @ lam # should this be recomputed below?
 		for n in range(N):
 			residue = err + mu[n] * lam[n]
-			mu = index_update(mu, n, (jnp.sum(1/noise_var * residue * lam[n]) + 1/penalty[n])/(jnp.sum(1/noise_var * lam[n]**2) + EPS))
+			mu = index_update(mu, n, (jnp.sum(1/noise_var * residue * lam[n]) - penalty[n])/(jnp.sum(1/noise_var * lam[n]**2) + EPS))
 			mu = index_update(mu, n, jnp.max(jnp.array([mu[n], 0.])))
 	return mu
 
