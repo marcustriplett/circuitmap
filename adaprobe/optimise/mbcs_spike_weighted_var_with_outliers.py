@@ -33,7 +33,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	learn_noise=False, init_lam=None, learn_lam=True, delay_spont_estimation=1, minimum_spike_count=1, noise_scale=0.5, 
 	num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, orthogonal_outliers=True, outlier_penalty=5e1, 
 	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05, lam_iters=1, newton_penalty=1e1,
-	newton_iters=20, newton_penalty_shrinkage_iters=5, lam_update='variational_inference'):
+	newton_iters=20, newton_penalty_shrinkage_iters=5, lam_update='variational_inference', n_hals_loops=10):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -93,11 +93,11 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		# 	max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 		# 	constrain_weights=constrain_weights, verbose=verbose)
 
-		mu = update_mu_ARD(y, mu, lam, penalty=relevance_vector, max_lasso_iters=max_lasso_iters, constrain_weights=constrain_weights)
+		mu = update_mu_ARD(y, mu, lam, shape, rate, relevance_vector, n_hals_loops=n_hals_loops)
 		print('mu: ', mu)
 		print()
 
-		lam = update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=relevance_vector) # relevance 1/penalty
+		lam = update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector) # relevance 1/penalty
 		print('lam: ', lam)
 		print()
 
@@ -146,19 +146,16 @@ def update_relevance_ARD(y, mu, lam):
 def update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector):
 	return backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, newton_penalty=relevance_vector)
 
-def update_mu_ARD(y, mu, lam, penalty=1, max_lasso_iters=1000, constrain_weights='positive', warm_start=True):
-	positive = constrain_weights in ['positive', 'negative']
-	alpha = 1/penalty
-	lasso = Lasso(alpha=alpha, fit_intercept=False, max_iter=max_lasso_iters, positive=positive)
-	lamT = lam.T
-	if constrain_weights == 'negative':
-		# make sensing matrix and weight warm-start negative
-		lamT = -lamT
-		mu = -mu
-
-	lasso.coef_ = mu
-	lasso.fit(lamT, y)
-	return lasso.coef_
+@jit
+def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=10):
+	N = mu.shape[0]
+	noise_var = shape/rate
+	for it in range(n_hals_loops):
+		for n in range(N):
+			residue = y - mu @ lam + mu[n] * lam[n]
+			mu[n] = (jnp.sum(1/noise_var * residue * lam) + penalty[n])/(jnp.sum(1/noise_var * lam**2))
+			mu[n] = jnp.max([mu[n], 0.])
+	return mu
 
 @jit
 def objective(y, u, v, pen, noise_var):
