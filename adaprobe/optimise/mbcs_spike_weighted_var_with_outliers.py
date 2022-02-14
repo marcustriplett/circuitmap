@@ -145,7 +145,7 @@ def objective_with_barrier(y, u, v, lam, noise_var, t, mask):
     return 1/noise_var * (y - (u * mask) @ v)**2 + lam * jnp.sum(jnp.abs(v)) - 1/t * jnp.sum(jnp.log(v * (1 - v)))
 
 @jit
-def grad_fn(y, u, v, lam, noise, t, mask):
+def grad_fn(y, u, v, lam, noise_var, t, mask):
     u_mask = u * mask
     return -2/noise_var * (y - u_mask @ v) * u_mask + lam - 1/t * (1 - 2*v)/(v * (1 - v))
 
