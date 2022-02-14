@@ -80,7 +80,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	relevance_vector = penalty * np.ones(N) # contains 1/alpha
 
 	# init mu
-	lasso = Lasso(alpha=0., fit_intercept=False, max_iter=1000, positive=positive)
+	lasso = Lasso(alpha=0., fit_intercept=False, max_iter=1000, positive=True)
 	lasso.fit(lam.T, y)
 	mu = jnp.array(mu)
 
@@ -97,7 +97,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		lam = update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector) # relevance 1/penalty
 		print('lam: ', lam)
 		print()
-		
+
 		mu = update_mu_ARD(y, mu, lam, shape, rate, relevance_vector, n_hals_loops=n_hals_loops)
 		print('mu: ', mu)
 		print()
