@@ -139,12 +139,12 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 def update_relevance_ARD(y, mu, lam, a=None):
 	N, K = lam.shape
 	if a is None:
-		a = jnp.log(K)
+		a = jnp.log(1 + K)
 	b = jnp.sqrt((a - 1) * (a - 2) * jnp.mean(y)/N)
 	relevance = (mu + jnp.sum(lam, axis=-1) + b)/(K + 2 + a)
 	# relevance = 1/est
 
-	return relevance
+	return 1/relevance
 
 def update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector):
 	return backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, newton_penalty=relevance_vector)
