@@ -198,7 +198,7 @@ def update_lam_backtracking_newton(y, lam, tar_matrix, mu, lam_mask, shape, rate
 			print('penalty iter: ', it)
 			print('current penalty: ', penalty)
 
-		nlam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, newton_penalty=penalty, iters=newton_iters, barrier_iters=barrier_iters,
+		nlam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, newton_penalty=penalty, iters=newton_iters, barrier_iters=barrier_iters,
 			t=t, barrier_multiplier=barrier_multiplier, max_backtrack_iters=max_backtrack_iters, backtrack_alpha=backtrack_alpha, backtrack_beta=backtrack_beta)
 
 		err = np.sqrt(np.sum(np.square(y - mu @ nlam)))
