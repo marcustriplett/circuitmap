@@ -126,12 +126,11 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 
 def update_relevance_ARD(y, mu, lam):
 	N, K = lam.shape
-	a = np.log(N + K)
+	a = np.log(K)
 	b = np.sqrt((a - 1) * (a - 2) * np.mean(y))/N
 	est = (mu + np.sum(lam, axis=-1) + b)/(K + 2 + a)
-	relevance = np.zeros(N)
-	relevance[np.where(est) != 0] = 1/est
-	relevance[np.where(est) == 0] = 1e10 # arbitrarily huge number
+	relevance = 1/est
+
 	return relevance
 
 def update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector):
@@ -150,20 +149,20 @@ def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=5):
 
 @jit
 def objective(y, u, v, pen, noise_var):
-    return 1 * (y - u @ v)**2 + pen * jnp.sum(v)
+    return 1/noise_var * (y - u @ v)**2 + pen * jnp.sum(v)
 
 @jit
 def objective_with_barrier(y, u, v, pen, noise_var, t, mask):
-    return 1 * (y - (u * mask) @ v)**2 + jnp.sum(pen * jnp.abs(v)) - 1/t * jnp.sum(jnp.log(v * (1 - v)))
+    return 1/noise_var * (y - (u * mask) @ v)**2 + jnp.sum(pen * jnp.abs(v)) - 1/t * jnp.sum(jnp.log(v * (1 - v)))
 
 @jit
 def grad_fn(y, u, v, pen, noise_var, t, mask):
     u_mask = u * mask
-    return -2 * (y - u_mask @ v) * u_mask + pen - 1/t * (1 - 2*v)/(v * (1 - v))
+    return -2/noise_var * (y - u_mask @ v) * u_mask + pen - 1/t * (1 - 2*v)/(v * (1 - v))
 
 @jit
 def hess_fn(y, u, v, noise_var, t, mask):
-    return jnp.diag(2 * (u * mask)**2 + 1/t * (2 + (1 - 2*v)**2)/(v * (1 - v)))
+    return jnp.diag(2/noise_var * (u * mask)**2 + 1/t * (2 + (1 - 2*v)**2)/(v * (1 - v)))
 
 @partial(jit, static_argnums=(6, 7, 8, 9))
 def inner_newton(y, spks, mask, mu, pen, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta, eps=1e-5):
@@ -192,7 +191,6 @@ def backtracking_newton_with_vmap(y, spks, tar_matrix, mu, lam_mask, shape, rate
 			spks = inner_newton_vmap(y, spks, tar_matrix, mu, newton_penalty, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
 		t *= barrier_multiplier
 
-	print()
 	return spks * lam_mask
 
 def update_lam_backtracking_newton(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, 
