@@ -124,9 +124,10 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	print()
 	return mu, beta, lam, shape, rate, z, rfs, *hist_arrs
 
-def update_relevance_ARD(y, mu, lam):
+def update_relevance_ARD(y, mu, lam, a=None):
 	N, K = lam.shape
-	a = np.log(K)
+	if a is not None:
+		a = np.log(K)
 	b = np.sqrt((a - 1) * (a - 2) * np.mean(y))/N
 	est = (mu + np.sum(lam, axis=-1) + b)/(K + 2 + a)
 	relevance = 1/est
@@ -141,8 +142,9 @@ def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=5):
 	N = mu.shape[0]
 	noise_var = rate/shape
 	for it in range(n_hals_loops):
+		err = y - mu @ lam
 		for n in range(N):
-			residue = y - mu @ lam + mu[n] * lam[n]
+			residue = err + mu[n] * lam[n]
 			mu = index_update(mu, n, (jnp.sum(1/noise_var * residue * lam) + penalty[n])/(jnp.sum(1/noise_var * lam**2)))
 			mu = index_update(mu, n, jnp.max(jnp.array([mu[n], 0.])))
 	return mu
