@@ -46,11 +46,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 
 	# Initialise new params
 	N = mu_prior.shape[0]
-	mu = np.random.lognormal(1, 1, N)
 
-	# Declare scope types
-	# mu 			= jnp.array(mu_prior)
-	mu 			= jnp.array(mu)
 	beta 		= jnp.array(beta_prior)
 	shape 		= shape_prior
 	rate 		= rate_prior
@@ -83,6 +79,11 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 
 	relevance_vector = penalty * np.ones(N) # contains 1/alpha
 
+	# init mu
+	lasso = Lasso(alpha=0., fit_intercept=False, max_iter=1000, positive=positive)
+	lasso.fit(lam.T, y)
+	mu = jnp.array(mu)
+
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=True):
 		
@@ -93,12 +94,12 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		# 	max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 		# 	constrain_weights=constrain_weights, verbose=verbose)
 
-		mu = update_mu_ARD(y, mu, lam, shape, rate, relevance_vector, n_hals_loops=n_hals_loops)
-		print('mu: ', mu)
-		print()
-
 		lam = update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector) # relevance 1/penalty
 		print('lam: ', lam)
+		print()
+		
+		mu = update_mu_ARD(y, mu, lam, shape, rate, relevance_vector, n_hals_loops=n_hals_loops)
+		print('mu: ', mu)
 		print()
 
 		relevance_vector = update_relevance_ARD(y, mu, lam)
