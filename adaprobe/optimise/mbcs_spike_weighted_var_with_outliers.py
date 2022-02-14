@@ -181,7 +181,7 @@ def grad_fn(y, u, v, pen, noise_var, t, mask):
 def hess_fn(y, u, v, noise_var, t, mask):
     return jnp.diag(2 * (u * mask)**2 + 1/t * (2 + (1 - 2*v)**2)/(v * (1 - v)))
 
-@partial(jit, static_argnums=(6, 7, 8, 9))
+# @partial(jit, static_argnums=(6, 7, 8, 9))
 def inner_newton(y, spks, mask, mu, pen, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta, eps=1e-5):
 	step = 1
 	J = grad_fn(y, mu, spks, pen, noise_var, t, mask)
@@ -189,6 +189,7 @@ def inner_newton(y, spks, mask, mu, pen, noise_var, t, max_backtrack_iters, back
 	H_inv = jnp.diag(1/jnp.diag(H))
 	search_dir = -H_inv @ J
 	for bit in range(max_backtrack_iters):
+		print('backtrack iter %i/%i'%(bit+1, max_backtrack_iters))
 		lhs = objective_with_barrier(y, mu, spks + step * search_dir, pen, noise_var, t, mask)
 		rhs = objective_with_barrier(y, mu, spks, pen, noise_var, t, mask) + backtrack_alpha * step * J @ search_dir
 		cond = jnp.min(jnp.array([(lhs > rhs) + jnp.isnan(lhs), 1])) # go condition
@@ -207,7 +208,8 @@ def backtracking_newton_with_vmap(y, spks, tar_matrix, mu, lam_mask, shape, rate
 	print('input spks: ', spks)
 	for barrier_it in range(barrier_iters):
 		for it in range(iters):
-			spks = inner_newton_vmap(y, spks, tar_matrix, mu, newton_penalty, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
+			# spks = inner_newton_vmap(y, spks, tar_matrix, mu, newton_penalty, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
+			spks = inner_newton(y, spks, tar_matrix, mu, newton_penalty, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
 			print('spks: ', spks)
 		t *= barrier_multiplier
 
