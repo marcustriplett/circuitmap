@@ -137,7 +137,7 @@ def update_mu_ARD(y, mu, lam, penalty=1, max_lasso_iters=1000, constrain_weights
 	positive = constrain_weights in ['positive', 'negative']
 	alpha = 1/penalty
 	lasso = Lasso(alpha=alpha, fit_intercept=False, max_iter=max_lasso_iters, positive=positive)
-	
+	lamT = lam.T
 	if constrain_weights == 'negative':
 		# make sensing matrix and weight warm-start negative
 		lamT = -lamT
