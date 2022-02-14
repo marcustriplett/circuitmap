@@ -133,12 +133,13 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	print()
 	return mu, beta, lam, shape, rate, z, rfs, relevance_vector, *hist_arrs
 
+@jit
 def update_relevance_ARD(y, mu, lam, a=None):
 	N, K = lam.shape
 	if a is None:
-		a = np.log(K)
-	b = np.sqrt((a - 1) * (a - 2) * np.mean(y))/N
-	relevance = (mu + np.sum(lam, axis=-1) + b)/(K + 2 + a)
+		a = jnp.log(K)
+	b = jnp.sqrt((a - 1) * (a - 2) * jnp.mean(y))/N
+	relevance = (mu + jnp.sum(lam, axis=-1) + b)/(K + 2 + a)
 	# relevance = 1/est
 
 	return relevance
