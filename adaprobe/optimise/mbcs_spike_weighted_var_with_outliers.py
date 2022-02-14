@@ -126,7 +126,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 
 def update_relevance_ARD(y, mu, lam, a=None):
 	N, K = lam.shape
-	if a is not None:
+	if a is None:
 		a = np.log(K)
 	b = np.sqrt((a - 1) * (a - 2) * np.mean(y))/N
 	est = (mu + np.sum(lam, axis=-1) + b)/(K + 2 + a)
