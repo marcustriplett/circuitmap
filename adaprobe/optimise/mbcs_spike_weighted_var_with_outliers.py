@@ -115,11 +115,12 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
 
 		mu = update_mu_ARD(y, mu, lam, shape, rate, relevance_vector, n_hals_loops=n_hals_loops)
-		relevance_vector = update_relevance_ARD(y, mu, lam)
 
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
+
+		relevance_vector = update_relevance_ARD(y, mu, lam)
 
 		if it > delay_spont_estimation:
 			z = update_z_l1_with_residual_tolerance(y, mu, lam, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
