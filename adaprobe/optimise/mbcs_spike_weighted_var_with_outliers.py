@@ -199,11 +199,14 @@ def backtracking_newton_with_vmap(y, spks, tar_matrix, mu, lam_mask, shape, rate
 						max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75):
 	noise_var = rate/shape
 	print('noise_var: ', noise_var)
+	print('input spks: ', spks)
 	for barrier_it in range(barrier_iters):
 		for it in range(iters):
 			spks = inner_newton_vmap(y, spks, tar_matrix, mu, newton_penalty, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
+			print('spks: ', spks)
 		t *= barrier_multiplier
 
+	print()
 	return spks * lam_mask
 
 def update_lam_backtracking_newton(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, 
