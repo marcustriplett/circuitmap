@@ -726,7 +726,7 @@ class Model:
 
 		t_end = time.time()
 
-		mu, beta, lam, shape, rate, z, rfs, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist, \
+		mu, beta, lam, shape, rate, z, rfs, relevance, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist, \
 			relevance_hist = result
 
 		# move from GPU back to CPU
