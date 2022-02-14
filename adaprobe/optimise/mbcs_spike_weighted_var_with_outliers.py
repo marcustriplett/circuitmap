@@ -85,7 +85,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 
 	# init mu
 	# lasso = Lasso(alpha=0., fit_intercept=False, max_iter=1000, positive=True)
-	lin = LinearRegression(fit_intercept=False, max_iter=1000, positive=True)
+	lin = LinearRegression(fit_intercept=False, positive=True)
 	lin.fit(lam.T, y)
 	mu = jnp.array(lin.coef_)
 	# mu = np.random.lognormal(1, 1, N)
