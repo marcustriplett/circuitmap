@@ -33,7 +33,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	learn_noise=False, init_lam=None, learn_lam=True, delay_spont_estimation=1, minimum_spike_count=1, noise_scale=0.5, 
 	num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, orthogonal_outliers=True, outlier_penalty=5e1, 
 	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05, lam_iters=1, newton_penalty=1e1,
-	newton_iters=20, newton_penalty_shrinkage_iters=5, lam_update='variational_inference', n_hals_loops=10):
+	newton_iters=20, newton_penalty_shrinkage_iters=5, lam_update='variational_inference', n_hals_loops=10, relevance_a=None):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -120,7 +120,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
-		relevance_vector = update_relevance_ARD(y, mu, lam)
+		relevance_vector = update_relevance_ARD(y, mu, lam, a=relevance_a)
 
 		if it > delay_spont_estimation:
 			z = update_z_l1_with_residual_tolerance(y, mu, lam, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
