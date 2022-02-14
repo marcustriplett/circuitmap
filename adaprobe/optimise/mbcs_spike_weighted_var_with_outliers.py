@@ -60,6 +60,9 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	lam 		= jnp.array(lam) # move to DeviceArray
 	tar_matrix 	= (I != 0.)
 
+	lam = jnp.where(lam < 1e-5, 1e-5, lam)
+	lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
+
 	# Define history arrays
 	# % Will need to be disabled for very large matrices
 	mu_hist 		= jnp.zeros((iters, N))
@@ -68,8 +71,9 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	shape_hist 		= jnp.zeros((iters, K))
 	rate_hist 		= jnp.zeros((iters, K))
 	z_hist 			= jnp.zeros((iters, K))
+	relevance_hist 	= jnp.zeros((iters, N))
 
-	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist]
+	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist, relevance_hist]
 
 	# init key
 	key = jax.random.PRNGKey(seed)
@@ -100,14 +104,15 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		# 		max_penalty_iters=newton_penalty_shrinkage_iters, barrier_iters=5, t=1e0, barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05,
 		# 		backtrack_beta=0.75, verbose=verbose, newton_iters=newton_iters
 
-		lam = jnp.where(lam < 1e-5, 1e-5, lam)
-		lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
+		
 		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector, iters=20, barrier_iters=5, t=1e0,
 			barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75)
+
+		lam = jnp.where(lam < 1e-5, 1e-5, lam)
+		lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
+
 		mu = update_mu_ARD(y, mu, lam, shape, rate, relevance_vector, n_hals_loops=n_hals_loops)
 		relevance_vector = update_relevance_ARD(y, mu, lam)
-		print('iter %i/%i'%(it+1, iters))
-		print('relevance: ',  relevance_vector)
 
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
@@ -120,7 +125,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 			spont_rate = np.mean(z != 0)
 
 		# record history
-		for hindx, pa in enumerate([mu, beta, lam, shape, rate, z]):
+		for hindx, pa in enumerate([mu, beta, lam, shape, rate, z, relevance_vector]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
 	print()
