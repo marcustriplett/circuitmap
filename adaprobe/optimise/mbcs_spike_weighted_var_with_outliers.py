@@ -85,10 +85,11 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 
 	# init mu
 	# lasso = Lasso(alpha=0., fit_intercept=False, max_iter=1000, positive=True)
-	# lasso.fit(lam.T, y)
-	# mu = jnp.array(lasso.coef_)
-	mu = np.random.lognormal(1, 1, N)
-	mu = jnp.array(mu)
+	lin = LinearRegression(fit_intercept=False, max_iter=1000, positive=True)
+	lin.fit(lam.T, y)
+	mu = jnp.array(lin.coef_)
+	# mu = np.random.lognormal(1, 1, N)
+	# mu = jnp.array(mu)
 
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=True):
@@ -152,7 +153,7 @@ def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=5):
 	N = mu.shape[0]
 	noise_var = rate/shape
 	for it in range(n_hals_loops):
-		err = y - mu @ lam
+		err = y - mu @ lam # should this be recomputed below?
 		for n in range(N):
 			residue = err + mu[n] * lam[n]
 			mu = index_update(mu, n, (jnp.sum(1/noise_var * residue * lam[n]) + penalty[n])/(jnp.sum(1/noise_var * lam[n]**2)))
