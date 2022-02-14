@@ -92,8 +92,16 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		# 	constrain_weights=constrain_weights, verbose=verbose)
 
 		mu = update_mu_ARD(y, mu, lam, penalty=penalty, max_lasso_iters=max_lasso_iters, constrain_weights=constrain_weights)
+		print('mu: ', mu)
+		print()
+
 		lam = update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=penalty)
+		print('lam: ', lam)
+		print()
+
 		penalty = update_penalty_ARD(y, mu, lam)
+		print('penalty: ', penalty)
+		print()
 
 		# if lam_update == 'variational_inference':
 		# 	update_order = np.random.choice(N, N, replace=False)
