@@ -83,7 +83,6 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	lasso = Lasso(alpha=0., fit_intercept=False, max_iter=1000, positive=True)
 	lasso.fit(lam.T, y)
 	mu = jnp.array(lasso.coef_)
-	print('mu: ', mu)
 
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=True):
@@ -103,27 +102,9 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
 		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector, iters=20, barrier_iters=5, t=1e0,
 			barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75)
-		print('lam: ', lam)
-		print()
-
 		mu = update_mu_ARD(y, mu, lam, shape, rate, relevance_vector, n_hals_loops=n_hals_loops)
-		print('mu: ', mu)
-		print()
-
 		relevance_vector = update_relevance_ARD(y, mu, lam)
-		print('relevance: ', relevance_vector)
-		print()
-
-		# if lam_update == 'variational_inference':
-		# 	update_order = np.random.choice(N, N, replace=False)
-		# 	for _ in range(lam_iters):
-		# 		lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
-
-		# elif lam_update == 'L1':
-		# 	lam = jnp.where(lam < 1e-5, 1e-5, lam)
-		# 	lam = update_lam_backtracking_newton(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=newton_penalty, scale_factor=scale_factor, 
-		# 		max_penalty_iters=newton_penalty_shrinkage_iters, barrier_iters=5, t=1e0, barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05,
-		# 		backtrack_beta=0.75, verbose=verbose, newton_iters=newton_iters)
+		print('iter %i/%i relevance: %.2f '%(it+1, iters, relevance_vector))
 
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
@@ -155,8 +136,8 @@ def update_relevance_ARD(y, mu, lam):
 def update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector):
 	return backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, newton_penalty=relevance_vector)
 
-# @partial(jit, static_argnums=(6))
-def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=10):
+@partial(jit, static_argnums=(6))
+def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=5):
 	N = mu.shape[0]
 	noise_var = rate/shape
 	for it in range(n_hals_loops):
@@ -191,7 +172,6 @@ def inner_newton(y, spks, mask, mu, pen, noise_var, t, max_backtrack_iters, back
 	H_inv = jnp.diag(1/jnp.diag(H))
 	search_dir = -H_inv @ J
 	for bit in range(max_backtrack_iters):
-		print('backtrack iter %i/%i'%(bit+1, max_backtrack_iters))
 		lhs = objective_with_barrier(y, mu, spks + step * search_dir, pen, noise_var, t, mask)
 		rhs = objective_with_barrier(y, mu, spks, pen, noise_var, t, mask) + backtrack_alpha * step * J @ search_dir
 		cond = jnp.min(jnp.array([(lhs > rhs) + jnp.isnan(lhs), 1])) # go condition
@@ -206,12 +186,9 @@ inner_newton_vmap = vmap(inner_newton, in_axes=(0, 1, 1, None, None, 0, None, No
 def backtracking_newton_with_vmap(y, spks, tar_matrix, mu, lam_mask, shape, rate, newton_penalty, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
 						max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75):
 	noise_var = rate/shape
-	print('noise_var: ', noise_var)
-	print('input spks: ', spks)
 	for barrier_it in range(barrier_iters):
 		for it in range(iters):
 			spks = inner_newton_vmap(y, spks, tar_matrix, mu, newton_penalty, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
-			print('spks: ', spks)
 		t *= barrier_multiplier
 
 	print()
