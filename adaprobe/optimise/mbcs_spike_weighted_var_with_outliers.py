@@ -131,8 +131,7 @@ def update_penalty_ARD(y, mu, lam):
 
 def update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=1):
 	pen = 1/penalty
-	return backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, newton_penalty=pen, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
-						max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75):
+	return backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, newton_penalty=pen)
 
 def update_mu_ARD(y, mu, lam, penalty=1, max_lasso_iters=1000, constrain_weights='positive', warm_start=True):
 	positive = constrain_weights in ['positive', 'negative']
