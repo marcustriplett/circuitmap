@@ -198,6 +198,7 @@ inner_newton_vmap = vmap(inner_newton, in_axes=(0, 1, 1, None, None, 0, None, No
 def backtracking_newton_with_vmap(y, spks, tar_matrix, mu, lam_mask, shape, rate, newton_penalty, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
 						max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75):
 	noise_var = rate/shape
+	print('noise_var: ', noise_var)
 	for barrier_it in range(barrier_iters):
 		for it in range(iters):
 			spks = inner_newton_vmap(y, spks, tar_matrix, mu, newton_penalty, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
