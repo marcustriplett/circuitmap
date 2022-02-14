@@ -140,7 +140,7 @@ def update_relevance_ARD(y, mu, lam, a=None):
 	N, K = lam.shape
 	if a is None:
 		a = jnp.log(K)
-	b = jnp.sqrt((a - 1) * (a - 2) * jnp.mean(y))/N
+	b = jnp.sqrt((a - 1) * (a - 2) * jnp.mean(y)/N)
 	relevance = (mu + jnp.sum(lam, axis=-1) + b)/(K + 2 + a)
 	# relevance = 1/est
 
