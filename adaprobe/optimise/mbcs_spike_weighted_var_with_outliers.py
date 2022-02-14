@@ -153,8 +153,8 @@ def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=10):
 	for it in range(n_hals_loops):
 		for n in range(N):
 			residue = y - mu @ lam + mu[n] * lam[n]
-			mu[n] = (jnp.sum(1/noise_var * residue * lam) + penalty[n])/(jnp.sum(1/noise_var * lam**2))
-			mu[n] = jnp.max([mu[n], 0.])
+			mu = index_update(mu, n, (jnp.sum(1/noise_var * residue * lam) + penalty[n])/(jnp.sum(1/noise_var * lam**2)))
+			mu = index_update(mu, n, jnp.max([mu[n], 0.]))
 	return mu
 
 @jit
