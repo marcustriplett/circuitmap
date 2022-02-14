@@ -83,14 +83,17 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=True):
+		
 		beta = update_beta(lam, shape, rate, beta_prior)
-		# ignore z during mu and lam updates
-		print('Updating mu')
+
+		# % ignore z during mu and lam updates
 		mu, lam = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
 		print()
 
+		# mu = update_mu_ARD(y, mu, lam, penalty=penalty, max_lasso_iters=max_lasso_iters, constrain_weights=constrain_weights)
+		# lam = update_lam_ARD(y, lam, tar_matrix, mu, lam_mask)
 		if lam_update == 'variational_inference':
 			update_order = np.random.choice(N, N, replace=False)
 			for _ in range(lam_iters):
@@ -119,33 +122,47 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	print()
 	return mu, beta, lam, shape, rate, z, rfs, *hist_arrs
 
-@jit
-def objective(y, u, v, lam):
-    return (y - u @ v)**2 + lam * jnp.sum(v)
+def update_mu_ARD(y, mu, lam, penalty=1, max_lasso_iters=1000, constrain_weights='positive', warm_start=True):
+	positive = constrain_weights in ['positive', 'negative']
+	alpha = 1/penalty
+	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, positive=positive)
+	
+	if constrain_weights == 'negative':
+		# make sensing matrix and weight warm-start negative
+		lamT = -lamT
+		mu = -mu
+
+	lasso.coef_ = mu
+	lasso.fit(lamT, y)
+	return lasso.coef_
 
 @jit
-def objective_with_barrier(y, u, v, lam, t, mask):
-    return (y - (u * mask) @ v)**2 + lam * jnp.sum(jnp.abs(v)) - 1/t * jnp.sum(jnp.log(v * (1 - v)))
+def objective(y, u, v, lam, noise_var):
+    return 1/noise_var * (y - u @ v)**2 + lam * jnp.sum(v)
 
 @jit
-def grad_fn(y, u, v, lam, t, mask):
+def objective_with_barrier(y, u, v, lam, noise_var, t, mask):
+    return 1/noise_var * (y - (u * mask) @ v)**2 + lam * jnp.sum(jnp.abs(v)) - 1/t * jnp.sum(jnp.log(v * (1 - v)))
+
+@jit
+def grad_fn(y, u, v, lam, noise, t, mask):
     u_mask = u * mask
-    return -2 * (y - u_mask @ v) * u_mask + lam - 1/t * (1 - 2*v)/(v * (1 - v))
+    return -2/noise_var * (y - u_mask @ v) * u_mask + lam - 1/t * (1 - 2*v)/(v * (1 - v))
 
 @jit
-def hess_fn(y, u, v, t, mask):
-    return jnp.diag(2 * (u * mask)**2 + 1/t * (2 + (1 - 2*v)**2)/(v * (1 - v)))
+def hess_fn(y, u, v, noise_var, t, mask):
+    return jnp.diag(2/noise_var * (u * mask)**2 + 1/t * (2 + (1 - 2*v)**2)/(v * (1 - v)))
 
 @partial(jit, static_argnums=(6, 7, 8, 9))
-def inner_newton(y, spks, mask, weights, lam, t, max_backtrack_iters, backtrack_alpha, backtrack_beta, eps=1e-5):
+def inner_newton(y, spks, mask, weights, lam, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta, eps=1e-5):
 	step = 1
-	J = grad_fn(y, weights, spks, lam, t, mask)
-	H = hess_fn(y, weights, spks, t, mask)
+	J = grad_fn(y, weights, spks, lam, noise_var, t, mask)
+	H = hess_fn(y, weights, spks, noise_var, t, mask)
 	H_inv = jnp.diag(1/jnp.diag(H))
 	search_dir = -H_inv @ J
 	for bit in range(max_backtrack_iters):
-		lhs = objective_with_barrier(y, weights, spks + step * search_dir, lam, t, mask)
-		rhs = objective_with_barrier(y, weights, spks, lam, t, mask) + backtrack_alpha * step * J @ search_dir
+		lhs = objective_with_barrier(y, weights, spks + step * search_dir, lam, noise_var, t, mask)
+		rhs = objective_with_barrier(y, weights, spks, lam, noise_var, t, mask) + backtrack_alpha * step * J @ search_dir
 		cond = jnp.min(jnp.array([(lhs > rhs) + jnp.isnan(lhs), 1])) # go condition
 		step = step * backtrack_beta * cond + step * (1 - cond)
 	spks += step * search_dir
@@ -153,11 +170,11 @@ def inner_newton(y, spks, mask, weights, lam, t, max_backtrack_iters, backtrack_
 	spks = jnp.where(spks < eps, eps, spks)
 	return spks
 
-inner_newton_vmap = vmap(inner_newton, in_axes=(0, 1, 1, None, None, None, None, None, None))
+inner_newton_vmap = vmap(inner_newton, in_axes=(0, 1, 1, None, None, 0, None, None, None, None))
 
-def backtracking_newton_with_vmap(y, spks, tar_matrix, weights, lam_mask, newton_penalty=1e2, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
+def backtracking_newton_with_vmap(y, spks, tar_matrix, weights, lam_mask, shape, rate, newton_penalty=1e2, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
 						max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75):
-	
+	noise_var = rate/shape
 	for barrier_it in range(barrier_iters):
 		for it in range(iters):
 			spks = inner_newton_vmap(y, spks, tar_matrix, weights, newton_penalty, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
