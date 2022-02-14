@@ -82,7 +82,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	# init mu
 	lasso = Lasso(alpha=0., fit_intercept=False, max_iter=1000, positive=True)
 	lasso.fit(lam.T, y)
-	mu = jnp.array(mu)
+	mu = jnp.array(lasso.coef_)
 
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=True):
