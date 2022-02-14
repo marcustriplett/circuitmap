@@ -146,10 +146,10 @@ def update_relevance_ARD(y, mu, lam):
 def update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector):
 	return backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, newton_penalty=relevance_vector)
 
-@partial(jit, static_argnums=(6))
+# @partial(jit, static_argnums=(6))
 def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=10):
 	N = mu.shape[0]
-	noise_var = shape/rate
+	noise_var = rate/shape
 	for it in range(n_hals_loops):
 		for n in range(N):
 			residue = y - mu @ lam + mu[n] * lam[n]
