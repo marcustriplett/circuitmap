@@ -129,8 +129,8 @@ def update_relevance_ARD(y, mu, lam, a=None):
 	if a is None:
 		a = np.log(K)
 	b = np.sqrt((a - 1) * (a - 2) * np.mean(y))/N
-	est = (mu + np.sum(lam, axis=-1) + b)/(K + 2 + a)
-	relevance = 1/est
+	relevance = (mu + np.sum(lam, axis=-1) + b)/(K + 2 + a)
+	# relevance = 1/est
 
 	return relevance
 
