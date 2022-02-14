@@ -99,6 +99,8 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		# 		max_penalty_iters=newton_penalty_shrinkage_iters, barrier_iters=5, t=1e0, barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05,
 		# 		backtrack_beta=0.75, verbose=verbose, newton_iters=newton_iters
 
+		lam = jnp.where(lam < 1e-5, 1e-5, lam)
+		lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
 		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector, iters=20, barrier_iters=5, t=1e0,
 			barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75)
 		print('lam: ', lam)
