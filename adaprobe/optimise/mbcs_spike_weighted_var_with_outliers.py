@@ -125,7 +125,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 @jit
 def update_penalty(y, mu, lam, a=1, b=1):
 	N, K = lam.shape
-	penalty = (jnp.sum(mu) + jnp.sum(lam) + b)/(N + N*K + a + 1)
+	penalty = (jnp.sum(mu) + jnp.sum(lam)/K + b)/(N + N*K + a + 1)
 	return penalty
 
 @partial(jit, static_argnums=(6))
