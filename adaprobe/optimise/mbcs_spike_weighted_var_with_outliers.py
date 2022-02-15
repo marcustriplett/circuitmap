@@ -28,12 +28,12 @@ from jax.experimental import loops
 EPS = 1e-10
 
 def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, iters=50, 
-	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, scale_factor=0.5, max_penalty_iters=10, 
+	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, scale_factor=0.5, max_penalty_iters=10, 
 	max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', verbose=False, 
 	learn_noise=False, init_lam=None, learn_lam=True, delay_spont_estimation=1, minimum_spike_count=1, noise_scale=0.5, 
 	num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, orthogonal_outliers=True, outlier_penalty=5e1, 
-	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05, lam_iters=1, newton_penalty=1e1,
-	newton_iters=20, newton_penalty_shrinkage_iters=5, lam_update='variational_inference', n_hals_loops=10, relevance_a=None):
+	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05, lam_iters=1,
+	newton_iters=20, lam_update='variational_inference', n_hals_loops=10, penalty_a=1, penalty_b=1):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -71,9 +71,9 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	shape_hist 		= jnp.zeros((iters, K))
 	rate_hist 		= jnp.zeros((iters, K))
 	z_hist 			= jnp.zeros((iters, K))
-	relevance_hist 	= jnp.zeros((iters, N))
+	penalty_hist 	= jnp.zeros((iters, N))
 
-	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist, relevance_hist]
+	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist, penalty_hist]
 
 	# init key
 	key = jax.random.PRNGKey(seed)
@@ -81,34 +81,18 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	# init spike prior
 	spike_prior = lam.copy()
 
-	relevance_vector = penalty * np.ones(N) # contains 1/alpha
-
 	# init mu
-	# lasso = Lasso(alpha=0., fit_intercept=False, max_iter=1000, positive=True)
 	lin = LinearRegression(fit_intercept=False, positive=True)
 	lin.fit(lam.T, y)
 	mu = jnp.array(lin.coef_)
-	# mu = np.random.lognormal(1, 1, N)
-	# mu = jnp.array(mu)
 
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=True):
 		
-		# beta = update_beta(lam, shape, rate, beta_prior)
-
-		# # % ignore z during mu and lam updates
-		# mu, lam = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
-		# 	max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
-		# 	constrain_weights=constrain_weights, verbose=verbose)
-
-		# y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=newton_penalty, scale_factor=scale_factor, 
-		# 		max_penalty_iters=newton_penalty_shrinkage_iters, barrier_iters=5, t=1e0, barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05,
-		# 		backtrack_beta=0.75, verbose=verbose, newton_iters=newton_iters
-
 		lam = jnp.where(lam < 1e-5, 1e-5, lam)
 		lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
 
-		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector, iters=20, barrier_iters=5, t=1e0,
+		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, 1/penalty, iters=20, barrier_iters=5, t=1e0,
 			barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75)
 
 		print('lam: ', lam)
@@ -116,14 +100,14 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		lam = jnp.where(lam < 1e-5, 1e-5, lam)
 		lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
 
-		mu = update_mu_ARD(y, mu, lam, shape, rate, relevance_vector, n_hals_loops=n_hals_loops)
+		mu = update_mu_L1(y, mu, lam, shape, rate, 1/penalty, n_hals_loops=n_hals_loops)
 		print('mu: ', mu)
 
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
 
-		relevance_vector = update_relevance_ARD(y, mu, lam, a=relevance_a)
+		penalty = update_penalty(y, mu, lam, a=penalty_a, b=penalty_b)
 
 		if it > delay_spont_estimation:
 			z = update_z_l1_with_residual_tolerance(y, mu, lam, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
@@ -132,27 +116,20 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 			spont_rate = np.mean(z != 0)
 
 		# record history
-		for hindx, pa in enumerate([mu, beta, lam, shape, rate, z, relevance_vector]):
+		for hindx, pa in enumerate([mu, beta, lam, shape, rate, z, penalty]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
 	print()
-	return mu, beta, lam, shape, rate, z, rfs, relevance_vector, *hist_arrs
+	return mu, beta, lam, shape, rate, z, rfs, penalty, *hist_arrs
 
 @jit
-def update_relevance_ARD(y, mu, lam, a=None):
+def update_penalty(y, mu, lam, a=1, b=1):
 	N, K = lam.shape
-	if a is None:
-		a = jnp.log(1 + K)
-	b = jnp.sqrt((a - 1) * (a - 2) * jnp.mean(y)/N)
-	relevance = (mu + jnp.sum(lam, axis=-1) + b)/(K + 2 + a)
-
-	return 1/relevance
-
-def update_lam_ARD(y, lam, tar_matrix, mu, lam_mask, shape, rate, relevance_vector):
-	return backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, newton_penalty=relevance_vector)
+	penalty = (jnp.sum(mu) + jnp.sum(lam) + b)/(N + N*K + a + 1)
+	return penalty
 
 @partial(jit, static_argnums=(6))
-def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=5):
+def update_mu_L1(y, mu, lam, shape, rate, penalty, n_hals_loops=5):
 	N = mu.shape[0]
 	noise_var = rate/shape
 	for it in range(n_hals_loops):
