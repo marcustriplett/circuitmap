@@ -71,7 +71,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	shape_hist 		= jnp.zeros((iters, K))
 	rate_hist 		= jnp.zeros((iters, K))
 	z_hist 			= jnp.zeros((iters, K))
-	penalty_hist 	= jnp.zeros((iters, N))
+	penalty_hist 	= jnp.zeros(iters)
 
 	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist, penalty_hist]
 
