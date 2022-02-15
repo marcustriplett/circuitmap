@@ -738,7 +738,7 @@ class Model:
 		rate 		= np.array(rate)
 		z 			= np.array(z)
 		rfs         = np.array(rfs)
-		relevance 	= np.array(relevance)
+		penalty 	= np.array(penalty)
 
 		## history vectors
 		mu_hist 		= np.array(mu_hist)
@@ -747,7 +747,7 @@ class Model:
 		shape_hist 		= np.array(shape_hist)
 		rate_hist 		= np.array(rate_hist)
 		z_hist 			= np.array(z_hist)
-		relevance_hist 	= np.array(relevance_hist)
+		penalty_hist 	= np.array(penalty_hist)
 
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta
@@ -756,7 +756,7 @@ class Model:
 		self.state['lam'] 		= lam
 		self.state['z'] 		= z
 		self.state['rfs']       = rfs
-		self.state['relevance'] = relevance
+		self.state['penalty'] = penalty
 		self.trial_count 		= lam.shape[1]
 		self.time 				= t_end - t_start
 
@@ -768,5 +768,5 @@ class Model:
 			'shape': shape_hist,
 			'rate': rate_hist,
 			'z': z_hist,
-			'relevance': relevance_hist
+			'penalty': penalty_hist
 		}
