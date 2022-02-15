@@ -166,20 +166,20 @@ def update_mu_ARD(y, mu, lam, shape, rate, penalty, n_hals_loops=5):
 
 @jit
 def objective(y, u, v, pen, noise_var):
-    return 1/noise_var * (y - u @ v)**2 + pen * jnp.sum(v)
+    return 1/(2*noise_var) * (y - u @ v)**2 + pen * jnp.sum(v)
 
 @jit
 def objective_with_barrier(y, u, v, pen, noise_var, t, mask):
-    return 1/noise_var * (y - (u * mask) @ v)**2 + jnp.sum(pen * jnp.abs(v)) - 1/t * jnp.sum(jnp.log(v * (1 - v)))
+    return 1/(2*noise_var) * (y - (u * mask) @ v)**2 + jnp.sum(pen * jnp.abs(v)) - 1/t * jnp.sum(jnp.log(v * (1 - v)))
 
 @jit
 def grad_fn(y, u, v, pen, noise_var, t, mask):
     u_mask = u * mask
-    return -2/noise_var * (y - u_mask @ v) * u_mask + pen - 1/t * (1 - 2*v)/(v * (1 - v))
+    return -1/noise_var * (y - u_mask @ v) * u_mask + pen - 1/t * (1 - 2*v)/(v * (1 - v))
 
 @jit
 def hess_fn(y, u, v, noise_var, t, mask):
-    return jnp.diag(2/noise_var * (u * mask)**2 + 1/t * (2 + (1 - 2*v)**2)/(v * (1 - v)))
+    return jnp.diag(1/noise_var * (u * mask)**2 + 1/t * (2 + (1 - 2*v)**2)/(v * (1 - v)))
 
 @partial(jit, static_argnums=(6, 7, 8, 9))
 def inner_newton(y, spks, mask, mu, pen, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta, eps=1e-5):
