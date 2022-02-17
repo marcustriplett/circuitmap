@@ -86,8 +86,9 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
 		for _ in range(lam_iters):
+			update_order = jax.random.choice(key, N, [N], replace=False)
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
-				phi, phi_cov, lam_mask, key, num_mc_samples, N)
+				phi, phi_cov, lam_mask, key, num_mc_samples, N, update_order)
 		if learn_noise:
 			shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
@@ -100,13 +101,6 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 				# lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]) + disc_cells[n] * 1e-1)
 			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor, penalty=penalty)
 			spont_rate = np.mean(z != 0.)
-
-			## Filter connection vector via opsin expression threshold
-			# phi_expand = phi[:, 0][0] * jnp.ones((N, K)) # does NOT select first element, instead selects entire vector
-			# mu = jnp.where(phi[:, 0] >= phi_thresh, mu, 0.) * (it > phi_thresh_delay) + mu * (it <= phi_thresh_delay)
-			# for n in range(N):
-			# 	lam = index_update(lam, n, (phi[n, 0] >= phi_thresh) * lam[n]) * (it > phi_thresh_delay) \
-			# 	+ lam * (it <= phi_thresh_delay)
 
 		for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
@@ -218,7 +212,7 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
 	return scope.alpha
 
 @jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
-def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N):
+def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, update_order):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	K = I.shape[1]
@@ -235,7 +229,8 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, 
 		scope.mc_samps = jnp.zeros((num_mc_samples, 2), dtype=float)
 		scope.mcE = jnp.zeros(K)
 
-		for n in scope.range(N):
+		for m in scope.range(N):
+			n = update_order[n]
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1)
 			scope.arg = -2 * y * mu[n] * alpha[n] + 2 * mu[n] * alpha[n] * jnp.sum(jnp.expand_dims(mu[scope.mask] * alpha[scope.mask], 1) * scope.lam[scope.mask], 0) \
 			+ (mu[n]**2 + beta[n]**2) * alpha[n]
