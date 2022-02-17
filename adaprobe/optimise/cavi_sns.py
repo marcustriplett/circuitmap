@@ -230,7 +230,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, 
 		scope.mcE = jnp.zeros(K)
 
 		for m in scope.range(N):
-			n = update_order[n]
+			n = update_order[m]
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1)
 			scope.arg = -2 * y * mu[n] * alpha[n] + 2 * mu[n] * alpha[n] * jnp.sum(jnp.expand_dims(mu[scope.mask] * alpha[scope.mask], 1) * scope.lam[scope.mask], 0) \
 			+ (mu[n]**2 + beta[n]**2) * alpha[n]
