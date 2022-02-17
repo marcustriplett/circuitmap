@@ -16,6 +16,9 @@ from jax.config import config; config.update("jax_enable_x64", True)
 from jax.experimental import loops
 from tqdm import trange
 
+# optimization routines
+from adaprobe.optimise.pava import simultaneous_isotonic_regression
+
 EPS = 1e-10
 
 def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
@@ -65,14 +68,14 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	cpus = jax.devices('cpu')
 	gpus = jax.devices('gpu')
 
-	mu_hist 	= jax.device_put(jnp.zeros((iters, N)), cpus[0])
-	beta_hist 	= jax.device_put(jnp.zeros((iters, N)), cpus[0])
-	alpha_hist 	= jax.device_put(jnp.zeros((iters, N)), cpus[0])
-	lam_hist 	= jax.device_put(jnp.zeros((iters, N, K)), cpus[0])
-	shape_hist 	= jax.device_put(jnp.zeros(iters), cpus[0])
-	rate_hist 	= jax.device_put(jnp.zeros(iters), cpus[0])
-	phi_hist  	= jax.device_put(jnp.zeros((iters, N, 2)), cpus[0])
-	phi_cov_hist = jax.device_put(jnp.zeros((iters, N, 2, 2)), cpus[0])
+	mu_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
+	beta_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
+	alpha_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
+	lam_hist 	= jax.device_put(np.zeros((iters, N, K)), cpus[0])
+	shape_hist 	= jax.device_put(np.zeros(iters), cpus[0])
+	rate_hist 	= jax.device_put(np.zeros(iters), cpus[0])
+	phi_hist  	= jax.device_put(np.zeros((iters, N, 2)), cpus[0])
+	phi_cov_hist = jax.device_put(np.zeros((iters, N, 2, 2)), cpus[0])
 	z_hist = jax.device_put(np.zeros((iters, K)), cpus[0])
 	
 	hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
@@ -80,7 +83,6 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 
 	# init key
 	key = jax.random.PRNGKey(seed)
-
 
 	# Iterate CAVI updates
 	# for it in range(iters):
@@ -132,11 +134,12 @@ def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 			if locs.shape[0] > 0:
 				inferred_spk_probs[n, p + 1] = np.mean(lam[n, locs])
 
-		isotonic_regressor.fit(powers, inferred_spk_probs[n])
-		receptive_field[n] = isotonic_regressor.f_(powers)
-		if isotonic_regressor.f_(powers[-1]) < minimax_spk_prob:
-			disc_cells[n] = 1.
-		# disc_cells = np.where(receptive_field[:, -1] < minimax_spk_prob)[0]
+		# isotonic_regressor.fit(powers, inferred_spk_probs[n])
+		# receptive_field[n] = isotonic_regressor.f_(powers)
+	
+	receptive_field = simultaneous_isotonic_regression(powers,
+		inferred_spk_probs, y_min=0.0, y_max=1.0)
+	disc_cells = receptive_field[:,-1] < minimax_spk_prob
 
 	return receptive_field, disc_cells
 

@@ -31,7 +31,7 @@ def simultaneous_isotonic_regression(X, Ys, y_min=0, y_max=1):
     Y_preds = vmap(_isotonic_regression, in_axes=(0, None))(Y_s, jnp.ones_like(Y_s[0,:]))
     return jnp.clip(Y_preds, a_min=y_min, a_max=y_max)
 
-@jit
+
 def _isotonic_regression(y, weight):
 
     def true_fun(args):
