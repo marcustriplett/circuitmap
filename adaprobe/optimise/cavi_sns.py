@@ -120,7 +120,7 @@ def update_noise(y, mu, beta, lam, key, noise_scale=0.5, num_mc_samples=10):
 	key, _ = jax.random.split(key)
 	# s_samps = (np.random.rand(num_mc_samples, N, K) <= lam[None, :, :]).astype(float)
 
-	mc_ws_sq = jnp.mean((w_samps[..., jnp.newaxis] * s_samps)**2, axis=0)
+	mc_ws_sq = jnp.mean(jnp.sum((w_samps[..., jnp.newaxis] * s_samps)**2, axis=1), axis=0)
 	# mc_ws_sq = np.mean([(w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
 
 	mc_recon_err = jnp.mean((y - jnp.sum(w_samps[..., jnp.newaxis] * s_samps, axis=1))**2, axis=0)
