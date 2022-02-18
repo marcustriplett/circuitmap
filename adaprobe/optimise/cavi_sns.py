@@ -47,8 +47,6 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	N = mu_prior.shape[0]
 	K = y.shape[0]
 
-	# with loops.Scope() as scope:
-
 	# Declare scope types
 	mu 		= jnp.array(mu_prior)
 	beta 		= jnp.array(beta_prior)
@@ -57,7 +55,6 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
-	# lam 		= jnp.zeros((N, K))
 	phi_expand = jnp.ones((N, K))
 	z 			= np.zeros(K)
 	rfs = None # prevent error when num-iters < phi_thresh_delay
@@ -89,6 +86,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 				phi, phi_cov, lam_mask, key, num_mc_samples, N)
 		shape, rate, key = update_noise(y, mu, beta, lam, key, noise_scale=noise_scale, num_mc_samples=num_mc_samples)
+		print(shape.shape)
+		print(rate.shape)
 		# if learn_noise:
 		# 	shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
@@ -101,6 +100,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 				# lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]) + disc_cells[n] * 1e-1)
 			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor, penalty=penalty)
 			spont_rate = np.mean(z != 0.)
+
 
 		for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
