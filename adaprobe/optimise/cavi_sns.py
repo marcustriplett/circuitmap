@@ -107,7 +107,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, rfs, *hist_arrs
 
-@partial(jit, static_argnums=(6))
+@jax.partial(jit, static_argnums=(6))
 def update_noise(y, mu, beta, lam, key, noise_scale=0.5, num_mc_samples=10):
 	N, K = lam.shape
 	std = beta * (mu != 0)
