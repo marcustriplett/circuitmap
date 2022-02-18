@@ -78,19 +78,18 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	# init key
 	key = jax.random.PRNGKey(seed)
 
-
 	# Iterate CAVI updates
 	# for it in range(iters):
 	for it in trange(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
-		mu = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
-		alpha = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N)
+		mu, key = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key)
+		alpha, key = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key)
 		for _ in range(lam_iters):
-			update_order = jax.random.choice(key, N, [N], replace=False)
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
-				phi, phi_cov, lam_mask, key, num_mc_samples, N, update_order)
-		if learn_noise:
-			shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
+				phi, phi_cov, lam_mask, key, num_mc_samples, N)
+		shape, rate, key = update_noise(y, mu, beta, lam, key, noise_scale=noise_scale, num_mc_samples=num_mc_samples)
+		# if learn_noise:
+		# 	shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_thresh_delay:
@@ -106,6 +105,29 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, rfs, *hist_arrs
+
+@jit
+def update_noise(y, mu, beta, lam, key, noise_scale=0.5, num_mc_samples=10):
+	N, K = lam.shape
+	std = beta * (mu != 0)
+
+	w_samps = mu + std * jax.random.normal(key, [num_mc_samples, N])
+	key, _ = jax.random.split(key)
+	# w_samps = np.random.normal(mu, std, [num_mc_samples, N])
+
+	s_samps = (jax.random.uniform(key, [num_mc_samples, N, K]) <= lam) * 1.0
+	key, _ = jax.random.split(key)
+	# s_samps = (np.random.rand(num_mc_samples, N, K) <= lam[None, :, :]).astype(float)
+
+	mc_ws_sq = jnp.mean((w_samps[..., jnp.newaxis] * s_samps)**2, axis=0)
+	# mc_ws_sq = np.mean([(w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
+
+	mc_recon_err = jnp.mean((y - jnp.sum(w_samps[..., jnp.newaxis] * s_samps, axis=1))**2, axis=0)
+	# mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
+
+	shape = noise_scale**2 * mc_ws_sq + 1/2
+	rate = noise_scale * mu @ lam + 1/2 * mc_recon_err + 1e-5
+	return shape, rate, key
 
 def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 	N, K = _lam.shape
@@ -127,7 +149,6 @@ def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 		receptive_field[n] = isotonic_regressor.f_(powers)
 		if isotonic_regressor.f_(powers[-1]) < minimax_spk_prob:
 			disc_cells[n] = 1.
-		# disc_cells = np.where(receptive_field[:, -1] < minimax_spk_prob)[0]
 
 	return receptive_field, disc_cells
 
@@ -176,21 +197,21 @@ def update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask, penalty=
 		
 	return z
 
-
 @jit
 def update_beta(alpha, lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(shape/rate * alpha * jnp.sum(lam, 1) + 1/(beta_prior**2))
 
 @jax.partial(jit, static_argnums=(9))
-def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
+def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key):
 	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
-
 	sig = shape/rate
+	update_order = jax.random.choice(key, N, [N], replace=False)
 	with loops.Scope() as scope:
 		scope.mu = mu
 		scope.mask = jnp.zeros(N - 1, dtype=int)
 		scope.all_ids = jnp.arange(N)
-		for n in scope.range(N):
+		for m in scope.range(N):
+			n = update_order[m]
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1)
 			scope.mu = index_update(scope.mu, n, (beta[n]**2) * (sig * alpha[n] * jnp.dot(y, lam[n]) - sig * alpha[n] \
 				* jnp.dot(lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask] * alpha[scope.mask], 1) * lam[scope.mask], 0)) \
@@ -198,13 +219,15 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
 	return scope.mu
 
 @jax.partial(jit, static_argnums=(8))
-def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
+def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
+	update_order = jax.random.choice(key, N, [N], replace=False)
 	with loops.Scope() as scope:
 		scope.alpha = alpha
 		scope.arg = 0.
 		scope.mask = jnp.zeros(N - 1, dtype=int)
 		scope.all_ids = jnp.arange(N)
-		for n in scope.range(N):
+		for m in scope.range(N):
+			n = update_order[m]
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1) 
 			scope.arg = -2 * mu[n] * jnp.dot(y, lam[n]) + 2 * mu[n] * jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[scope.mask] * scope.alpha[scope.mask], 1) \
 				* lam[scope.mask], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(lam[n])
@@ -212,10 +235,12 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N):
 	return scope.alpha
 
 @jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
-def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, update_order):
+def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	K = I.shape[1]
+	update_order = jax.random.choice(key, N, [N], replace=False)
+
 	with loops.Scope() as scope:
 		
 		# declare within-scope types
