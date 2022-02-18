@@ -64,8 +64,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	beta_hist 	= jnp.zeros((iters, N))
 	alpha_hist 	= jnp.zeros((iters, N))
 	lam_hist 	= jnp.zeros((iters, N, K))
-	shape_hist 	= jnp.zeros((iters, K))
-	rate_hist 	= jnp.zeros((iters, K))
+	shape_hist 	= jnp.zeros(iters)
+	rate_hist 	= jnp.zeros(iters)
 	phi_hist  	= jnp.zeros((iters, N, 2))
 	phi_cov_hist = jnp.zeros((iters, N, 2, 2))
 	z_hist = np.zeros((iters, K))
@@ -85,11 +85,11 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		for _ in range(lam_iters):
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 				phi, phi_cov, lam_mask, key, num_mc_samples, N)
-		shape, rate, key = update_noise(y, mu, beta, lam, key, noise_scale=noise_scale, num_mc_samples=num_mc_samples)
-		print(shape.shape)
-		print(rate.shape)
+		# shape, rate, key = update_noise(y, mu, beta, lam, key, noise_scale=noise_scale, num_mc_samples=num_mc_samples)
+		# print(shape.shape)
+		# print(rate.shape)
 		# if learn_noise:
-		# 	shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
+		shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_thresh_delay:
