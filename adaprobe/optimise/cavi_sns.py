@@ -85,7 +85,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		for _ in range(lam_iters):
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 				phi, phi_cov, lam_mask, key, num_mc_samples, N)
-		shape, rate, key = update_noise(y, mu, beta, lam, key, noise_scale=noise_scale, num_mc_samples=num_mc_samples)
+		shape, rate, key = update_noise(y, mu, beta, alpha, lam, key, noise_scale=noise_scale, num_mc_samples=num_mc_samples)
 		# if learn_noise:
 		# shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
