@@ -106,11 +106,14 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, rfs, *hist_arrs
 
 @jax.partial(jit, static_argnums=(6))
-def update_noise(y, mu, beta, lam, key, noise_scale=0.5, num_mc_samples=10):
+def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=10):
 	N, K = lam.shape
 	std = beta * (mu != 0)
 
-	w_samps = mu + std * jax.random.normal(key, [num_mc_samples, N])
+	alpha_samps = (jax.random.uniform(key, [num_mc_samples, N]) <= alpha) * 1.0
+	key, _ = jax.random.split(key)
+
+	w_samps = (mu + std * jax.random.normal(key, [num_mc_samples, N])) * alpha_samps
 	key, _ = jax.random.split(key)
 	# w_samps = np.random.normal(mu, std, [num_mc_samples, N])
 
@@ -125,7 +128,7 @@ def update_noise(y, mu, beta, lam, key, noise_scale=0.5, num_mc_samples=10):
 	# mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
 
 	shape = noise_scale**2 * mc_ws_sq + 1/2
-	rate = noise_scale * mu @ lam + 1/2 * mc_recon_err + 1e-5
+	rate = noise_scale * (mu * alpha) @ lam + 1/2 * mc_recon_err + 1e-5
 	return shape, rate, key
 
 def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
