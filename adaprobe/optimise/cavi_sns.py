@@ -99,8 +99,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 			rfs, disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob + spont_rate)
 			for n in range(N):
 				alpha = index_update(alpha, n, alpha[n] * (1. - disc_cells[n]) + disc_cells[n] * disc_strength) # strongly believes cell is disconnected
-				# mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]))
-				# lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]) + disc_cells[n] * 1e-1)
+				mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]) + disc_cells[n] * disc_strength)
+				lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]) + disc_cells[n] * disc_strength)
 			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor, penalty=penalty)
 			spont_rate = np.mean(z != 0.)
 
