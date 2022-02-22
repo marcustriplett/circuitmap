@@ -55,20 +55,21 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	rate 		= rate_prior
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
-	phi_expand 	= jnp.ones((N, K))
 	z 			= np.zeros(K)
-	rfs = None # prevent error when num-iters < phi_thresh_delay
+	rfs 		= None # prevent error when num-iters < phi_thresh_delay
 
 	# Define history arrays
-	mu_hist 	= jnp.zeros((iters, N))
-	beta_hist 	= jnp.zeros((iters, N))
-	alpha_hist 	= jnp.zeros((iters, N))
-	lam_hist 	= jnp.zeros((iters, N, K))
-	shape_hist 	= jnp.zeros((iters, K))
-	rate_hist 	= jnp.zeros((iters, K))
-	phi_hist  	= jnp.zeros((iters, N, 2))
-	phi_cov_hist = jnp.zeros((iters, N, 2, 2))
-	z_hist = np.zeros((iters, K))
+	cpus = jax.devices('cpu')
+	# jax.device_put(np.zeros((iters, N)), cpus[0])
+	mu_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
+	beta_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
+	alpha_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
+	lam_hist 	= jax.device_put(np.zeros((iters, N, K)), cpus[0])
+	shape_hist 	= jax.device_put(np.zeros((iters, K)), cpus[0])
+	rate_hist 	= jax.device_put(np.zeros((iters, K)), cpus[0])
+	phi_hist  	= jax.device_put(np.zeros((iters, N, 2)), cpus[0])
+	phi_cov_hist = jax.device_put(np.zeros((iters, N, 2, 2)), cpus[0])
+	z_hist 		= jax.device_put(np.zeros((iters, K)), cpus[0])
 	
 	hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist, z_hist]
