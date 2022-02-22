@@ -26,7 +26,7 @@ def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prio
 	K = y.shape[0]
 	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
 
-	lam = np.zeros_like(I) 
+	lam = np.zeros_like(I)
 	lam[I > 0] = 0.95
 	lam = lam * lam_mask
 
@@ -77,7 +77,6 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	key = jax.random.PRNGKey(seed)
 
 	# Iterate CAVI updates
-	# for it in range(iters):
 	for it in trange(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
 		mu, key = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key)
@@ -85,7 +84,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		for _ in range(lam_iters):
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 				phi, phi_cov, lam_mask, key, num_mc_samples, N)
-			
+
 		if noise_update == 'iid':
 			shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		elif noise_update == 'trial-wise':
@@ -268,7 +267,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, 
 			n = update_order[m]
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1)
 			scope.arg = -2 * sig * y * mu[n] * alpha[n] + 2 * mu[n] * alpha[n] * jnp.sum(sig * jnp.expand_dims(mu[scope.mask] * alpha[scope.mask], 1) * scope.lam[scope.mask], 0) \
-			+ (mu[n]**2 + beta[n]**2) * alpha[n]
+			+ sig * (mu[n]**2 + beta[n]**2) * alpha[n]
 
 			# sample truncated normals
 			scope.key, scope.key_next = jax.random.split(scope.key)
