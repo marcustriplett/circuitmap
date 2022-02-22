@@ -21,7 +21,7 @@ EPS = 1e-10
 def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, learn_noise=False, phi_thresh=None,
 	phi_thresh_delay=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=2e1, lam_iters=1, disc_strength=0.05,
-	noise_scale=0.5):
+	noise_scale=0.5, noise_update='iid'):
 	y = np.trapz(y_psc, axis=-1)
 	K = y.shape[0]
 	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
@@ -32,12 +32,12 @@ def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prio
 
 	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, scale_factor, penalty,
-	lam_iters, disc_strength, noise_scale)
+	lam_iters, disc_strength, noise_scale, noise_update)
 
 # @jax.partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob,
-	scale_factor, penalty, lam_iters, disc_strength, noise_scale):
+	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -85,9 +85,14 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		for _ in range(lam_iters):
 			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 				phi, phi_cov, lam_mask, key, num_mc_samples, N)
-		shape, rate, key = update_noise(y, mu, beta, alpha, lam, key, noise_scale=noise_scale, num_mc_samples=num_mc_samples)
-		# if learn_noise:
-		# shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
+			
+		if noise_update == 'iid':
+			shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
+		elif noise_update == 'trial-wise':
+			shape, rate, key = update_noise(y, mu, beta, alpha, lam, key, noise_scale=noise_scale, num_mc_samples=num_mc_samples)
+		else:
+			raise Exception
+
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_thresh_delay:
