@@ -51,8 +51,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	mu 			= jnp.array(mu_prior)
 	beta 		= jnp.array(beta_prior)
 	alpha 		= jnp.array(alpha_prior)
-	shape 		= 	shape_prior
-	rate 		= rate_prior
+	shape 		= jnp.array(shape_prior)
+	rate 		= jnp.array(rate_prior)
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
 	z 			= np.zeros(K)
