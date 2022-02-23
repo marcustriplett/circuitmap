@@ -35,8 +35,8 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=10, connection_prob=0.05, po
 		powers = np.sort(powers)[::-1] # prioritise filling in higher powers
 		while K < trials:
 			neuron_order = np.random.choice(N, N, replace=False)
-			holos = [neuron_order[i*H: (i+1)*H] for i in range(int(np.ceil(N/H)))]
-			for (power, holo, rep) in itertools.product(powers, holos, range(nreps)):
+			holos = [neuron_order[i*H: (i+1)*H] for i in range(int(np.ceil(N/H)))] # H-spot holograms
+			for (power, holo, rep) in itertools.product(powers, holos, range(nreps)): # loop through repetitions first
 				if K >= trials:
 					break
 				stim_trial = np.zeros(N)
@@ -44,7 +44,7 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=10, connection_prob=0.05, po
 				stim_matrix += [stim_trial]
 				K += 1
 
-		reorder = np.random.choice(K, K, replace=False)
+		reorder = np.random.choice(K, K, replace=False) # shuffle trials
 		stim_matrix = np.array(stim_matrix).T
 		stim_matrix = stim_matrix[:, reorder]
 
