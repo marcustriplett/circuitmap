@@ -19,7 +19,7 @@ from tqdm import trange
 EPS = 1e-10
 
 def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, learn_noise=False, phi_thresh=None,
+	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, learn_noise=False, phi_thresh=None, minimum_spike_count=3,
 	phi_thresh_delay=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=2e1, lam_iters=1, disc_strength=0.05,
 	noise_scale=0.5, noise_update='iid'):
 	y = np.trapz(y_psc, axis=-1)
@@ -31,12 +31,12 @@ def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prio
 	lam = lam * lam_mask
 
 	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, scale_factor, penalty,
-	lam_iters, disc_strength, noise_scale, noise_update)
+	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, minimum_spike_count, 
+	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update)
 
 # @jax.partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob,
+	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, minimum_spike_count
 	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
@@ -96,7 +96,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_thresh_delay:
-			rfs, disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob + spont_rate)
+			rfs, disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
 			for n in range(N):
 				alpha = index_update(alpha, n, alpha[n] * (1. - disc_cells[n]) + disc_cells[n] * disc_strength) # strongly believes cell is disconnected
 				mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]) + disc_cells[n] * disc_strength)
@@ -136,7 +136,7 @@ def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=1
 	rate = noise_scale * (mu * alpha) @ lam + 1/2 * mc_recon_err + 1e-5
 	return shape, rate, key
 
-def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
+def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3, minimum_spike_count=3):
 	N, K = _lam.shape
 	lam = np.array(_lam) # convert to ndarray
 	powers = np.unique(I) # includes zero
@@ -154,7 +154,7 @@ def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3):
 
 		isotonic_regressor.fit(powers, inferred_spk_probs[n])
 		receptive_field[n] = isotonic_regressor.f_(powers)
-		if isotonic_regressor.f_(powers[-1]) < minimax_spk_prob:
+		if isotonic_regressor.f_(powers[-1]) < minimax_spk_prob or np.sum(inferred_spk_probs[n]) < minimum_spike_count:
 			disc_cells[n] = 1.
 
 	return receptive_field, disc_cells
