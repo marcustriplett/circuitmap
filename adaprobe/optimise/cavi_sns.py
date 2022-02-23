@@ -17,7 +17,7 @@ from jax.config import config; config.update("jax_enable_x64", True)
 from jax.experimental import loops
 from tqdm import trange
 
-from optimise.pava import _isotonic_regression
+from .pava import _isotonic_regression
 
 EPS = 1e-10
 
