@@ -119,6 +119,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_prob=0.3):
     disc_cells = np.where(mu == 0.)[0]
     powers = np.unique(stim_matrix)[1:] # skip zero power
+    z = np.array(z)
     
     print('Examining %i cells for false negatives...'%len(disc_cells))
     while len(disc_cells) > 0:
