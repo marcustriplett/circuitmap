@@ -140,10 +140,10 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_p
             # Passes pava condition, reconnect cell
             print('Reconnecting cell %i with maximal pava spike rate %.2f'%(focus, pava))
             z_locs = np.intersect1d(np.where(stim_matrix[focus])[0], np.where(z)[0])
-            mu[focus] = np.mean(z[z_locs])
-            beta[focus] = np.std(z[z_locs])
-            alpha[focus] = 1.
-            lam[focus, z_locs] = 1.
+            mu = index_update(mu, focus, np.mean(z[z_locs]))
+            beta = index_update(beta, focus, np.std(z[z_locs]))
+            alpha = index_update(alpha, focus, 1.)
+            lam = index_update(lam, (focus, z_locs), 1.)
             z[z_locs] = 0. # delete events from spont vector
 
         disc_cells = np.delete(disc_cells, focus_indx)
