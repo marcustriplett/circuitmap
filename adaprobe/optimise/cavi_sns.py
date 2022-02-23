@@ -190,7 +190,7 @@ def update_isotonic_receptive_field(lam, stim_matrix, minimax_spk_prob=0.3, mini
 
 	for n in range(N):
 		for p, power in enumerate(powers):
-			locs = np.where(I[n] == power)[0]
+			locs = np.where(stim_matrix[n] == power)[0]
 			if locs.shape[0] > 0:
 				inferred_spk_probs = index_update(inferred_spk_probs, (n, p + 1), jnp.mean(lam[n, locs]))
 
