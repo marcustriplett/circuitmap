@@ -154,7 +154,7 @@ def update_isotonic_receptive_field(_lam, I, minimax_spk_prob=0.3, minimum_spike
 
 		isotonic_regressor.fit(powers, inferred_spk_probs[n])
 		receptive_field[n] = isotonic_regressor.f_(powers)
-		if isotonic_regressor.f_(powers[-1]) < minimax_spk_prob or np.sum(inferred_spk_probs[n]) < minimum_spike_count:
+		if isotonic_regressor.f_(powers[-1]) < minimax_spk_prob or np.sum(lam[n]) < minimum_spike_count:
 			disc_cells[n] = 1.
 
 	return receptive_field, disc_cells
