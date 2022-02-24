@@ -204,7 +204,7 @@ def update_isotonic_receptive_field(lam, stim_matrix, powers, minimax_spk_prob=0
 	disc_cells = jnp.zeros(N)
 	inf_spike_rates = eval_spike_rates(stim_matrix, lam, powers)
 	receptive_field = simultaneous_isotonic_regression(powers, inf_spike_rates)
-	disc_cells = (receptive_field[:, -1] < minimax_spk_prob) or (jnp.sum(lam, axis=1) < minimum_spike_count)
+	disc_cells = receptive_field[:, -1] < minimax_spk_prob #or (jnp.sum(lam, axis=1) < minimum_spike_count)
 	return receptive_field, disc_cells
 
 def update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask, penalty=2e1, scale_factor=0.5, max_penalty_iters=50, verbose=False, 
