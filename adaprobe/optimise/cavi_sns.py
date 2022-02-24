@@ -186,7 +186,6 @@ def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=1
 # @jit
 def update_isotonic_receptive_field(lam, stim_matrix, powers, minimax_spk_prob=0.3, minimum_spike_count=3):
 	N, K = lam.shape
-	stim_matrix = np.array(stim_matrix)
 	# lam = np.array(_lam) # convert to ndarray
 	# powers = jnp.unique(stim_matrix)[1:] # discard zero
 	n_powers = powers.shape[0]
