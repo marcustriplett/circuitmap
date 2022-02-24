@@ -131,6 +131,8 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_p
 		focus_indx = np.argmax([len(sl) for sl in stim_locs])
 		focus = disc_cells[focus_indx]
 
+		print('stim_locs[focus_indx]: ', stim_locs[focus_indx])
+
 		# Check pava condition
 		srates = np.zeros_like(powers)
 		for i, p in enumerate(powers):
