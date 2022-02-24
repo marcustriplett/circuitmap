@@ -148,6 +148,7 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_p
 			z[z_locs] = 0. # delete events from spont vector
 
 		disc_cells = np.delete(disc_cells, focus_indx)
+		print('deleting cell %i from reconnection candidates'%focus)
 
 	print('Cell reconnection complete.')
 
