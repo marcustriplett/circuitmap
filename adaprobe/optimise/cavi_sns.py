@@ -134,9 +134,9 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_p
 		# Check pava condition
 		srates = np.zeros_like(powers)
 		for i, p in enumerate(powers):
-			mean_z = np.mean(z[np.where(stim_matrix[focus] == p)[0]] != 0)
-			if not np.isnan(mean_z):
-				srates[i] = mean_z
+			z_locs = np.where(stim_matrix[focus] == p)[0]
+			if len(z_locs) > 0:
+				srates[i] = np.mean(z[z_locs] != 0)
 		pava = _isotonic_regression(srates, np.ones_like(srates))[-1]
 		
 		if pava >= minimax_spk_prob:
