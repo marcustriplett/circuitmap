@@ -86,9 +86,9 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
 		mu, key = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key)
 		alpha, key = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key)
-		for _ in range(lam_iters):
-			lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
-				phi, phi_cov, lam_mask, key, num_mc_samples, N)
+		# for _ in range(lam_iters):
+		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
+			phi, phi_cov, lam_mask, key, num_mc_samples, N)
 
 		if noise_update == 'iid':
 			shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
@@ -100,14 +100,9 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_thresh_delay:
-			rfs, disc_cells = update_isotonic_receptive_field(lam, I, powers, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
-			for n in range(N):
-				alpha = index_update(alpha, n, alpha[n] * (1. - disc_cells[n]) + disc_cells[n] * disc_strength) # strongly believes cell is disconnected
-				mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]) + disc_cells[n] * disc_strength)
-				lam = index_update(lam, n, lam[n] * (1. - disc_cells[n]) + disc_cells[n] * 0.)
+			receptive_fields, disc_cells, alpha, mu, lam = update_isotonic_receptive_field(lam, I, powers, mu, alpha, lam, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
 			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor, penalty=penalty)
 			spont_rate = np.mean(z != 0.)
-
 
 		for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
@@ -115,7 +110,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	mu, beta, alpha, lam, z = reconnect_spont_cells(y, I, lam, mu, alpha, beta, z, minimax_spk_prob=minimax_spk_prob)
 	(phi, phi_cov), _ = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
-	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, rfs, *hist_arrs
+	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, receptive_fields, *hist_arrs
 
 def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_prob=0.3):
 	disc_cells = np.where(mu == 0.)[0]
@@ -197,15 +192,20 @@ def _eval_spike_rates(stimv, lamv, powers):
 eval_spike_rates = jit(vmap(_eval_spike_rates, in_axes=(0, 0, None)))
 
 @jit
-def update_isotonic_receptive_field(lam, stim_matrix, powers, minimax_spk_prob=0.3, minimum_spike_count=3):
+def update_isotonic_receptive_field(lam, stim_matrix, powers, mu, alpha, lam, minimax_spk_prob=0.3, minimum_spike_count=3, disc_strength=0.):
 	N, K = lam.shape
 	n_powers = powers.shape[0]
 	inferred_spk_probs = jnp.zeros((N, n_powers))
 	disc_cells = jnp.zeros(N)
 	inf_spike_rates = eval_spike_rates(stim_matrix, lam, powers)
-	receptive_field = simultaneous_isotonic_regression(powers, inf_spike_rates)
-	disc_cells = receptive_field[:, -1] < minimax_spk_prob #or (jnp.sum(lam, axis=1) < minimum_spike_count)
-	return receptive_field, disc_cells
+	receptive_fields = simultaneous_isotonic_regression(powers, inf_spike_rates)
+	disc_cells = receptive_fields[:, -1] < minimax_spk_prob #or (jnp.sum(lam, axis=1) < minimum_spike_count)
+
+	alpha = alpha * (1. - disc_cells) + disc_strength * disc_cells
+	mu = mu * (1. - disc_cells) + disc_strength * disc_cells
+	lam = lam * (1. - disc_cells) + disc_strength * disc_cells
+
+	return receptive_fields, disc_cells, alpha, mu, lam
 
 def update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask, penalty=2e1, scale_factor=0.5, max_penalty_iters=50, verbose=False, 
 	orthogonal=True, tol=0.05):
