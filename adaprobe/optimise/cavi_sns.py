@@ -203,7 +203,7 @@ def update_isotonic_receptive_field(lam, stim_matrix, powers, mu, alpha, minimax
 
 	alpha = alpha * (1. - disc_cells) + disc_strength * disc_cells
 	mu = mu * (1. - disc_cells) + disc_strength * disc_cells
-	lam = lam * (1. - disc_cells)[:, jnp.newaxis] + disc_strength * disc_cells
+	lam = lam * ((1. - disc_cells)[:, jnp.newaxis]) + (disc_strength * disc_cells)[:, jnp.newaxis]
 
 	return receptive_fields, disc_cells, alpha, mu, lam
 
