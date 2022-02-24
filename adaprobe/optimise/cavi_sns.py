@@ -186,21 +186,22 @@ def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=1
 # @jit
 def update_isotonic_receptive_field(lam, stim_matrix, powers, minimax_spk_prob=0.3, minimum_spike_count=3):
 	N, K = lam.shape
-	stim_matrix = jnp.array(stim_matrix)
+	stim_matrix = np.array(stim_matrix)
 	# lam = np.array(_lam) # convert to ndarray
 	# powers = jnp.unique(stim_matrix)[1:] # discard zero
 	n_powers = powers.shape[0]
-	inferred_spk_probs = jnp.zeros((N, n_powers))
+	inferred_spk_probs = np.zeros((N, n_powers))
 	# isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
-	disc_cells = jnp.zeros(N)
+	disc_cells = np.zeros(N)
 	# receptive_field = jnp.zeros((N, n_powers))
-	jones = jnp.ones(n_powers)
+	jones = np.ones(n_powers)
 
 	for n in range(N):
 		for p, power in enumerate(powers):
-			locs = jnp.where(stim_matrix[n] == power)[0]
+			locs = np.where(stim_matrix[n] == power)[0]
 			if locs.shape[0] > 0:
-				inferred_spk_probs = index_update(inferred_spk_probs, (n, p + 1), jnp.mean(lam[n, locs]))
+				# inferred_spk_probs = index_update(inferred_spk_probs, (n, p + 1), jnp.mean(lam[n, locs]))
+				inferred_spk_probs[n, p + 1] = jnp.mean(lam[n, locs])
 
 		# isotonic_regressor.fit(powers, inferred_spk_probs[n])
 		# receptive_field[n] = isotonic_regressor.f_(powers)
@@ -209,8 +210,10 @@ def update_isotonic_receptive_field(lam, stim_matrix, powers, minimax_spk_prob=0
 	receptive_field = simultaneous_isotonic_regression(powers, inferred_spk_probs)
 
 	# if receptive_field[n, -1] < minimax_spk_prob or jnp.sum(lam[n]) < minimum_spike_count:
-	disc_locs = jnp.unique(np.concatenate([jnp.where(receptive_field[:, -1] < minimax_spk_prob)[0], jnp.where(jnp.sum(lam, axis=1) < minimum_spike_count)[0]]))
-	disc_cells = index_update(disc_cells, disc_locs, 1.)
+	
+	disc_locs = np.unique(np.concatenate([np.where(receptive_field[:, -1] < minimax_spk_prob)[0], np.where(np.sum(lam, axis=1) < minimum_spike_count)[0]]))
+	disc_cells[disc_locs] = 1.
+
 	# for n in range(N):
 		# disc_cells = index_update(disc_cells, n, (receptive_field[n, -1] < minimax_spk_prob) * (jnp.sum(lam[n]) < minimum_spike_count) * 1.)
 
