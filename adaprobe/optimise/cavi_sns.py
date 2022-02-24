@@ -183,9 +183,10 @@ def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=1
 	rate = noise_scale * (mu * alpha) @ lam + 1/2 * mc_recon_err + 1e-5
 	return shape, rate, key
 
-@jit
+# @jit
 def update_isotonic_receptive_field(lam, stim_matrix, powers, minimax_spk_prob=0.3, minimum_spike_count=3):
 	N, K = lam.shape
+	stim_matrix = jnp.array(stim_matrix)
 	# lam = np.array(_lam) # convert to ndarray
 	# powers = jnp.unique(stim_matrix)[1:] # discard zero
 	n_powers = powers.shape[0]
@@ -208,10 +209,10 @@ def update_isotonic_receptive_field(lam, stim_matrix, powers, minimax_spk_prob=0
 	receptive_field = simultaneous_isotonic_regression(powers, inferred_spk_probs)
 
 	# if receptive_field[n, -1] < minimax_spk_prob or jnp.sum(lam[n]) < minimum_spike_count:
-	# disc_locs = jnp.unique(np.concatenate([jnp.where(receptive_field[:, -1] < minimax_spk_prob)[0], jnp.where(jnp.sum(lam, axis=1) < minimum_spike_count)[0]]))
-	for n in range(N):
-		disc_cells = index_update(disc_cells, n, (receptive_field[n, -1] < minimax_spk_prob) * (jnp.sum(lam[n]) < minimum_spike_count) * 1.)
-	# disc_cells = index_update(disc_cells, disc_locs, 1.)
+	disc_locs = jnp.unique(np.concatenate([jnp.where(receptive_field[:, -1] < minimax_spk_prob)[0], jnp.where(jnp.sum(lam, axis=1) < minimum_spike_count)[0]]))
+	disc_cells = index_update(disc_cells, disc_locs, 1.)
+	# for n in range(N):
+		# disc_cells = index_update(disc_cells, n, (receptive_field[n, -1] < minimax_spk_prob) * (jnp.sum(lam[n]) < minimum_spike_count) * 1.)
 
 	return receptive_field, disc_cells
 
