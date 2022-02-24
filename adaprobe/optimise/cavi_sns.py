@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.isotonic import IsotonicRegression
+# from sklearn.isotonic import IsotonicRegression
 
 
 # Jax imports
@@ -17,7 +17,7 @@ from jax.config import config; config.update("jax_enable_x64", True)
 from jax.experimental import loops
 from tqdm import trange
 
-from .pava import _isotonic_regression
+from .pava import _isotonic_regression, simultaneous_isotonic_regression
 
 EPS = 1e-10
 
@@ -198,10 +198,12 @@ def update_isotonic_receptive_field(lam, stim_matrix, minimax_spk_prob=0.3, mini
 		# isotonic_regressor.fit(powers, inferred_spk_probs[n])
 		# receptive_field[n] = isotonic_regressor.f_(powers)
 
-		receptive_field = index_update(receptive_field, n, _isotonic_regression(inferred_spk_probs[n], jones))
+	# receptive_field = index_update(receptive_field, n, _isotonic_regression(inferred_spk_probs[n], jones))
+	receptive_field = simultaneous_isotonic_regression(powers, inferred_spk_probs)
 
-		if receptive_field[n, -1] < minimax_spk_prob or jnp.sum(lam[n]) < minimum_spike_count:
-			disc_cells[n] = 1.
+	# if receptive_field[n, -1] < minimax_spk_prob or jnp.sum(lam[n]) < minimum_spike_count:
+	disc_locs = np.unique(np.concatenate([np.where(receptive_field[:, -1] < minimax_spk_prob)[0], np.where(jnp.sum(lam, axis=1))[0]]))
+	disc_cells[disc_locs] = 1.
 
 	return receptive_field, disc_cells
 
