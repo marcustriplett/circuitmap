@@ -131,12 +131,12 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_p
 		focus_indx = np.argmax([len(sl) for sl in stim_locs])
 		focus = disc_cells[focus_indx]
 
-		print('stim_locs[focus_indx]: ', stim_locs[focus_indx])
-
 		# Check pava condition
 		srates = np.zeros_like(powers)
 		for i, p in enumerate(powers):
-			srates[i] = np.mean(z[np.where(stim_matrix[focus] == p)[0]] != 0)
+			mean_z = np.mean(z[np.where(stim_matrix[focus] == p)[0]] != 0)
+			if not np.isnan(mean_z):
+				srates[i] = mean_z
 		pava = _isotonic_regression(srates, np.ones_like(srates))[-1]
 		
 		if pava >= minimax_spk_prob:
@@ -151,7 +151,6 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_p
 			z[z_locs] = 0. # delete events from spont vector
 
 		disc_cells = np.delete(disc_cells, focus_indx)
-		print('deleting cell %i from reconnection candidates'%focus)
 
 	print('Cell reconnection complete.')
 
