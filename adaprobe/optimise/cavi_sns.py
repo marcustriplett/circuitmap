@@ -100,7 +100,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_thresh_delay:
-			receptive_fields, disc_cells, alpha, mu, lam = update_isotonic_receptive_field(lam, I, powers, mu, alpha, lam, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
+			receptive_fields, disc_cells, alpha, mu, lam = update_isotonic_receptive_field(lam, I, powers, mu, alpha, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
 			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor, penalty=penalty)
 			spont_rate = np.mean(z != 0.)
 
@@ -192,7 +192,7 @@ def _eval_spike_rates(stimv, lamv, powers):
 eval_spike_rates = jit(vmap(_eval_spike_rates, in_axes=(0, 0, None)))
 
 @jit
-def update_isotonic_receptive_field(lam, stim_matrix, powers, mu, alpha, lam, minimax_spk_prob=0.3, minimum_spike_count=3, disc_strength=0.):
+def update_isotonic_receptive_field(lam, stim_matrix, powers, mu, alpha, minimax_spk_prob=0.3, minimum_spike_count=3, disc_strength=0.):
 	N, K = lam.shape
 	n_powers = powers.shape[0]
 	inferred_spk_probs = jnp.zeros((N, n_powers))
