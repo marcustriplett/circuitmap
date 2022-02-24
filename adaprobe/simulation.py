@@ -12,7 +12,7 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=10, connection_prob=0.05, po
 			frac_strongly_connected=0.2, strong_weight_lower=20, strong_weight_upper=40, weak_exp_mean=4, min_weight=5, phi_0_lower=0.2, phi_0_upper=0.25,
 			phi_1_lower=10, phi_1_upper=15, mult_noise_log_var=0.01, tau_r_min=25, tau_r_max=60, tau_delta_min=75, 
 			tau_delta_max=250, weights=None, kernel=None, phi_0=None, phi_1=None, gp_scale=4e-3, gp_lengthscale=50, spont_prob=0.05,
-			design='random'):
+			design='random', max_power_min_spike_rate=0.):
 	
 	assert design in ['random', 'blockwise']
 
@@ -79,6 +79,18 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=10, connection_prob=0.05, po
 	spks = (np.random.rand(N, K) <= frates).astype(float)
 	noise = np.random.normal(0, sigma, [K, T])
 	mult_noise = np.random.lognormal(0, mult_noise_log_var, [N, K])
+
+	# Pad spikes to ensure min spike rate at maximal power is met
+	max_power = np.max(powers)
+	for n in range(N):
+		locs = np.where(stim_matrix[n] == max_power)[0]
+		fr = np.mean(spks[n, locs])
+		fr_diff = max_power_min_spike_rate - fr
+		if fr_diff > 0:
+			# condition not met
+			zero_locs = np.where(spks[n, locs] == 0)[0]
+			req_spks = int(np.ceil(fr_diff * locs.shape[0]))
+			spks[n, locs[np.random.choice(zero_locs, req_spks, replace=False)]] = 1.
 	
 	spk_times = np.zeros((N, K))
 	for n in range(N):
