@@ -117,39 +117,41 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, rfs, *hist_arrs
 
 def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_prob=0.3):
-    disc_cells = np.where(mu == 0.)[0]
-    powers = np.unique(stim_matrix)[1:] # skip zero power
-    z = np.array(z)
-    
-    print('Examining %i cells for false negatives...'%len(disc_cells))
-    while len(disc_cells) > 0:
-        stim_locs = []
-        for n in disc_cells:
-            stim_locs += [np.where(z[np.where(stim_matrix[n])[0]])[0]]
+	disc_cells = np.where(mu == 0.)[0]
+	powers = np.unique(stim_matrix)[1:] # skip zero power
+	z = np.array(z)
+	
+	print('Examining %i cells for false negatives...'%len(disc_cells))
+	while len(disc_cells) > 0:
+		stim_locs = []
+		for n in disc_cells:
+			stim_locs += [np.where(z[np.where(stim_matrix[n])[0]])[0]]
 
-        # Focus on cell with largest number of associated spikes
-        focus_indx = np.argmax([len(sl) for sl in stim_locs])
-        focus = disc_cells[focus_indx]
+		# Focus on cell with largest number of associated spikes
+		focus_indx = np.argmax([len(sl) for sl in stim_locs])
+		focus = disc_cells[focus_indx]
 
-        # Check pava condition
-        srates = np.zeros_like(powers)
-        for i, p in enumerate(powers):
-            srates[i] = np.mean(z[np.where(stim_matrix[focus] == p)[0]] != 0)
-        pava = _isotonic_regression(srates, np.ones_like(srates))[-1]
-        
-        if pava >= minimax_spk_prob:
-            # Passes pava condition, reconnect cell
-            print('Reconnecting cell %i with maximal pava spike rate %.2f'%(focus, pava))
-            z_locs = np.intersect1d(np.where(stim_matrix[focus])[0], np.where(z)[0])
-            mu = index_update(mu, focus, np.mean(z[z_locs]))
-            beta = index_update(beta, focus, np.std(z[z_locs]))
-            alpha = index_update(alpha, focus, 1.)
-            lam = index_update(lam, (focus, z_locs), 1.)
-            z[z_locs] = 0. # delete events from spont vector
+		# Check pava condition
+		srates = np.zeros_like(powers)
+		for i, p in enumerate(powers):
+			srates[i] = np.mean(z[np.where(stim_matrix[focus] == p)[0]] != 0)
+		pava = _isotonic_regression(srates, np.ones_like(srates))[-1]
+		
+		if pava >= minimax_spk_prob:
+			# Passes pava condition, reconnect cell
+			print('Reconnecting cell %i with maximal pava spike rate %.2f'%(focus, pava))
+			z_locs = np.intersect1d(np.where(stim_matrix[focus])[0], np.where(z)[0])
+			mu = index_update(mu, focus, np.mean(z[z_locs]))
+			beta = index_update(beta, focus, np.std(z[z_locs]))
+			alpha = index_update(alpha, focus, 1.)
+			lam = index_update(lam, (focus, z_locs), 1.)
+			z[z_locs] = 0. # delete events from spont vector
 
-        disc_cells = np.delete(disc_cells, focus_indx)
-        
-    return mu, beta, alpha, lam, z # then update phi
+		disc_cells = np.delete(disc_cells, focus_indx)
+
+	print('Cell reconnection complete.')
+
+	return mu, beta, alpha, lam, z # then update phi
 
 
 @jax.partial(jit, static_argnums=(7))
@@ -186,7 +188,7 @@ def update_isotonic_receptive_field(lam, stim_matrix, minimax_spk_prob=0.3, mini
 	inferred_spk_probs = jnp.zeros((N, n_powers))
 	# isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
 	disc_cells = np.zeros(N)
-	receptive_field = jnp.zeros((N, n_powers))
+	# receptive_field = jnp.zeros((N, n_powers))
 	jones = jnp.ones(n_powers)
 
 	for n in range(N):
