@@ -185,17 +185,17 @@ def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=1
 def update_isotonic_receptive_field(lam, stim_matrix, minimax_spk_prob=0.3, minimum_spike_count=3):
 	N, K = lam.shape
 	# lam = np.array(_lam) # convert to ndarray
-	powers = np.unique(stim_matrix)[1:] # discard zero
+	powers = jnp.unique(stim_matrix)[1:] # discard zero
 	n_powers = len(powers)
 	inferred_spk_probs = jnp.zeros((N, n_powers))
 	# isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
-	disc_cells = np.zeros(N)
+	disc_cells = jnp.zeros(N)
 	# receptive_field = jnp.zeros((N, n_powers))
 	jones = jnp.ones(n_powers)
 
 	for n in range(N):
 		for p, power in enumerate(powers):
-			locs = np.where(stim_matrix[n] == power)[0]
+			locs = jnp.where(stim_matrix[n] == power)[0]
 			if locs.shape[0] > 0:
 				inferred_spk_probs = index_update(inferred_spk_probs, (n, p + 1), jnp.mean(lam[n, locs]))
 
@@ -206,7 +206,7 @@ def update_isotonic_receptive_field(lam, stim_matrix, minimax_spk_prob=0.3, mini
 	receptive_field = simultaneous_isotonic_regression(powers, inferred_spk_probs)
 
 	# if receptive_field[n, -1] < minimax_spk_prob or jnp.sum(lam[n]) < minimum_spike_count:
-	disc_locs = np.unique(np.concatenate([np.where(receptive_field[:, -1] < minimax_spk_prob)[0], np.where(jnp.sum(lam, axis=1))[0]]))
+	disc_locs = jnp.unique(np.concatenate([jnp.where(receptive_field[:, -1] < minimax_spk_prob)[0], jnp.where(jnp.sum(lam, axis=1))[0]]))
 	disc_cells[disc_locs] = 1.
 
 	return receptive_field, disc_cells
