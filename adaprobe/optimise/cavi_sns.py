@@ -49,6 +49,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	# Initialise new params
 	N = mu_prior.shape[0]
 	K = y.shape[0]
+	powers = np.unique(I)[1:]
 
 	# Declare scope types
 	mu 			= jnp.array(mu_prior)
@@ -99,7 +100,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_thresh_delay:
-			rfs, disc_cells = update_isotonic_receptive_field(lam, I, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
+			rfs, disc_cells = update_isotonic_receptive_field(lam, I, powers, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
 			for n in range(N):
 				alpha = index_update(alpha, n, alpha[n] * (1. - disc_cells[n]) + disc_cells[n] * disc_strength) # strongly believes cell is disconnected
 				mu = index_update(mu, n, mu[n] * (1. - disc_cells[n]) + disc_cells[n] * disc_strength)
@@ -183,11 +184,11 @@ def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=1
 	return shape, rate, key
 
 @jit
-def update_isotonic_receptive_field(lam, stim_matrix, minimax_spk_prob=0.3, minimum_spike_count=3):
+def update_isotonic_receptive_field(lam, stim_matrix, powers, minimax_spk_prob=0.3, minimum_spike_count=3):
 	N, K = lam.shape
 	# lam = np.array(_lam) # convert to ndarray
-	powers = jnp.unique(stim_matrix)[1:] # discard zero
-	n_powers = len(powers)
+	# powers = jnp.unique(stim_matrix)[1:] # discard zero
+	n_powers = powers.shape[0]
 	inferred_spk_probs = jnp.zeros((N, n_powers))
 	# isotonic_regressor = IsotonicRegression(y_min=0, y_max=1, increasing=True)
 	disc_cells = jnp.zeros(N)
