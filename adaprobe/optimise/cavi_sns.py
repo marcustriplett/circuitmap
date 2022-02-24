@@ -201,7 +201,7 @@ def update_isotonic_receptive_field(lam, stim_matrix, powers, minimax_spk_prob=0
 			locs = np.where(stim_matrix[n] == power)[0]
 			if locs.shape[0] > 0:
 				# inferred_spk_probs = index_update(inferred_spk_probs, (n, p + 1), jnp.mean(lam[n, locs]))
-				inferred_spk_probs[n, p + 1] = jnp.mean(lam[n, locs])
+				inferred_spk_probs[n, p] = jnp.mean(lam[n, locs])
 
 		# isotonic_regressor.fit(powers, inferred_spk_probs[n])
 		# receptive_field[n] = isotonic_regressor.f_(powers)
@@ -210,7 +210,7 @@ def update_isotonic_receptive_field(lam, stim_matrix, powers, minimax_spk_prob=0
 	receptive_field = simultaneous_isotonic_regression(powers, inferred_spk_probs)
 
 	# if receptive_field[n, -1] < minimax_spk_prob or jnp.sum(lam[n]) < minimum_spike_count:
-	
+
 	disc_locs = np.unique(np.concatenate([np.where(receptive_field[:, -1] < minimax_spk_prob)[0], np.where(np.sum(lam, axis=1) < minimum_spike_count)[0]]))
 	disc_cells[disc_locs] = 1.
 
