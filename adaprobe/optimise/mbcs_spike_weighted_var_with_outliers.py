@@ -28,12 +28,12 @@ from jax.experimental import loops
 EPS = 1e-10
 
 def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, iters=50, 
-	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, scale_factor=0.5, max_penalty_iters=10, 
+	num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=5e0, scale_factor=0.5, max_penalty_iters=10, 
 	max_lasso_iters=100, warm_start_lasso=True, constrain_weights='positive', verbose=False, 
 	learn_noise=False, init_lam=None, learn_lam=True, delay_spont_estimation=1, minimum_spike_count=1, noise_scale=0.5, 
 	num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, orthogonal_outliers=True, outlier_penalty=5e1, 
-	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05, lam_iters=1,
-	newton_iters=20, lam_update='variational_inference', n_hals_loops=10, penalty_a=1, penalty_b=1):
+	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05, lam_iters=1, newton_penalty=1e1,
+	newton_iters=20, newton_penalty_shrinkage_iters=5, lam_update='variational_inference'):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -46,7 +46,11 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 
 	# Initialise new params
 	N = mu_prior.shape[0]
+	mu = np.random.lognormal(1, 1, N)
 
+	# Declare scope types
+	# mu 			= jnp.array(mu_prior)
+	mu 			= jnp.array(mu)
 	beta 		= jnp.array(beta_prior)
 	shape 		= shape_prior
 	rate 		= rate_prior
@@ -60,9 +64,6 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	lam 		= jnp.array(lam) # move to DeviceArray
 	tar_matrix 	= (I != 0.)
 
-	lam = jnp.where(lam < 1e-5, 1e-5, lam)
-	lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
-
 	# Define history arrays
 	# % Will need to be disabled for very large matrices
 	mu_hist 		= jnp.zeros((iters, N))
@@ -71,9 +72,8 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	shape_hist 		= jnp.zeros((iters, K))
 	rate_hist 		= jnp.zeros((iters, K))
 	z_hist 			= jnp.zeros((iters, K))
-	penalty_hist 	= jnp.zeros(iters)
 
-	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist, penalty_hist]
+	hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, z_hist]
 
 	# init key
 	key = jax.random.PRNGKey(seed)
@@ -81,33 +81,30 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	# init spike prior
 	spike_prior = lam.copy()
 
-	# init mu
-	lin = LinearRegression(fit_intercept=False, positive=True)
-	lin.fit(lam.T, y)
-	mu = jnp.array(lin.coef_)
-
 	# Iterate CAVI updates
 	for it in tqdm(range(iters), desc='CAVI', leave=True):
-		
-		lam = jnp.where(lam < 1e-5, 1e-5, lam)
-		lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
+		beta = update_beta(lam, shape, rate, beta_prior)
+		# ignore z during mu and lam updates
+		print('Updating mu')
+		mu, lam = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
+			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
+			constrain_weights=constrain_weights, verbose=verbose)
+		print()
 
-		lam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, 1/penalty, iters=20, barrier_iters=5, t=1e0,
-			barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75)
+		if lam_update == 'variational_inference':
+			update_order = np.random.choice(N, N, replace=False)
+			for _ in range(lam_iters):
+				lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
 
-		print('lam: ', lam)
-
-		lam = jnp.where(lam < 1e-5, 1e-5, lam)
-		lam = jnp.where(lam > 1 - 1e-5, 1 - 1e-5, lam)
-
-		mu = update_mu_L1(y, mu, lam, shape, rate, 1/penalty, n_hals_loops=n_hals_loops)
-		print('mu: ', mu)
+		elif lam_update == 'L1':
+			lam = jnp.where(lam < 1e-5, 1e-5, lam)
+			lam = update_lam_backtracking_newton(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=newton_penalty, scale_factor=scale_factor, 
+				max_penalty_iters=newton_penalty_shrinkage_iters, barrier_iters=5, t=1e0, barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05,
+				backtrack_beta=0.75, verbose=verbose, newton_iters=newton_iters)
 
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
 		shape, rate = update_noise(y, mu, beta, lam, noise_scale=noise_scale, num_mc_samples=num_mc_samples_noise_model)
-
-		penalty = update_penalty(y, mu, lam, a=penalty_a, b=penalty_b)
 
 		if it > delay_spont_estimation:
 			z = update_z_l1_with_residual_tolerance(y, mu, lam, lam_mask, penalty=outlier_penalty, scale_factor=scale_factor,
@@ -116,57 +113,39 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 			spont_rate = np.mean(z != 0)
 
 		# record history
-		for hindx, pa in enumerate([mu, beta, lam, shape, rate, z, penalty]):
+		for hindx, pa in enumerate([mu, beta, lam, shape, rate, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
 	print()
-	return mu, beta, lam, shape, rate, z, rfs, penalty, *hist_arrs
+	return mu, beta, lam, shape, rate, z, rfs, *hist_arrs
 
 @jit
-def update_penalty(y, mu, lam, a=1, b=1):
-	N, K = lam.shape
-	penalty = (jnp.sum(mu) + jnp.sum(lam) + b)/(N + N*K + a + 1)
-	return penalty
-
-@partial(jit, static_argnums=(6))
-def update_mu_L1(y, mu, lam, shape, rate, penalty, n_hals_loops=5):
-	N = mu.shape[0]
-	noise_var = rate/shape
-	for it in range(n_hals_loops):
-		err = y - mu @ lam # should this be recomputed below?
-		for n in range(N):
-			residue = err + mu[n] * lam[n]
-			mu = index_update(mu, n, (jnp.sum(1/noise_var * residue * lam[n]) - penalty)/(jnp.sum(1/noise_var * lam[n]**2) + EPS))
-			mu = index_update(mu, n, jnp.max(jnp.array([mu[n], 0.])))
-	return mu
+def objective(y, u, v, lam):
+    return (y - u @ v)**2 + lam * jnp.sum(v)
 
 @jit
-def objective(y, u, v, pen, noise_var):
-    return 1/(2*noise_var) * (y - u @ v)**2 + pen * jnp.sum(v)
+def objective_with_barrier(y, u, v, lam, t, mask):
+    return (y - (u * mask) @ v)**2 + lam * jnp.sum(jnp.abs(v)) - 1/t * jnp.sum(jnp.log(v * (1 - v)))
 
 @jit
-def objective_with_barrier(y, u, v, pen, noise_var, t, mask):
-    return 1/(2*noise_var) * (y - (u * mask) @ v)**2 + jnp.sum(pen * jnp.abs(v)) - 1/t * jnp.sum(jnp.log(v * (1 - v)))
-
-@jit
-def grad_fn(y, u, v, pen, noise_var, t, mask):
+def grad_fn(y, u, v, lam, t, mask):
     u_mask = u * mask
-    return -1/noise_var * (y - u_mask @ v) * u_mask + pen - 1/t * (1 - 2*v)/(v * (1 - v))
+    return -2 * (y - u_mask @ v) * u_mask + lam - 1/t * (1 - 2*v)/(v * (1 - v))
 
 @jit
-def hess_fn(y, u, v, noise_var, t, mask):
-    return jnp.diag(1/noise_var * (u * mask)**2 + 1/t * (2 + (1 - 2*v)**2)/(v * (1 - v)))
+def hess_fn(y, u, v, t, mask):
+    return jnp.diag(2 * (u * mask)**2 + 1/t * (2 + (1 - 2*v)**2)/(v * (1 - v)))
 
 @partial(jit, static_argnums=(6, 7, 8, 9))
-def inner_newton(y, spks, mask, mu, pen, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta, eps=1e-5):
+def inner_newton(y, spks, mask, weights, lam, t, max_backtrack_iters, backtrack_alpha, backtrack_beta, eps=1e-5):
 	step = 1
-	J = grad_fn(y, mu, spks, pen, noise_var, t, mask)
-	H = hess_fn(y, mu, spks, noise_var, t, mask)
+	J = grad_fn(y, weights, spks, lam, t, mask)
+	H = hess_fn(y, weights, spks, t, mask)
 	H_inv = jnp.diag(1/jnp.diag(H))
 	search_dir = -H_inv @ J
 	for bit in range(max_backtrack_iters):
-		lhs = objective_with_barrier(y, mu, spks + step * search_dir, pen, noise_var, t, mask)
-		rhs = objective_with_barrier(y, mu, spks, pen, noise_var, t, mask) + backtrack_alpha * step * J @ search_dir
+		lhs = objective_with_barrier(y, weights, spks + step * search_dir, lam, t, mask)
+		rhs = objective_with_barrier(y, weights, spks, lam, t, mask) + backtrack_alpha * step * J @ search_dir
 		cond = jnp.min(jnp.array([(lhs > rhs) + jnp.isnan(lhs), 1])) # go condition
 		step = step * backtrack_beta * cond + step * (1 - cond)
 	spks += step * search_dir
@@ -174,14 +153,14 @@ def inner_newton(y, spks, mask, mu, pen, noise_var, t, max_backtrack_iters, back
 	spks = jnp.where(spks < eps, eps, spks)
 	return spks
 
-inner_newton_vmap = vmap(inner_newton, in_axes=(0, 1, 1, None, None, 0, None, None, None, None))
+inner_newton_vmap = vmap(inner_newton, in_axes=(0, 1, 1, None, None, None, None, None, None))
 
-def backtracking_newton_with_vmap(y, spks, tar_matrix, mu, lam_mask, shape, rate, newton_penalty, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
+def backtracking_newton_with_vmap(y, spks, tar_matrix, weights, lam_mask, newton_penalty=1e2, iters=20, barrier_iters=5, t=1e0, barrier_multiplier=1e1, 
 						max_backtrack_iters=20, backtrack_alpha=0.05, backtrack_beta=0.75):
-	noise_var = rate/shape
+	
 	for barrier_it in range(barrier_iters):
 		for it in range(iters):
-			spks = inner_newton_vmap(y, spks, tar_matrix, mu, newton_penalty, noise_var, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
+			spks = inner_newton_vmap(y, spks, tar_matrix, weights, newton_penalty, t, max_backtrack_iters, backtrack_alpha, backtrack_beta).T
 		t *= barrier_multiplier
 
 	return spks * lam_mask
@@ -202,7 +181,7 @@ def update_lam_backtracking_newton(y, lam, tar_matrix, mu, lam_mask, shape, rate
 			print('penalty iter: ', it)
 			print('current penalty: ', penalty)
 
-		nlam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, shape, rate, newton_penalty=penalty, iters=newton_iters, barrier_iters=barrier_iters,
+		nlam = backtracking_newton_with_vmap(y, lam, tar_matrix, mu, lam_mask, newton_penalty=penalty, iters=newton_iters, barrier_iters=barrier_iters,
 			t=t, barrier_multiplier=barrier_multiplier, max_backtrack_iters=max_backtrack_iters, backtrack_alpha=backtrack_alpha, backtrack_beta=backtrack_beta)
 
 		err = np.sqrt(np.sum(np.square(y - mu @ nlam)))
@@ -436,8 +415,8 @@ def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, l
 			mask = jnp.array(np.delete(all_ids, n)).squeeze()
 			arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
 			+ (mu[n]**2 + beta[n]**2)
-			# lam = index_update(lam, n, lam_mask * (I[n] > 0) * (mu[n] != 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
-			lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
+			lam = index_update(lam, n, lam_mask * (I[n] > 0) * (mu[n] != 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
+			# lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
 
 	return lam
 
