@@ -1,6 +1,4 @@
 import numpy as np
-# from sklearn.isotonic import IsotonicRegression
-
 
 # Jax imports
 import jax
@@ -161,17 +159,12 @@ def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=1
 
 	w_samps = (mu + std * jax.random.normal(key, [num_mc_samples, N])) * alpha_samps
 	key, _ = jax.random.split(key)
-	# w_samps = np.random.normal(mu, std, [num_mc_samples, N])
 
 	s_samps = (jax.random.uniform(key, [num_mc_samples, N, K]) <= lam) * 1.0
 	key, _ = jax.random.split(key)
-	# s_samps = (np.random.rand(num_mc_samples, N, K) <= lam[None, :, :]).astype(float)
 
 	mc_ws_sq = jnp.mean(jnp.sum((w_samps[..., jnp.newaxis] * s_samps)**2, axis=1), axis=0)
-	# mc_ws_sq = np.mean([(w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
-
 	mc_recon_err = jnp.mean((y - jnp.sum(w_samps[..., jnp.newaxis] * s_samps, axis=1))**2, axis=0)
-	# mc_recon_err = np.mean([(y - w_samps[i] @ s_samps[i])**2 for i in range(num_mc_samples)], axis=0)
 
 	shape = noise_scale**2 * mc_ws_sq + 1/2
 	rate = noise_scale * (mu * alpha) @ lam + 1/2 * mc_recon_err + 1e-5

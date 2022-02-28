@@ -85,22 +85,13 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	for it in tqdm(range(iters), desc='CAVI', leave=True):
 		beta = update_beta(lam, shape, rate, beta_prior)
 		# ignore z during mu and lam updates
-		print('Updating mu')
 		mu, lam = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 
 			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
 			constrain_weights=constrain_weights, verbose=verbose)
-		print()
 
-		if lam_update == 'variational_inference':
-			update_order = np.random.choice(N, N, replace=False)
-			for _ in range(lam_iters):
-				lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
-
-		elif lam_update == 'L1':
-			lam = jnp.where(lam < 1e-5, 1e-5, lam)
-			lam = update_lam_backtracking_newton(y, lam, tar_matrix, mu, lam_mask, shape, rate, penalty=newton_penalty, scale_factor=scale_factor, 
-				max_penalty_iters=newton_penalty_shrinkage_iters, barrier_iters=5, t=1e0, barrier_multiplier=1e1, max_backtrack_iters=20, backtrack_alpha=0.05,
-				backtrack_beta=0.75, verbose=verbose, newton_iters=newton_iters)
+		update_order = np.random.choice(N, N, replace=False)
+		for _ in range(lam_iters):
+			lam = update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, lam_mask, update_order, spike_prior, num_mc_samples, N)
 
 		receptive_field, spike_prior = update_isotonic_receptive_field(lam, I)
 		mu, lam = isotonic_filtering(mu, lam, I, receptive_field, minimum_spike_count=minimum_spike_count, minimum_maximal_spike_prob=minimum_maximal_spike_prob + spont_rate)
@@ -116,7 +107,6 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, z]):
 			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
-	print()
 	return mu, beta, lam, shape, rate, z, rfs, *hist_arrs
 
 @jit
