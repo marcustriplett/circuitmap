@@ -191,7 +191,7 @@ def update_isotonic_receptive_field(lam, stim_matrix, powers, mu, alpha, minimax
 	disc_cells = jnp.zeros(N)
 	inf_spike_rates = eval_spike_rates(stim_matrix, lam, powers)
 	receptive_fields = simultaneous_isotonic_regression(powers, inf_spike_rates)
-	disc_cells = receptive_fields[:, -1] < minimax_spk_prob #or (jnp.sum(lam, axis=1) < minimum_spike_count)
+	disc_cells = jnp.logical_or(receptive_fields[:, -1] < minimax_spk_prob, jnp.sum(lam, axis=1) < minimum_spike_count)
 
 	alpha = alpha * (1. - disc_cells) + disc_strength * disc_cells
 	mu = mu * (1. - disc_cells) + disc_strength * disc_cells
