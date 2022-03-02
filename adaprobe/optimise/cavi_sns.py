@@ -22,7 +22,7 @@ EPS = 1e-10
 def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, learn_noise=False, phi_thresh=None, minimum_spike_count=3,
 	phi_thresh_delay=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=2e1, lam_iters=1, disc_strength=0.05,
-	noise_scale=0.5, noise_update='iid'):
+	noise_scale=0.5, noise_update='iid', save_histories=True):
 	y = np.trapz(y_psc, axis=-1)
 	K = y.shape[0]
 	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
@@ -33,12 +33,12 @@ def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prio
 
 	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, minimum_spike_count, 
-	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update)
+	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update, save_histories)
 
 # @jax.partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, minimum_spike_count,
-	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update):
+	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update, save_histories):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -58,24 +58,28 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
 	z 			= np.zeros(K)
-	rfs 		= None # prevent error when num-iters < phi_thresh_delay
+	receptive_fields = None # prevent error when num-iters < phi_thresh_delay
 
 	# Define history arrays
-	cpus = jax.devices('cpu')
 
-	mu_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
-	beta_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
-	alpha_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
-	lam_hist 	= jax.device_put(np.zeros((iters, N, K)), cpus[0])
-	shape_hist 	= jax.device_put(np.zeros((iters, K)), cpus[0])
-	rate_hist 	= jax.device_put(np.zeros((iters, K)), cpus[0])
-	phi_hist  	= jax.device_put(np.zeros((iters, N, 2)), cpus[0])
-	phi_cov_hist = jax.device_put(np.zeros((iters, N, 2, 2)), cpus[0])
-	z_hist 		= jax.device_put(np.zeros((iters, K)), cpus[0])
-	
-	hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
-		phi_hist, phi_cov_hist, z_hist]
+	if save_histories:
+		cpus = jax.devices('cpu')
 
+		mu_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
+		beta_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
+		alpha_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
+		lam_hist 	= jax.device_put(np.zeros((iters, N, K)), cpus[0])
+		shape_hist 	= jax.device_put(np.zeros((iters, K)), cpus[0])
+		rate_hist 	= jax.device_put(np.zeros((iters, K)), cpus[0])
+		phi_hist  	= jax.device_put(np.zeros((iters, N, 2)), cpus[0])
+		phi_cov_hist = jax.device_put(np.zeros((iters, N, 2, 2)), cpus[0])
+		z_hist 		= jax.device_put(np.zeros((iters, K)), cpus[0])
+		
+		hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+			phi_hist, phi_cov_hist, z_hist]
+	else:
+		hist_arrs = [None]*9
+		
 	# init key
 	key = jax.random.PRNGKey(seed)
 
@@ -100,9 +104,9 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 			receptive_fields, disc_cells, alpha, mu, lam = update_isotonic_receptive_field(lam, I, powers, mu, alpha, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
 			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor, penalty=penalty)
 			spont_rate = np.mean(z != 0.)
-
-		for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov, z]):
-			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
+		if save_histories:
+			for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov, z]):
+				hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
 	mu, beta, alpha, lam, z = reconnect_spont_cells(y, I, lam, mu, alpha, beta, z, minimax_spk_prob=minimax_spk_prob)
 	(phi, phi_cov), _ = update_phi(lam, I, phi_prior, phi_cov_prior, key)
