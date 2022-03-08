@@ -47,7 +47,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	# Initialise new params
 	N = mu_prior.shape[0]
 	K = y.shape[0]
-	powers = np.unique(I)[1:]
+	powers = jnp.array(np.unique(I)[1:])
 
 	# Declare scope types
 	mu 			= jnp.array(mu_prior)
@@ -175,15 +175,19 @@ def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=1
 def _eval_spike_rates(stimv, lamv, powers):
 	K = stimv.shape[0]
 	Krange = jnp.arange(K)
-	inf_spike_rates = jnp.zeros(powers.shape[0])
-	for p, power in enumerate(powers):
-		locs = jnp.where(stimv == power, Krange, -1)
-		mask = (locs >= 0)
-		sr = jnp.sum(lamv[locs] * mask)/jnp.sum(mask)
-		inf_spike_rates = index_update(inf_spike_rates, p, sr)
-	return inf_spike_rates
+	npowers = powers.shape[0]
+	inf_spike_rates = jnp.zeros(npowers)
+	with loops.Scope() as scope:
+		scope.inf_spike_rates = jnp.zeros(npowers)
+		for p in scope.range(npowers):
+			power = powers[p]
+			locs = jnp.where(stimv == power, Krange, -1)
+			mask = (locs >= 0)
+			sr = jnp.sum(lamv[locs] * mask)/(jnp.sum(mask) + 1e-4 * (jnp.sum(mask) == 0.))
+			scope.inf_spike_rates = index_update(scope.inf_spike_rates, p, sr)
+	return scope.inf_spike_rates
 
-eval_spike_rates = jit(vmap(_eval_spike_rates, in_axes=(0, 0, None)))
+eval_spike_rates = vmap(_eval_spike_rates, in_axes=(0, 0, None))
 
 @jit
 def update_isotonic_receptive_field(lam, stim_matrix, powers, mu, alpha, minimax_spk_prob=0.3, minimum_spike_count=3, disc_strength=0.):
