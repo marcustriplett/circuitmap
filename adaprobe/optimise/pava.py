@@ -31,7 +31,6 @@ def simultaneous_isotonic_regression(X, Ys, y_min=0, y_max=1):
 	Y_preds = vmap(_isotonic_regression, in_axes=(0, None))(Y_s, jnp.ones_like(Y_s[0,:]))
 	return jnp.clip(Y_preds, a_min=y_min, a_max=y_max)
 
-
 def _isotonic_regression(y, weight):
 
     def true_fun(args):
@@ -73,7 +72,6 @@ def _isotonic_regression(y, weight):
         s.numerator = 0.0
         s.denominator = 0.0
         
-
         for _ in s.while_range(lambda:
             jnp.logical_and(s.pooled > 0, jnp.logical_not(s.exit_early))):
             s.exit_early = False

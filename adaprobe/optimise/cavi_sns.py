@@ -89,7 +89,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		mu, key = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key)
 		alpha, key = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key)
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
-			phi, phi_cov, lam_mask, key, num_mc_samples, N)
+			phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, minimum_spike_count, minimax_spk_prob + spont_rate)
 
 		if noise_update == 'iid':
 			shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
@@ -101,7 +101,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if it > phi_thresh_delay:
-			receptive_fields, disc_cells, alpha, mu, lam = update_isotonic_receptive_field(lam, I, powers, mu, alpha, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
+			# receptive_fields, disc_cells, alpha, mu, lam = update_isotonic_receptive_field(lam, I, powers, mu, alpha, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
 			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor, penalty=penalty)
 			spont_rate = np.mean(z != 0.)
 		if save_histories:
@@ -294,8 +294,8 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
 	key, _ = jax.random.split(key)
 	return scope.alpha, key
 
-@jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
-def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N):
+@jax.partial(jit, static_argnums=(12, 13, 14)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, minimum_spike_count, minimax_spk_prob):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	K = I.shape[1]
@@ -328,7 +328,15 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, 
 
 			# monte carlo approximation of expectation
 			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
-			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - 1/2 * scope.arg)) # require spiking cells to be targeted
+			est_lam = lam_mask * (I[n] > 0) * sigmoid(scope.mcE - 1/2 * scope.arg) # require spiking cells to be targeted
+
+			# check pava condition
+			srates = _eval_spike_rates(I[n], est_lam, powers)
+			pava = (_isotonic_regression(srates, jnp.ones_like(srates))[-1] >= minimax_spk_prob) * (jnp.sum(est_lam) >= minimum_spike_count)
+
+			# update lam
+			scope.lam = index_update(scope.lam, n, est_lam * pava)
+			
 			# scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * (mu[n] != 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg)) # require spiking cells to be targeted
 	return scope.lam, scope.key_next
 
