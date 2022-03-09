@@ -89,7 +89,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		mu, key = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key)
 		alpha, key = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key)
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
-			phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, minimum_spike_count, minimax_spk_prob + spont_rate)
+			phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, minimum_spike_count, minimax_spk_prob + spont_rate, it, phi_thresh_delay)
 
 		if noise_update == 'iid':
 			shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
@@ -295,7 +295,7 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
 	return scope.alpha, key
 
 @jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
-def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, minimum_spike_count, minimax_spk_prob):
+def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, minimum_spike_count, minimax_spk_prob, it, phi_thresh_delay):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
 	K = I.shape[1]
@@ -333,6 +333,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, 
 			# check pava condition
 			srates = _eval_spike_rates(I[n], est_lam, powers)
 			pava = (_isotonic_regression(srates, jnp.ones_like(srates))[-1] >= minimax_spk_prob) * (jnp.sum(est_lam) >= minimum_spike_count)
+			pava = pava * (it > phi_thresh_delay) + 1. * (it <= phi_thresh_delay)
 
 			# update lam
 			scope.lam = index_update(scope.lam, n, est_lam * pava)
