@@ -294,7 +294,7 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
 	key, _ = jax.random.split(key)
 	return scope.alpha, key
 
-@jax.partial(jit, static_argnums=(12, 13, 14)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, minimum_spike_count, minimax_spk_prob):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
@@ -336,7 +336,7 @@ def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, 
 
 			# update lam
 			scope.lam = index_update(scope.lam, n, est_lam * pava)
-			
+
 			# scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * (mu[n] != 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg)) # require spiking cells to be targeted
 	return scope.lam, scope.key_next
 
