@@ -108,7 +108,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 			for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov, z]):
 				hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
-	mu, beta, alpha, lam, z = reconnect_spont_cells(y, I, lam, mu, alpha, beta, z, minimax_spk_prob=minimax_spk_prob)
+	mu, beta, alpha, lam, z = reconnect_spont_cells(y, I, lam, mu, alpha, beta, z, minimax_spk_prob=minimax_spk_prob, minimum_spike_count=minimum_spike_count)
 	(phi, phi_cov), _ = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, receptive_fields, *hist_arrs
