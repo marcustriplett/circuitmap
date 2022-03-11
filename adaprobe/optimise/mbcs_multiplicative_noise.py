@@ -10,6 +10,7 @@ from jax.lax import scan, while_loop
 from jax.ops import index_update, index
 from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
+from functools import partial
 
 from jax.config import config; config.update("jax_enable_x64", True)
 
@@ -93,7 +94,7 @@ def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_pr
 def update_beta(lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(shape/rate * jnp.sum(lam, 1) + 1/(beta_prior**2))
 
-@jax.partial(jit, static_argnums=(8))
+@partial(jit, static_argnums=(8))
 def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
 
@@ -213,7 +214,7 @@ def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior, min_xi, max_xi):
 			scope.xi = index_update(scope.xi, n, scope.arg)
 	return scope.xi
 
-# @jax.partial(jit, static_argnums=(3))
+# @partial(jit, static_argnums=(3))
 def center_xi(xi, mu, lam, tol=0.01):
 	'''Readjust xi to be centered about 1 by divided by weighted average, and proportionally scale up mu.
 		Weights for averaging are proportional to probability of a spike on each trial.
@@ -255,7 +256,7 @@ def update_lam_bfgs(y, w, stim_matrix, phi, phi_cov, num_mc_samples=10):
 	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
 	return res.x.reshape([K, N]).T
 
-@jax.partial(jit, static_argnums=(13, 14)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@partial(jit, static_argnums=(13, 14)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""

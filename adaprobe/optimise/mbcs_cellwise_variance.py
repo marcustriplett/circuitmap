@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.linear_model import Lasso, LinearRegression
 from scipy.optimize import minimize
 from scipy.stats import linregress
+from functools import partial
 
 # Conditionally import progress bar
 try:
@@ -227,7 +228,7 @@ def _adaptive_excitability_threshold(y, mu, lam, phi, shape, rate, lam_mask, max
 def update_beta(lam, beta_prior):
 	return 1/jnp.sqrt(jnp.sum(lam, 1) + 1/(beta_prior**2))
 
-@jax.partial(jit, static_argnums=(8))
+@partial(jit, static_argnums=(8))
 def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
 
@@ -363,7 +364,7 @@ def update_z_constr_l1(y, mu, Lam, constr, lam_mask, penalty=1, scale_factor=0.5
 # 	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
 # 	return res.x.reshape([K, N]).T
 
-@jax.partial(jit, static_argnums=(10, 11)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@partial(jit, static_argnums=(10, 11)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, sigma, lam, phi, phi_cov, lam_mask, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""

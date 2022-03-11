@@ -10,6 +10,7 @@ from jax.lax import scan, while_loop
 from jax.ops import index_update
 from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
+from functools import partial
 
 from jax.config import config; config.update("jax_enable_x64", True)
 
@@ -107,7 +108,7 @@ def mbcs_sparse_outliers(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, 
 def update_beta(lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(shape/rate * jnp.sum(lam, 1) + 1/(beta_prior**2))
 
-@jax.partial(jit, static_argnums=(8))
+@partial(jit, static_argnums=(8))
 def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
 
@@ -226,7 +227,7 @@ def update_lam_bfgs(y, w, stim_matrix, phi, phi_cov, num_mc_samples=10):
 	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
 	return res.x.reshape([K, N]).T
 
-@jax.partial(jit, static_argnums=(11, 12)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@partial(jit, static_argnums=(11, 12)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""

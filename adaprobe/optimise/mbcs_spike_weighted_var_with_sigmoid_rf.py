@@ -3,6 +3,7 @@ from sklearn.linear_model import Lasso, LinearRegression
 from sklearn.isotonic import IsotonicRegression
 from scipy.optimize import minimize
 from scipy.stats import linregress
+from functools import partial
 
 # Conditionally import progress bar
 try:
@@ -161,7 +162,7 @@ def update_isotonic_receptive_field(lam, I):
 def update_beta(lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(jnp.sum((shape/rate)[None, :] * lam, 1) + 1/(beta_prior**2))
 
-@jax.partial(jit, static_argnums=(8))
+@partial(jit, static_argnums=(8))
 def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
 
@@ -246,7 +247,7 @@ def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, l
 
 	return lam
 
-@jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""

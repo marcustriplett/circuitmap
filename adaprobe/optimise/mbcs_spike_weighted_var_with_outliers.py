@@ -3,6 +3,7 @@ from sklearn.linear_model import Lasso, LinearRegression
 from sklearn.isotonic import IsotonicRegression
 from scipy.optimize import minimize
 from scipy.stats import linregress
+from functools import partial
 
 # Conditionally import progress bar
 try:
@@ -14,7 +15,7 @@ except:
 # Jax imports
 import jax
 import jax.numpy as jnp
-from jax import jit, vmap, grad, partial
+from jax import jit, vmap, grad
 from jax.lax import scan, while_loop
 from jax.ops import index_update
 from jax.nn import sigmoid
@@ -410,7 +411,7 @@ def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, l
 
 	return lam
 
-@jax.partial(jit, static_argnums=(12, 13))
+@partial(jit, static_argnums=(12, 13))
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_order, key, num_mc_samples, N):
 	"""JIT-compiled inference of latent spikes using Monte Carlo samples of sigmoid coefficients.
 

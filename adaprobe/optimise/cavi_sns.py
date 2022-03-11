@@ -10,6 +10,7 @@ from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
 
 from jax.config import config; config.update("jax_enable_x64", True)
+from functools import partial
 
 # Experimental loops
 from jax.experimental import loops
@@ -35,7 +36,7 @@ def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prio
 	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, minimum_spike_count, 
 	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update, save_histories)
 
-# @jax.partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
+# @partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, minimum_spike_count,
 	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update, save_histories):
@@ -155,7 +156,7 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_p
 	return mu, beta, alpha, lam, z # then update phi
 
 
-@jax.partial(jit, static_argnums=(7))
+@partial(jit, static_argnums=(7))
 def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=10):
 	N, K = lam.shape
 	std = beta * (mu != 0)
@@ -258,7 +259,7 @@ def update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask, penalty=
 def update_beta(alpha, lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(alpha * jnp.sum(shape/rate * lam, 1) + 1/(beta_prior**2))
 
-@jax.partial(jit, static_argnums=(9))
+@partial(jit, static_argnums=(9))
 def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key):
 	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
 	sig = shape/rate
@@ -276,7 +277,7 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key
 	key, _ = jax.random.split(key)
 	return scope.mu, key
 
-@jax.partial(jit, static_argnums=(8))
+@partial(jit, static_argnums=(8))
 def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
 	update_order = jax.random.choice(key, N, [N], replace=False)
 	sig = shape/rate
@@ -294,7 +295,7 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
 	key, _ = jax.random.split(key)
 	return scope.alpha, key
 
-@jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, minimum_spike_count, minimax_spk_prob, it, phi_thresh_delay):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	"""
