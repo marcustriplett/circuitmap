@@ -1,4 +1,3 @@
-from jax.experimental import loops
 import numpy as np
 from sklearn.linear_model import Lasso
 from scipy.optimize import minimize
@@ -13,409 +12,366 @@ from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
 from functools import partial
 
-from jax.config import config
-config.update("jax_enable_x64", True)
+from jax.config import config; config.update("jax_enable_x64", True)
 
 # Experimental loops
+from jax.experimental import loops
 
 EPS = 1e-10
 
+def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
+	rho_prior, iters=50, num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, lam_masking=False, 
+	scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=True, 
+	verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_thresh=None, min_xi=0.25, max_xi=4):
+	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
+	"""
+	if lam_masking:
+		y, y_psc = obs
+		K = y.shape[0]
 
-def mbcs_multiplicative_noise(obs, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior,
-                              rho_prior, iters=50, num_mc_samples=50, seed=0, y_xcorr_thresh=0.05, penalty=1e0, lam_masking=False,
-                              scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, warm_start_lasso=True, constrain_weights=True,
-                              verbose=False, learn_noise=False, init_lam=None, learn_lam=True, phi_thresh=None, min_xi=0.25, max_xi=4):
-    """Offline-mode coordinate ascent variational inference for the adaprobe model.
-    """
-    if lam_masking:
-        y, y_psc = obs
-        K = y.shape[0]
+		# Setup lam mask
+		lam_mask = (jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh)
 
-        # Setup lam mask
-        lam_mask = (jnp.array([jnp.correlate(y_psc[k], y_psc[k])
-                    for k in range(K)]).squeeze() > y_xcorr_thresh)
+	else:
+		y = obs
+		K = y.shape[0]
+		lam_mask = jnp.ones(K)
 
-    else:
-        y = obs
-        K = y.shape[0]
-        lam_mask = jnp.ones(K)
+	# Initialise new params
+	N = mu_prior.shape[0]
 
-    # Initialise new params
-    N = mu_prior.shape[0]
+	# Declare scope types
+	mu 			= jnp.array(mu_prior)
+	beta 		= jnp.array(beta_prior)
+	shape 		= shape_prior
+	rate 		= rate_prior
+	phi 		= jnp.array(phi_prior)
+	phi_cov 	= jnp.array(phi_cov_prior)
+	xi_prior 	= jnp.ones((N, K))
+	xi  		= jnp.ones((N, K))
+	z 			= np.zeros(K)
+	rho_prior 	= rho_prior * jnp.ones((N, K)) # convert scalar to matrix
+	rho 		= jnp.array(rho_prior)
 
-    # Declare scope types
-    mu = jnp.array(mu_prior)
-    beta = jnp.array(beta_prior)
-    shape = shape_prior
-    rate = rate_prior
-    phi = jnp.array(phi_prior)
-    phi_cov = jnp.array(phi_cov_prior)
-    xi_prior = jnp.ones((N, K))
-    xi = jnp.ones((N, K))
-    z = np.zeros(K)
-    rho_prior = rho_prior * jnp.ones((N, K))  # convert scalar to matrix
-    rho = jnp.array(rho_prior)
+	if init_lam is None:
+		lam = np.zeros_like(I) # spike initialisation
+		if lam_masking:
+			lam[I > 0] = 0.95
+			lam = lam * lam_mask
+		else:
+			lam[I > 0] = 0.5
+	else:
+		lam = init_lam
 
-    if init_lam is None:
-        lam = np.zeros_like(I)  # spike initialisation
-        if lam_masking:
-            lam[I > 0] = 0.95
-            lam = lam * lam_mask
-        else:
-            lam[I > 0] = 0.5
-    else:
-        lam = init_lam
+	lam = jnp.array(lam)
 
-    lam = jnp.array(lam)
+	# init key
+	key = jax.random.PRNGKey(seed)
 
-    # init key
-    key = jax.random.PRNGKey(seed)
+	# Iterate CAVI updates
+	for it in range(iters):
+		beta = update_beta(lam * xi, shape, rate, beta_prior)
+		mu = update_mu_constr_l1(y - z, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor, 
+			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso, 
+			constrain_weights=constrain_weights, verbose=verbose)
+		rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
+		xi = update_xi(y - z, mu, lam, shape, rate, xi, rho, rho_prior, min_xi, max_xi)
+		# xi, mu = center_xi(xi, mu, lam)
+		if learn_lam:
+			lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N)
+		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
-    # Iterate CAVI updates
-    for it in range(iters):
-        beta = update_beta(lam * xi, shape, rate, beta_prior)
-        mu = update_mu_constr_l1(y - z, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor,
-                                 max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, warm_start_lasso=warm_start_lasso,
-                                 constrain_weights=constrain_weights, verbose=verbose)
-        rho = update_rho(mu, beta, lam, shape, rate, rho_prior)
-        xi = update_xi(y - z, mu, lam, shape, rate, xi,
-                       rho, rho_prior, min_xi, max_xi)
-        # xi, mu = center_xi(xi, mu, lam)
-        if learn_lam:
-            lam, key = update_lam(y - z, I, mu, beta, lam, shape, rate,
-                                  phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N)
-        (phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
+		if phi_thresh is not None:
+			# Filter connection vector via opsin expression threshold
+			mu[phi[:, 0] < phi_thresh] = 0
 
-        if phi_thresh is not None:
-            # Filter connection vector via opsin expression threshold
-            mu[phi[:, 0] < phi_thresh] = 0
+	z = update_z_constr_l1(y, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor,
+			max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
 
-    z = update_z_constr_l1(y, mu, lam * xi, shape, rate, penalty=penalty, scale_factor=scale_factor,
-                           max_penalty_iters=max_penalty_iters, max_lasso_iters=max_lasso_iters, verbose=verbose)
-
-    return mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, z
-
+	return mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, z
 
 @jit
 def update_beta(lam, shape, rate, beta_prior):
-    return 1/jnp.sqrt(shape/rate * jnp.sum(lam, 1) + 1/(beta_prior**2))
-
+	return 1/jnp.sqrt(shape/rate * jnp.sum(lam, 1) + 1/(beta_prior**2))
 
 @partial(jit, static_argnums=(8))
 def update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
-    """Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
+	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
 
-    sig = shape/rate
-    with loops.Scope() as scope:
-        scope.mu = mu
-        scope.mask = jnp.zeros(N - 1, dtype=int)
-        scope.all_ids = jnp.arange(N)
-        for n in scope.range(N):
-            scope.mask = jnp.unique(
-                jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
-            scope.mu = index_update(scope.mu, n, (beta[n]**2) * (sig * jnp.dot(y, lam[n]) - sig
-                                                                 * jnp.dot(lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask], 1) * lam[scope.mask], 0))
-                                                                 + mu_prior[n]/(beta_prior[n]**2)))
-    return scope.mu
+	sig = shape/rate
+	with loops.Scope() as scope:
+		scope.mu = mu
+		scope.mask = jnp.zeros(N - 1, dtype=int)
+		scope.all_ids = jnp.arange(N)
+		for n in scope.range(N):
+			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
+			scope.mu = index_update(scope.mu, n, (beta[n]**2) * (sig * jnp.dot(y, lam[n]) - sig \
+				* jnp.dot(lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask], 1) * lam[scope.mask], 0)) \
+				+ mu_prior[n]/(beta_prior[n]**2)))
+	return scope.mu
 
+def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, \
+	warm_start_lasso=False, constrain_weights=True, verbose=False):
+	""" Constrained L1 solver with iterative penalty shrinking
+	"""
+	N, K = Lam.shape
+	sigma = np.sqrt(rate/shape)
+	constr = sigma * np.sqrt(K)
+	LamT = Lam.T
+	lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters, warm_start=warm_start_lasso, positive=constrain_weights)
+	
+	if constrain_weights:
+		# make sensing matrix and weight warm-start negative
+		LamT = -LamT
+		mu = -mu
+	lasso.coef_ = np.array(mu)
 
-def update_mu_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100,
-                        warm_start_lasso=False, constrain_weights=True, verbose=False):
-    """ Constrained L1 solver with iterative penalty shrinking
-    """
-    N, K = Lam.shape
-    sigma = np.sqrt(rate/shape)
-    constr = sigma * np.sqrt(K)
-    LamT = Lam.T
-    lasso = Lasso(alpha=penalty, fit_intercept=False, max_iter=max_lasso_iters,
-                  warm_start=warm_start_lasso, positive=constrain_weights)
+	for it in range(max_penalty_iters):
+		# iteratively shrink penalty until constraint is met
+		if verbose:
+			print('penalty iter: ', it)
+			print('current penalty: ', lasso.alpha)
+		lasso.fit(LamT, y)
+		coef = lasso.coef_
+		err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
+		if err <= constr:
+			if verbose:
+				print(' ==== converged on iteration: %i ===='%it)
+			break
+		else:
+			penalty *= scale_factor # exponential backoff
+			lasso.alpha = penalty
+			if it == 0:
+				lasso.warm_start = True
+		if verbose:
+			print('lasso err: ', err)
+			print('constr: ', constr)
+			print('')
 
-    if constrain_weights:
-        # make sensing matrix and weight warm-start negative
-        LamT = -LamT
-        mu = -mu
-    lasso.coef_ = np.array(mu)
-
-    for it in range(max_penalty_iters):
-        # iteratively shrink penalty until constraint is met
-        if verbose:
-            print('penalty iter: ', it)
-            print('current penalty: ', lasso.alpha)
-        lasso.fit(LamT, y)
-        coef = lasso.coef_
-        err = np.sqrt(np.sum(np.square(y - LamT @ coef)))
-        if err <= constr:
-            if verbose:
-                print(' ==== converged on iteration: %i ====' % it)
-            break
-        else:
-            penalty *= scale_factor  # exponential backoff
-            lasso.alpha = penalty
-            if it == 0:
-                lasso.warm_start = True
-        if verbose:
-            print('lasso err: ', err)
-            print('constr: ', constr)
-            print('')
-
-    if constrain_weights:
-        return -coef
-    else:
-        return coef
-
+	if constrain_weights:
+		return -coef
+	else:
+		return coef
 
 def update_z_constr_l1(y, mu, Lam, shape, rate, penalty=1, scale_factor=0.5, max_penalty_iters=10, max_lasso_iters=100, verbose=False):
-    """ Soft thresholding with iterative penalty shrinkage
-    """
-    N, K = Lam.shape
-    sigma = np.sqrt(rate/shape)
-    constr = sigma * np.sqrt(K)
-    # copy to np array, possible memory overhead problem here
-    resid = np.array(y - Lam.T @ mu)
+	""" Soft thresholding with iterative penalty shrinkage
+	"""
+	N, K = Lam.shape
+	sigma = np.sqrt(rate/shape)
+	constr = sigma * np.sqrt(K)
+	resid = np.array(y - Lam.T @ mu) # copy to np array, possible memory overhead problem here
 
-    for it in range(max_penalty_iters):
-        # iteratively shrink penalty until constraint is met
-        if verbose:
-            print('penalty iter: ', it)
-            print('current penalty: ', penalty)
+	for it in range(max_penalty_iters):
+		# iteratively shrink penalty until constraint is met
+		if verbose:
+			print('penalty iter: ', it)
+			print('current penalty: ', penalty)
+		
+		z = np.zeros(K)
+		hard_thresh_locs = np.where(resid < penalty)[0]
+		soft_thresh_locs = np.where(resid >= penalty)[0]
+		z[hard_thresh_locs] = 0
+		z[soft_thresh_locs] = resid[soft_thresh_locs] - penalty
+		z[z < 0] = 0
 
-        z = np.zeros(K)
-        hard_thresh_locs = np.where(resid < penalty)[0]
-        soft_thresh_locs = np.where(resid >= penalty)[0]
-        z[hard_thresh_locs] = 0
-        z[soft_thresh_locs] = resid[soft_thresh_locs] - penalty
-        z[z < 0] = 0
+		err = np.sqrt(np.sum(np.square(resid - z)))
+		if err <= constr:
+			if verbose:
+				print(' ==== converged on iteration: %i ===='%it)
+			break
+		else:
+			penalty *= scale_factor # exponential backoff
 
-        err = np.sqrt(np.sum(np.square(resid - z)))
-        if err <= constr:
-            if verbose:
-                print(' ==== converged on iteration: %i ====' % it)
-            break
-        else:
-            penalty *= scale_factor  # exponential backoff
-
-        if verbose:
-            print('soft thresh err: ', err)
-            print('constr: ', constr)
-            print('')
-    return z
-
+		if verbose:
+			print('soft thresh err: ', err)
+			print('constr: ', constr)
+			print('')
+	return z
 
 @jit
 def update_rho(mu, beta, lam, shape, rate, rho_prior):
-    return 1/jnp.sqrt(shape/rate * jnp.expand_dims(mu**2 + beta**2, 1) * lam + 1/rho_prior**2)
-
+	return 1/jnp.sqrt(shape/rate * jnp.expand_dims(mu**2 + beta**2, 1) * lam + 1/rho_prior**2)
 
 @jit
 def update_xi(y, mu, lam, shape, rate, xi, rho, rho_prior, min_xi, max_xi):
-    N = mu.shape[0]
-    K = y.shape[0]
-    sig = shape/rate
-    min_xi_vec = min_xi * jnp.ones(K)
-    max_xi_vec = max_xi * jnp.ones(K)
-    with loops.Scope() as scope:
-        scope.xi = xi
-        scope.mask = jnp.zeros(N - 1, dtype=int)
-        scope.arg = jnp.zeros(K)
-        scope.all_ids = jnp.arange(N)
-        for n in scope.range(N):
-            scope.mask = jnp.unique(
-                jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
-            scope.arg = rho[n]**2 * (sig * y * mu[n] * lam[n]
-                                     - sig * mu[n] * lam[n] * jnp.sum(
-                                         scope.xi[scope.mask] * lam[scope.mask] * jnp.expand_dims(mu[scope.mask], 1), 0)
-                                     + 1/rho_prior[n]**2)
-            scope.arg = jnp.max(jnp.stack([scope.arg, min_xi_vec]), 0)
-            scope.arg = jnp.min(jnp.stack([scope.arg, max_xi_vec]), 0)
-            scope.xi = index_update(scope.xi, n, scope.arg)
-    return scope.xi
+	N = mu.shape[0]
+	K = y.shape[0]
+	sig = shape/rate
+	min_xi_vec = min_xi * jnp.ones(K)
+	max_xi_vec = max_xi * jnp.ones(K)
+	with loops.Scope() as scope:
+		scope.xi = xi
+		scope.mask = jnp.zeros(N - 1, dtype=int)
+		scope.arg = jnp.zeros(K)
+		scope.all_ids = jnp.arange(N)
+		for n in scope.range(N):
+			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
+			scope.arg = rho[n]**2 * (sig * y * mu[n] * lam[n] \
+				- sig * mu[n] * lam[n] * jnp.sum(scope.xi[scope.mask] * lam[scope.mask] * jnp.expand_dims(mu[scope.mask], 1), 0) \
+				 + 1/rho_prior[n]**2)
+			scope.arg = jnp.max(jnp.stack([scope.arg, min_xi_vec]), 0)
+			scope.arg = jnp.min(jnp.stack([scope.arg, max_xi_vec]), 0)
+			scope.xi = index_update(scope.xi, n, scope.arg)
+	return scope.xi
 
 # @partial(jit, static_argnums=(3))
-
-
 def center_xi(xi, mu, lam, tol=0.01):
-    '''Readjust xi to be centered about 1 by divided by weighted average, and proportionally scale up mu.
-            Weights for averaging are proportional to probability of a spike on each trial.
-    '''
-    xi = np.array(xi)
-    N = xi.shape[0]
-    for n in range(N):
-        locs = np.where(np.abs(xi[n] - 1) > tol)[0]
-        if locs.shape[0] > 0:
-            wgts = lam[n, locs]/np.sum(lam[n, locs])
-            mean_xi = np.sum(xi[n, locs] * wgts)
-            # xi = index_update(xi, index[n, locs], xi[n, locs]/mean_xi) # xi is immutable jax device array
-            xi[n, locs] /= mean_xi
-            mu[n] *= mean_xi  # mu is mutable
-    return xi, mu
-
+	'''Readjust xi to be centered about 1 by divided by weighted average, and proportionally scale up mu.
+		Weights for averaging are proportional to probability of a spike on each trial.
+	'''
+	xi = np.array(xi)
+	N = xi.shape[0]
+	for n in range(N):
+		locs = np.where(np.abs(xi[n] - 1) > tol)[0]
+		if locs.shape[0] > 0:
+			wgts = lam[n, locs]/np.sum(lam[n, locs])
+			mean_xi = np.sum(xi[n, locs] * wgts)
+			# xi = index_update(xi, index[n, locs], xi[n, locs]/mean_xi) # xi is immutable jax device array
+			xi[n, locs] /= mean_xi
+			mu[n] *= mean_xi # mu is mutable
+	return xi, mu
 
 def _loss_fn(lam, args):
-    y, w, lam_prior = args
-    K, N = lam_prior.shape
-    lam = lam.reshape([K, N])
-    return np.sum(np.square(y - lam @ w)) - np.sum(lam * np.log(lam_prior) + (1 - lam) * np.log(1 - lam_prior))
-
+	y, w, lam_prior = args
+	K, N = lam_prior.shape
+	lam = lam.reshape([K, N])
+	return np.sum(np.square(y - lam @ w)) - np.sum(lam * np.log(lam_prior) + (1 - lam) * np.log(1 - lam_prior))
 
 def _loss_fn_jax(lam, args):
-    y, w, lam_prior = args
-    K, N = lam_prior.shape
-    lam = lam.reshape([K, N])
-    return jnp.sum(jnp.square(y - lam @ w)) - jnp.sum(lam * jnp.log(lam_prior) + (1 - lam) * jnp.log(1 - lam_prior))
-
+	y, w, lam_prior = args
+	K, N = lam_prior.shape
+	lam = lam.reshape([K, N])
+	return jnp.sum(jnp.square(y - lam @ w)) - jnp.sum(lam * jnp.log(lam_prior) + (1 - lam) * jnp.log(1 - lam_prior))
 
 _grad_loss_fn_jax = grad(_loss_fn_jax)
-def _grad_loss_fn(x, args): return np.array(_grad_loss_fn_jax(x, args))
-
+_grad_loss_fn = lambda x, args: np.array(_grad_loss_fn_jax(x, args))
 
 def update_lam_bfgs(y, w, stim_matrix, phi, phi_cov, num_mc_samples=10):
-    N, K = stim_matrix.shape
-    unif_samples = np.random.uniform(0, 1, [N, 2, num_mc_samples])
-    phi_samples = np.array([[ndtri(ndtr(-phi[n][i]/phi_cov[n][i, i]) + unif_samples[n, i] * (1 - ndtr(-phi[n][i]/phi_cov[n][i, i]))) * phi_cov[n][i, i]
-                             + phi[n][i] for i in range(2)] for n in range(N)])
-    lam_prior = np.mean([sigmoid(phi_samples[:, 0, i][:, None] * stim_matrix -
-                        phi_samples[:, 1, i][:, None]) for i in range(num_mc_samples)], axis=0)
-    args = [y, w, lam_prior.T]
-    res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn,
-                   args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
-    return res.x.reshape([K, N]).T
+	N, K = stim_matrix.shape
+	unif_samples = np.random.uniform(0, 1, [N, 2, num_mc_samples])
+	phi_samples = np.array([[ndtri(ndtr(-phi[n][i]/phi_cov[n][i,i]) + unif_samples[n, i] * (1 - ndtr(-phi[n][i]/phi_cov[n][i,i]))) * phi_cov[n][i,i] \
+					  + phi[n][i] for i in range(2)] for n in range(N)])
+	lam_prior = np.mean([sigmoid(phi_samples[:, 0, i][:, None] * stim_matrix - phi_samples[:, 1, i][:, None]) for i in range(num_mc_samples)], axis=0)
+	args = [y, w, lam_prior.T]
+	res = minimize(_loss_fn, lam_prior.T.flatten(), jac=_grad_loss_fn, args=args, method='L-BFGS-B', bounds=[(0, 1)]*(K*N))
+	return res.x.reshape([K, N]).T
 
-
-# lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
-@partial(jit, static_argnums=(13, 14))
+@partial(jit, static_argnums=(13, 14)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, xi, rho, lam_mask, key, num_mc_samples, N):
-    """Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
-    """
-    K = I.shape[1]
-    with loops.Scope() as scope:
+	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
+	"""
+	K = I.shape[1]
+	with loops.Scope() as scope:
+		
+		# declare within-scope types
+		scope.lam = lam
+		scope.all_ids = jnp.arange(N)
+		scope.mask = jnp.zeros(N - 1, dtype=int)
+		scope.arg = jnp.zeros(K, dtype=float)
+		scope.key, scope.key_next = key, key
+		scope.u = jnp.zeros((num_mc_samples, 2))
+		scope.mean, scope.sdev = jnp.zeros(2, dtype=float), jnp.zeros(2, dtype=float)
+		scope.mc_samps = jnp.zeros((num_mc_samples, 2), dtype=float)
+		scope.mcE = jnp.zeros(K)
 
-        # declare within-scope types
-        scope.lam = lam
-        scope.all_ids = jnp.arange(N)
-        scope.mask = jnp.zeros(N - 1, dtype=int)
-        scope.arg = jnp.zeros(K, dtype=float)
-        scope.key, scope.key_next = key, key
-        scope.u = jnp.zeros((num_mc_samples, 2))
-        scope.mean, scope.sdev = jnp.zeros(
-            2, dtype=float), jnp.zeros(2, dtype=float)
-        scope.mc_samps = jnp.zeros((num_mc_samples, 2), dtype=float)
-        scope.mcE = jnp.zeros(K)
+		for n in scope.range(N):
+			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
+			scope.arg = -2 * y * xi[n] * mu[n] + 2 * mu[n] * xi[n] * jnp.sum(jnp.expand_dims(mu[scope.mask], 1) * scope.lam[scope.mask] * xi[scope.mask], 0) \
+			+ (mu[n]**2 + beta[n]**2) * (xi[n]**2 + rho[n]**2)
 
-        for n in scope.range(N):
-            scope.mask = jnp.unique(
-                jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
-            scope.arg = -2 * y * xi[n] * mu[n] + 2 * mu[n] * xi[n] * jnp.sum(jnp.expand_dims(mu[scope.mask], 1) * scope.lam[scope.mask] * xi[scope.mask], 0) \
-                + (mu[n]**2 + beta[n]**2) * (xi[n]**2 + rho[n]**2)
+			# sample truncated normals
+			scope.key, scope.key_next = jax.random.split(scope.key)
+			scope.u = jax.random.uniform(scope.key, [num_mc_samples, 2])
+			scope.mean, scope.sdev = phi[n], jnp.diag(phi_cov[n])
+			scope.mc_samps = ndtri(ndtr(-scope.mean/scope.sdev) + scope.u * (1 - ndtr(-scope.mean/scope.sdev))) * scope.sdev + scope.mean
 
-            # sample truncated normals
-            scope.key, scope.key_next = jax.random.split(scope.key)
-            scope.u = jax.random.uniform(scope.key, [num_mc_samples, 2])
-            scope.mean, scope.sdev = phi[n], jnp.diag(phi_cov[n])
-            scope.mc_samps = ndtri(ndtr(-scope.mean/scope.sdev) + scope.u * (
-                1 - ndtr(-scope.mean/scope.sdev))) * scope.sdev + scope.mean
-
-            # monte carlo approximation of expectation
-            scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(
-                I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
-            scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(
-                scope.mcE - shape/(2 * rate) * scope.arg))  # require spiking cells to be targeted
-            # scope.lam = index_update(scope.lam, n, scope.lam[n] * lam_mask)
-    return scope.lam, scope.key_next
-
+			# monte carlo approximation of expectation
+			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
+			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg)) # require spiking cells to be targeted
+			# scope.lam = index_update(scope.lam, n, scope.lam[n] * lam_mask)
+	return scope.lam, scope.key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
-    fn = sigmoid(phi_0 * I - phi_1)
-    return jnp.log(fn/(1 - fn))
-
-
-_vmap_eval_lam_update_monte_carlo = jit(
-    vmap(_eval_lam_update_monte_carlo, in_axes=(None, 0, 0)))
-
+	fn = sigmoid(phi_0 * I - phi_1)
+	return jnp.log(fn/(1 - fn))
+_vmap_eval_lam_update_monte_carlo = jit(vmap(_eval_lam_update_monte_carlo, in_axes=(None, 0, 0)))
 
 @jit
 def update_sigma(y, mu, beta, lam, shape_prior, rate_prior):
-    K = y.shape[0]
-    shape = shape_prior + K/2
-    rate = rate_prior + 1/2 * (jnp.sum(jnp.square(y - np.sum(jnp.expand_dims(mu, 1) * lam, 0)))
-                               - jnp.sum(jnp.square(jnp.expand_dims(mu, 1) * lam)) + jnp.sum(jnp.expand_dims((mu**2 + beta**2), 1) * lam))
-    return shape, rate
-
+	K = y.shape[0]
+	shape = shape_prior + K/2
+	rate = rate_prior + 1/2 * (jnp.sum(jnp.square(y - np.sum(jnp.expand_dims(mu, 1) * lam, 0))) \
+		- jnp.sum(jnp.square(jnp.expand_dims(mu, 1) * lam)) + jnp.sum(jnp.expand_dims((mu**2 + beta**2), 1) * lam))
+	return shape, rate
 
 @jit
 def update_phi(lam, I, phi_prior, phi_cov_prior, key):
-    """Returns updated sigmoid coefficients estimated using a log-barrier penalty with backtracking Newton's method
-    """
-    (posterior, logliks), keys = laplace_approx(lam, phi_prior,
-                                                phi_cov_prior, I, key)  # N keys returned due to vmapped LAs
-    return posterior, keys[-1]
-
-
+	"""Returns updated sigmoid coefficients estimated using a log-barrier penalty with backtracking Newton's method
+	"""
+	(posterior, logliks), keys = laplace_approx(lam, phi_prior, phi_cov_prior, I, key) # N keys returned due to vmapped LAs
+	return posterior, keys[-1]
+	
 def _laplace_approx(y, phi_prior, phi_cov, I, key, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
-    """Laplace approximation to sigmoid coefficient posteriors $phi$.
-    """
+	"""Laplace approximation to sigmoid coefficient posteriors $phi$.
+	"""
 
-    newton_steps = 10  # need to figure out how to make this dynamic
+	newton_steps = 10 # need to figure out how to make this dynamic
 
-    def backtrack_cond(carry):
-        it, _, lhs, rhs, _, _, _ = carry
-        return jnp.logical_and(it < max_backtrack_iters, jnp.logical_or(jnp.isnan(lhs), lhs > rhs))
+	def backtrack_cond(carry):
+		it, _, lhs, rhs, _, _, _ = carry
+		return jnp.logical_and(it < max_backtrack_iters, jnp.logical_or(jnp.isnan(lhs), lhs > rhs))
 
-    def backtrack(carry):
-        it, step, lhs, rhs, v, J, phi = carry
-        it += 1
-        step *= backtrack_beta
-        lhs, rhs = get_ineq(y, phi, step, v, t, J, backtrack_alpha)
-        return (it, step, lhs, rhs, v, J, phi)
+	def backtrack(carry):
+		it, step, lhs, rhs, v, J, phi = carry
+		it += 1
+		step *= backtrack_beta
+		lhs, rhs = get_ineq(y, phi, step, v, t, J, backtrack_alpha)
+		return (it, step, lhs, rhs, v, J, phi)
 
-    def get_ineq(y, phi, step, v, t, J, backtrack_alpha):
-        return negloglik_with_barrier(y, phi + step * v, phi_prior, prior_prec, I, t), \
-            negloglik_with_barrier(
-                y, phi, phi_prior, prior_prec, I, t) + backtrack_alpha * step * J @ v
+	def get_ineq(y, phi, step, v, t, J, backtrack_alpha):
+		return negloglik_with_barrier(y, phi + step * v, phi_prior, prior_prec, I, t), \
+			negloglik_with_barrier(y, phi, phi_prior, prior_prec, I, t) + backtrack_alpha * step * J @ v
 
-    def get_stepv(phi, t):
-        f = sigmoid(phi[0] * I - phi[1])
+	def get_stepv(phi, t):
+		f = sigmoid(phi[0] * I - phi[1])
 
-        # grad of negative log-likelihood
-        j1 = -jnp.sum(I * (y - f))
-        j2 = jnp.sum(y - f)
-        J = jnp.array([j1, j2]) + prior_prec @ (phi - phi_prior) - 1/(t * phi)
+		# grad of negative log-likelihood
+		j1 = -jnp.sum(I * (y - f))
+		j2 = jnp.sum(y - f)
+		J = jnp.array([j1, j2]) + prior_prec @ (phi - phi_prior) - 1/(t * phi)
 
-        # hessian of negative log-likelihood
-        h11 = jnp.sum(I**2 * f * (1 - f))
-        h12 = -jnp.sum(I * f * (1 - f))
-        h21 = h12
-        h22 = jnp.sum(f * (1 - f))
-        H = jnp.array([[h11, h12], [h21, h22]]) + \
-            prior_prec + jnp.diag(1/(t * phi**2))
+		# hessian of negative log-likelihood
+		h11 = jnp.sum(I**2 * f * (1 - f))
+		h12 = -jnp.sum(I * f * (1 - f))
+		h21 = h12
+		h22 = jnp.sum(f * (1 - f))
+		H = jnp.array([[h11, h12], [h21, h22]]) + prior_prec + jnp.diag(1/(t * phi**2))
 
-        H_inv = jnp.linalg.inv(H)
-        v = -H_inv @ J
-        return v, J, H_inv
+		H_inv = jnp.linalg.inv(H)
+		v = -H_inv @ J
+		return v, J, H_inv
 
-    def newton_step(phi_carry, _):
-        phi, _ = phi_carry
-        v, J, cov = get_stepv(phi, t)
-        step = 1.
-        lhs, rhs = get_ineq(y, phi, step, v, t, J, backtrack_alpha)
-        init_carry = (0, step, lhs, rhs, v, J, phi)
-        carry = while_loop(backtrack_cond, backtrack, init_carry)
-        _, step, lhs, _, _, _, _ = carry
-        phi += step * v
-        return (phi, cov), lhs
+	def newton_step(phi_carry, _):
+		phi, _ = phi_carry
+		v, J, cov = get_stepv(phi, t)  
+		step = 1.
+		lhs, rhs = get_ineq(y, phi, step, v, t, J, backtrack_alpha)
+		init_carry = (0, step, lhs, rhs, v, J, phi)
+		carry = while_loop(backtrack_cond, backtrack, init_carry)
+		_, step, lhs, _, _, _, _ = carry
+		phi += step * v
+		return (phi, cov), lhs
 
-    key, key_next = jax.random.split(key)
-    phi = jnp.array(phi_prior, copy=True)
-    prior_prec = jnp.linalg.inv(phi_cov)
-    phi_carry = (phi, jnp.zeros((phi.shape[0], phi.shape[0])))
-    return scan(newton_step, phi_carry, jnp.arange(newton_steps)), key_next
+	key, key_next = jax.random.split(key)
+	phi = jnp.array(phi_prior, copy=True)
+	prior_prec = jnp.linalg.inv(phi_cov)
+	phi_carry = (phi, jnp.zeros((phi.shape[0], phi.shape[0])))
+	return scan(newton_step, phi_carry, jnp.arange(newton_steps)), key_next
 
-
-# parallel LAs across all cells
-laplace_approx = jit(vmap(_laplace_approx, (0, 0, 0, 0, None)))
-
+laplace_approx = jit(vmap(_laplace_approx, (0, 0, 0, 0, None))) # parallel LAs across all cells
 
 @jit
 def negloglik_with_barrier(y, phi, phi_prior, prec, I, t):
-    lam = sigmoid(phi[0] * I - phi[1])
-    return -jnp.sum(jnp.nan_to_num(y * jnp.log(lam) + (1 - y) * jnp.log(1 - lam))) - jnp.sum(jnp.log(phi))/t \
-        + 1/2 * (phi - phi_prior) @ prec @ (phi - phi_prior)
+	lam = sigmoid(phi[0] * I - phi[1])
+	return -jnp.sum(jnp.nan_to_num(y * jnp.log(lam) + (1 - y) * jnp.log(1 - lam))) - jnp.sum(jnp.log(phi))/t \
+		+ 1/2 * (phi - phi_prior) @ prec @ (phi - phi_prior)
