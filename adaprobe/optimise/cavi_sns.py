@@ -23,7 +23,7 @@ EPS = 1e-10
 def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, learn_noise=False, phi_thresh=None, minimum_spike_count=3,
 	phi_thresh_delay=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=2e1, lam_iters=1, disc_strength=0.05,
-	noise_scale=0.5, noise_update='iid', save_histories=True):
+	noise_scale=0.5, noise_update='iid', save_histories=True, update_alpha=True):
 	y = np.trapz(y_psc, axis=-1)
 	K = y.shape[0]
 	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh
@@ -34,12 +34,12 @@ def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prio
 
 	return _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, minimum_spike_count, 
-	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update, save_histories)
+	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update, save_histories, update_alpha)
 
 # @partial(jit, static_argnums=(10, 11, 12, 13, 14, 15))
 def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	lam_mask, iters, num_mc_samples, seed, learn_noise, phi_thresh, phi_thresh_delay, minimax_spk_prob, minimum_spike_count,
-	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update, save_histories):
+	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update, save_histories, update_alpha):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
 
@@ -88,7 +88,8 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	for it in trange(iters):
 		beta = update_beta(alpha, lam, shape, rate, beta_prior)
 		mu, key = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key)
-		alpha, key = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key)
+		if update_alpha:
+			alpha, key = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key)
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
 			phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, minimum_spike_count, minimax_spk_prob + spont_rate, it, phi_thresh_delay)
 
