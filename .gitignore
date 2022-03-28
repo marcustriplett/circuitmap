@@ -1,8 +1,9 @@
 data/
 docs/
-notebooks/figs/
+notebooks/
 adaprobe/__pycache__/*
 adaprobe/optimize/__pycache__/*
+holoprobe/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
