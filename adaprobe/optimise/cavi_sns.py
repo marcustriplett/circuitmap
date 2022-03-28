@@ -86,9 +86,9 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 
 	# Iterate CAVI updates
 	for it in trange(iters):
-		beta = update_beta(alpha, lam, shape, rate, beta_prior)
-		mu, key = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key)
-		# mu, beta = block_update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
+		# beta = update_beta(alpha, lam, shape, rate, beta_prior)
+		# mu, key = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key)
+		mu, beta = block_update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N)
 		if learn_alpha:
 			alpha, key = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key)
 		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
@@ -281,27 +281,26 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key
 
 #% Block update mu
 
-def _get_D_k(lam_k):
-    return jnp.diag(lam_k * (1 - lam_k))
-get_D_k = vmap(_get_D_k, in_axes=(0))
+def _get_D_k(vec):
+	return jnp.diag(vec * (1 - vec))
+get_D_k = vmap(_get_D_k, in_axes=(1))
 
-_get_D = lambda arr: jnp.sum(get_D_k(arr), axis=0)
+_get_D = lambda alpha, lam: jnp.sum(get_D_k(alpha[:, None] * lam), axis=0)
 get_D = jit(_get_D)
 
-def _get_L_k(lam_k):
-    return jnp.outer(lam_k, lam_k)
-get_L_k = vmap(_get_L_k, in_axes=(0))
+def _get_L_k(vec):
+	return jnp.outer(vec, vec)
+get_L_k = vmap(_get_L_k, in_axes=(1))
 
-_get_L = lambda arr: jnp.sum(get_L_k(arr), axis=0)
+_get_L = lambda alpha, lam: jnp.sum(get_L_k(alpha[:, None] * lam), axis=0)
 get_L = jit(_get_L)
 
 @partial(jit, static_argnums=(9))
 def block_update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N):
-    D = get_D(lam.T)
-    L = get_L(lam.T)
-    posterior_cov = jnp.linalg.inv(shape/rate * (D + L) + 1/(beta_prior**2) * jnp.eye(N))
-    posterior_mean = posterior_cov @ (shape/rate * jnp.sum(y * lam, axis=1) + 1/(beta_prior**2) * mu_prior)
-    return posterior_mean, jnp.diag(posterior_cov)
+	D, L = get_D(alpha, lam), get_L(alpha, lam)
+	posterior_cov = jnp.linalg.inv(shape/rate * (D + L) + 1/(beta_prior**2) * jnp.eye(N))
+	posterior_mean = posterior_cov @ (shape/rate * jnp.sum(y * lam, axis=1) + 1/(beta_prior**2) * mu_prior)
+	return posterior_mean, jnp.diag(posterior_cov)
 
 @partial(jit, static_argnums=(8))
 def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
