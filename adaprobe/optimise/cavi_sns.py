@@ -53,7 +53,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	# Declare scope types
 	mu 			= jnp.array(mu_prior)
 	beta 		= jnp.array(beta_prior)
-	alpha 		= jnp.array(alpha_prior)
+	alpha 		= jnp.ones(N) #jnp.array(alpha_prior)
 	shape 		= jnp.array(shape_prior)
 	rate 		= jnp.array(rate_prior)
 	phi 		= jnp.array(phi_prior)
