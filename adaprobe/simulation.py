@@ -201,7 +201,7 @@ def simulate_continuous_experiment(N=100, connected_frac=0.2, exp_len=int(2e4), 
 
 	# stimulus timing
 	isi = sampling_freq/stim_freq
-	stim_times = np.arange(isi, exp_len - isi, isi, dtype=int)
+	stim_times = np.arange(isi, exp_len - response_length, isi, dtype=int)
 	nstim = len(stim_times)
 	spike_times = sample_spike_time(power * nstim, gamma_beta=gamma_beta, min_latency=min_latency)
 	tars = np.random.choice(N, nstim)
