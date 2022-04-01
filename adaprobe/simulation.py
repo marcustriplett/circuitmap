@@ -218,7 +218,7 @@ def simulate_continuous_experiment(N=100, connected_frac=0.2, exp_len=int(2e4), 
 	pscs = kevals * weights[tars, None] * mult_noise
 
 	# extract ground truth responses
-	stim_onset = np.array([np.where(resps[n] > 0)[0][0] for n in range(nstim)])
+	stim_onset = np.array([np.where(pscs[n] > 0)[0][0] for n in range(nstim)])
 	true_resps = np.array([pscs[n, so-100: so+800] for n, so in enumerate(stim_onset)])
 
 	# add spontaneous activity
