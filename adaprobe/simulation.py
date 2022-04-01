@@ -1,5 +1,6 @@
 import numpy as np
 import itertools
+from jax import jit, vmap
 
 # Conditionally import progress bar
 try:
