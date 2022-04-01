@@ -184,54 +184,68 @@ def sample_gp(trial_dur=900, gp_lengthscale=25, gp_scale=0.01, n_samples=1):
 	return gp_scale * np.random.multivariate_normal(mean, K, size=n_samples)
 
 def _eval_kernel(trange, tau_r, tau_d, delta, eps=1e-8):
-	ke = (jnp.exp(-(trange - delta)/tau_d) - jnp.exp(-(trange - delta)/tau_r)) * (trange > delta)
-	return ke/(jnp.max(ke) + eps)
+    ke = (jnp.exp(-(trange - delta)/tau_d) - jnp.exp(-(trange - delta)/tau_r)) * (trange > delta)
+    return ke/(jnp.max(ke) + eps)
 eval_kernel = jit(vmap(_eval_kernel, in_axes=(None, 0, 0, 0)))
 
 def simulate_continuous_experiment(N=100, connected_frac=0.2, exp_len=int(2e4), gamma_beta=1.5e1, min_latency=60, spont_rate=0.0005, 
-	mult_noise_log_var=0.01, response_length=900, noise_std=1e-2, tau_r_min=10, tau_r_max=40, tau_delta_min=250,
-	tau_delta_max=300, power=50, sampling_freq=20000, stim_freq=10, weight_lower=2, weight_upper=10):
-	'''Simulate continuous mapping experiment (to be sliced and reshaped post-hoc).
-	'''
-	# time constants
-	tau_r = np.random.uniform(tau_r_min, tau_r_max, N)
-	tau_delta = np.random.uniform(tau_delta_min, tau_delta_max, N)
-	tau_d = tau_r + tau_delta
-	trange = np.arange(exp_len)
+    mult_noise_log_var=0.01, response_length=900, noise_std=1e-2, tau_r_min=10, tau_r_max=40, tau_delta_min=250,
+    tau_delta_max=300, power=50, sampling_freq=20000, stim_freq=10, weight_lower=2, weight_upper=10, seed=0, ar_coef=0.95, ar_std=1e-1):
+    '''Simulate continuous mapping experiment (to be sliced and reshaped post-hoc).
+    '''
+    # time constants
+    tau_r = np.random.uniform(tau_r_min, tau_r_max, N)
+    tau_delta = np.random.uniform(tau_delta_min, tau_delta_max, N)
+    tau_d = tau_r + tau_delta
+    trange = np.arange(exp_len)
 
-	# stimulus timing
-	isi = sampling_freq/stim_freq
-	stim_times = np.arange(isi, exp_len - response_length, isi, dtype=int)
-	nstim = len(stim_times)
-	spike_times = sample_spike_time(power * nstim, gamma_beta=gamma_beta, min_latency=min_latency)
-	tars = np.random.choice(N, nstim)
+    # stimulus timing
+    isi = sampling_freq/stim_freq
+    stim_times = np.arange(isi, exp_len - response_length, isi, dtype=int)
+    nstim = len(stim_times)
+    spike_times = sample_spike_time(power * np.ones(nstim), gamma_beta=gamma_beta, min_latency=min_latency)
+    tars = np.random.choice(N, nstim)
 
-	# connections
-	n_connected = int(connected_frac * N)
-	connected = np.random.choice(np.arange(N), n_connected, replace=False)
-	weights = np.zeros(N)
-	weights[connected] = np.random.uniform(weight_lower, weight_upper, n_connected)
+    # connections
+    n_connected = int(connected_frac * N)
+    connected = np.random.choice(np.arange(N), n_connected, replace=False)
+    weights = np.zeros(N)
+    weights[connected] = np.random.uniform(weight_lower, weight_upper, n_connected)
 
-	# responses
-	mult_noise = np.random.lognormal(0, mult_noise_log_var, [nstim, 1])
-	kevals = eval_kernel(trange, tau_r[tars], tau_d[tars], stim_times + spike_times)
-	pscs = kevals * weights[tars, None] * mult_noise
+    # responses
+    mult_noise = np.random.lognormal(0, mult_noise_log_var, [nstim, 1])
+    kevals = eval_kernel(trange, tau_r[tars], tau_d[tars], stim_times + spike_times)
+    pscs = kevals * weights[tars, None] * mult_noise
+    
+    # extract ground truth responses
+    true_resps = np.array([pscs[n, st-100: st+800] for n, st in enumerate(stim_times)])
 
-	# extract ground truth responses
-	stim_onset = np.array([np.where(pscs[n] > 0)[0][0] for n in range(nstim)])
-	true_resps = np.array([pscs[n, so-100: so+800] for n, so in enumerate(stim_onset)])
+    # add spontaneous activity
+    nspont = int(spont_rate * exp_len)
+    spont_times = np.random.choice(exp_len, nspont, replace=False)
+    spont_pscs = np.zeros(exp_len)
+    tau_r = np.random.uniform(tau_r_min, tau_r_max, nspont)
+    tau_delta = np.random.uniform(tau_delta_min, tau_delta_max, nspont)
+    tau_d = tau_r + tau_delta
+    sponts = eval_kernel(trange, tau_r, tau_d, spont_times) * \
+     np.random.uniform(weight_lower, weight_upper, [nspont, 1])
 
-	# add spontaneous activity
-	nspont = len(spont_times)
-	spont_times = np.random.choice(exp_len, nspont, replace=False)
-	spont_pscs = np.zeros(exp_len)
-	tau_r = np.random.uniform(tau_r_min, tau_r_max, nspont)
-	tau_delta = np.random.uniform(tau_delta_min, tau_delta_max, nspont)
-	tau_d = tau_r + tau_delta
-	sponts = eval_kernel(trange, tau_r, tau_d, spont_times) * \
-	 np.random.uniform(weight_lower, weight_upper, [nspont, 1])
+    # compute correlated noise
+    ar1_noise = np.zeros(exp_len)
+    iid_noise = np.random.normal(0, ar_std, exp_len)
+    for t in range(1, exp_len):
+        ar1_noise[t] = ar_coef * ar1_noise[t-1] + iid_noise[t]
+    
+    pscs = np.sum(pscs, axis=0) + np.sum(sponts, axis=0) + ar1_noise
+    obs_resps = np.array([pscs[st-100: st+800] for n, st in enumerate(stim_times)])
 
-	pscs = np.sum(pscs, axis=0) + np.sum(sponts, axis=0)
-	
-	return pscs, true_resps, tars
+    expt = {
+        'pscs': pscs,
+        'obs_responses': obs_resps,
+        'true_responses': true_resps,
+        'tars': tars,
+        'stim_times': stim_times
+    }
+    
+    return expt
 
