@@ -197,7 +197,7 @@ def _eval_spike_rates(stimv, lamv, powers):
 
 eval_spike_rates = vmap(_eval_spike_rates, in_axes=(0, 0, None))
 
-@partial(jit, static_argnums=(11, 12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@partial(jit, static_argnums=(11, 12)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, 
 	minimum_spike_count, minimax_spk_prob, it, delay_spont_est):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
