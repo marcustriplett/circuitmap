@@ -173,7 +173,7 @@ _bu_D = jit(lambda lam: jnp.sum(_bu_D_k(lam), axis=0))
 _bu_L_k = vmap(lambda vec: jnp.outer(vec, vec), in_axes=(1))
 _bu_L = jit(lambda lam: jnp.sum(_bu_L_k(lam), axis=0))
 
-@partial(jit, static_argnums=(9))
+@partial(jit, static_argnums=(8))
 def block_update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 	D, L = _bu_D(lam), _bu_L(lam)
 	posterior_cov = jnp.linalg.inv(shape/rate * (D + L) + 1/(beta_prior**2) * jnp.eye(N))
@@ -197,7 +197,7 @@ def _eval_spike_rates(stimv, lamv, powers):
 
 eval_spike_rates = vmap(_eval_spike_rates, in_axes=(0, 0, None))
 
-@partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@partial(jit, static_argnums=(11, 12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, powers, 
 	minimum_spike_count, minimax_spk_prob, it, delay_spont_est):
 	"""Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
