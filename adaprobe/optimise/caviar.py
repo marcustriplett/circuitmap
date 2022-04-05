@@ -154,7 +154,7 @@ def _esast_body_fun(carry):
 	pen *= scale_factor
 	return y, mu, lam, it, err, z, pen, mask, scale_factor
 
-estimate_spont_act_soft_thresh = jit(lambda carry: while_loop(cond_fun, body_fun, carry))
+estimate_spont_act_soft_thresh = jit(lambda carry: while_loop(_esast_cond_fun, _esast_body_fun, carry))
 
 #% Block update mu
 # def _get_D_k(vec):
