@@ -22,7 +22,8 @@ EPS = 1e-10
 
 def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters=50, num_mc_samples=100, seed=0, y_xcorr_thresh=1e-2, minimum_spike_count=3,
-	delay_spont_est=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=2e1, noise_scale=0.5, save_histories=True):
+	delay_spont_est=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=2e1, noise_scale=0.5, 
+	save_histories=True, max_backtrack_iters=20):
 	'''Coordinate-ascent variational inference and isotonic regularisation.
 	'''
 	y = np.trapz(y_psc, axis=-1)
@@ -83,7 +84,7 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 								it, delay_spont_est)
 		shape, rate 		= update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		z 					= estimate_spont_act_soft_thresh((y, mu, lam, it, jnp.sum(y), z, penalty, lam_mask, scale_factor))
+		z 					= estimate_spont_act_soft_thresh((y, mu, lam, it, max_backtrack_iters, jnp.sum(y), z, penalty, lam_mask, scale_factor))
 		spont_rate 			= jnp.mean(z != 0.)
 
 		if save_histories:
@@ -143,7 +144,7 @@ def _esast_cond_fun(carry):
 	return jnp.logical_and(it < max_iters, err > tol)
 
 def _esast_body_fun(carry):
-	y, mu, lam, it, err, z, pen, mask, scale_factor = carry
+	y, mu, lam, it, max_iters, err, z, pen, mask, scale_factor = carry
 	resid = y - lam.T @ mu
 	z = jnp.where(resid < pen, 0., resid - pen)
 	z = jnp.where(z < 0., 0., z)
@@ -152,7 +153,7 @@ def _esast_body_fun(carry):
 	err = jnp.sum(jnp.square(resid - z))/(jnp.sum(jnp.square(y)) + 1e-5)
 	it += 1
 	pen *= scale_factor
-	return y, mu, lam, it, err, z, pen, mask, scale_factor
+	return y, mu, lam, it, max_iters, err, z, pen, mask, scale_factor
 
 estimate_spont_act_soft_thresh = jit(lambda carry: while_loop(_esast_cond_fun, _esast_body_fun, carry))
 
