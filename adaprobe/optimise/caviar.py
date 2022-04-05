@@ -83,7 +83,7 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 								it, delay_spont_est)
 		shape, rate 		= update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		z 					= estimate_spont_act_soft_thresh(y, mu, lam, it, err, z, pen, mask, scale_factor)
+		z 					= estimate_spont_act_soft_thresh(y, mu, lam, it, jnp.sum(y), z, penalty, lam_mask, scale_factor)
 		spont_rate 			= jnp.mean(z != 0.)
 
 		if save_histories:
