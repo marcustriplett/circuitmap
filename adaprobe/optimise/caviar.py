@@ -21,7 +21,7 @@ from .pava import _isotonic_regression, simultaneous_isotonic_regression
 EPS = 1e-10
 
 def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, minimum_spike_count=3,
+	iters=50, num_mc_samples=100, seed=0, y_xcorr_thresh=1e-2, minimum_spike_count=3,
 	delay_spont_est=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=2e1, noise_scale=0.5, save_histories=True):
 	'''Coordinate-ascent variational inference and isotonic regularisation.
 	'''

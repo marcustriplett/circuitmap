@@ -299,14 +299,13 @@ class Model:
 		)
 		t_end = time.time()
 
-		mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, rfs, mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
+		mu, beta, lam, shape, rate, phi, phi_cov, z, rfs, mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
 		phi_hist, phi_cov_hist, z_hist = result
 
 		# move from GPU back to CPU
 		## param vectors
 		mu 			= np.array(mu)
 		beta 		= np.array(beta)
-		alpha 		= np.array(alpha)
 		lam 		= np.array(lam)
 		shape 		= np.array(shape)
 		rate 		= np.array(rate)
@@ -318,7 +317,6 @@ class Model:
 		## history vectors
 		mu_hist 		= np.array(mu_hist)
 		beta_hist 		= np.array(beta_hist)
-		alpha_hist 		= np.array(alpha_hist)
 		lam_hist 		= np.array(lam_hist)
 		shape_hist 		= np.array(shape_hist)
 		rate_hist 		= np.array(rate_hist)
@@ -328,7 +326,6 @@ class Model:
 
 		self.state['mu'] 		= mu
 		self.state['beta'] 		= beta
-		self.state['alpha']		= alpha
 		self.state['shape'] 	= shape
 		self.state['rate'] 		= rate
 		self.state['phi'] 		= phi
@@ -343,7 +340,6 @@ class Model:
 		self.history = {
 			'mu': mu_hist,
 			'beta': beta_hist,
-			'alpha': alpha_hist,
 			'lam': lam_hist,
 			'shape': shape_hist,
 			'rate': rate_hist,
