@@ -294,7 +294,7 @@ class Model:
 		t_start = time.time()
 
 		result = optimise.caviar(
-			obs, stimuli, self.state['mu'], self.state['beta'], self.state['alpha'], self.state['shape'], 
+			obs, stimuli, self.state['mu'], self.state['beta'], self.state['shape'], 
 			self.state['rate'], self.state['phi'], self.state['phi_cov'], **fit_options 
 		)
 		t_end = time.time()
