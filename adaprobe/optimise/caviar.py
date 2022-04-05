@@ -21,9 +21,8 @@ from .pava import _isotonic_regression, simultaneous_isotonic_regression
 EPS = 1e-10
 
 def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
-	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, learn_noise=False, phi_thresh=None, minimum_spike_count=3,
-	delay_spont_est=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=2e1, lam_iters=1, disc_strength=0.05,
-	noise_scale=0.5, save_histories=True):
+	iters, num_mc_samples, seed, y_xcorr_thresh=1e-2, minimum_spike_count=3,
+	delay_spont_est=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=2e1, noise_scale=0.5, save_histories=True):
 	'''Coordinate-ascent variational inference and isotonic regularisation.
 	'''
 	y = np.trapz(y_psc, axis=-1)
@@ -242,7 +241,7 @@ def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, nu
 
 			# update lam
 			scope.lam = index_update(scope.lam, n, est_lam * pava)
-			
+
 	return scope.lam, scope.key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
