@@ -140,11 +140,11 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, beta, z, minimax_spk_prob=0.3
 
 #% estimate_spont_act_soft_thresh
 def _esast_cond_fun(carry):
-	it, max_iters, err, tol = [carry[i] for i in [3, 4, 8, 9]]
+	it, max_iters, err, tol = [carry[i] for i in [3, 4, 5, 10]]
 	return jnp.logical_and(it < max_iters, err > tol)
 
 def _esast_body_fun(carry):
-	y, mu, lam, it, max_iters, err, z, pen, mask, scale_factor = carry
+	y, mu, lam, it, max_iters, err, z, pen, mask, scale_factor, tol = carry
 	resid = y - lam.T @ mu
 	z = jnp.where(resid < pen, 0., resid - pen)
 	z = jnp.where(z < 0., 0., z)
@@ -153,7 +153,7 @@ def _esast_body_fun(carry):
 	err = jnp.sum(jnp.square(resid - z))/(jnp.sum(jnp.square(y)) + 1e-5)
 	it += 1
 	pen *= scale_factor
-	return y, mu, lam, it, max_iters, err, z, pen, mask, scale_factor
+	return y, mu, lam, it, max_iters, err, z, pen, mask, scale_factor, tol
 
 estimate_spont_act_soft_thresh = jit(lambda carry: while_loop(_esast_cond_fun, _esast_body_fun, carry))
 
