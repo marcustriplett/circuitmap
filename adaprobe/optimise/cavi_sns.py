@@ -94,7 +94,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 		if save_histories:
-			for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov, z]):
+			for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov]):
 				hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
 	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, *hist_arrs
