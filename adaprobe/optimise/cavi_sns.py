@@ -57,202 +57,47 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	rate 		= jnp.array(rate_prior)
 	phi 		= jnp.array(phi_prior)
 	phi_cov 	= jnp.array(phi_cov_prior)
-	z 			= np.zeros(K)
-	receptive_fields = None # prevent error when num-iters < phi_thresh_delay
 
 	# Define history arrays
-
 	if save_histories:
-		cpus = jax.devices('cpu')
+		cpu = jax.devices('cpu')[0]
 
-		mu_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
-		beta_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
-		alpha_hist 	= jax.device_put(np.zeros((iters, N)), cpus[0])
-		lam_hist 	= jax.device_put(np.zeros((iters, N, K)), cpus[0])
-		shape_hist 	= jax.device_put(np.zeros((iters, K)), cpus[0])
-		rate_hist 	= jax.device_put(np.zeros((iters, K)), cpus[0])
-		phi_hist  	= jax.device_put(np.zeros((iters, N, 2)), cpus[0])
-		phi_cov_hist = jax.device_put(np.zeros((iters, N, 2, 2)), cpus[0])
-		z_hist 		= jax.device_put(np.zeros((iters, K)), cpus[0])
+		mu_hist 		= np.zeros((iters, N))
+		beta_hist 		= np.zeros((iters, N))
+		alpha_hist 		= np.zeros((iters, N))
+		lam_hist 		= np.zeros((iters, N, K))
+		shape_hist 		= np.zeros((iters, K))
+		rate_hist 		= np.zeros((iters, K))
+		phi_hist  		= np.zeros((iters, N, 2))
+		phi_cov_hist 	= np.zeros((iters, N, 2, 2))
 		
 		hist_arrs = [mu_hist, beta_hist, alpha_hist, lam_hist, shape_hist, rate_hist, \
-			phi_hist, phi_cov_hist, z_hist]
+			phi_hist, phi_cov_hist]
+
+		# move hist arrays to CPU
+		hist_arrs = [jax.device_put(ha, cpu) for ha in hist_arrs]
+
 	else:
-		hist_arrs = [None]*9
+		hist_arrs = [None] * 8
 		
 	# init key
 	key = jax.random.PRNGKey(seed)
 
 	# Iterate CAVI updates
 	for it in trange(iters):
-		beta = update_beta(alpha, lam, shape, rate, beta_prior)
-		mu, key = update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key)
-		alpha, key = update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key)
-		lam, key = update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
-			phi, phi_cov, lam_mask, key, num_mc_samples, N)
-
-		if noise_update == 'iid':
-			shape, rate = update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
-		elif noise_update == 'trial-wise':
-			shape, rate, key = update_noise(y, mu, beta, alpha, lam, key, noise_scale=noise_scale, num_mc_samples=num_mc_samples)
-		else:
-			raise Exception
-
+		beta 				= update_beta(alpha, lam, shape, rate, beta_prior)
+		mu, key 			= update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key)
+		alpha, key 			= update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key)
+		lam, key 			= update_lam(y, I, mu, beta, alpha, lam, shape, rate, \
+								phi, phi_cov, lam_mask, key, num_mc_samples, N)
+		shape, rate 		= update_sigma(y, mu, beta, alpha, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
-		if it > phi_thresh_delay:
-			receptive_fields, disc_cells, alpha, mu, lam = update_isotonic_receptive_field(lam, I, powers, mu, alpha, minimax_spk_prob=minimax_spk_prob + spont_rate, minimum_spike_count=minimum_spike_count)
-			z = update_z_l1_with_residual_tolerance(y, alpha, mu, lam, lam_mask, scale_factor=scale_factor, penalty=penalty)
-			spont_rate = np.mean(z != 0.)
 		if save_histories:
 			for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov, z]):
 				hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
-	mu, beta, alpha, lam, z = reconnect_spont_cells(y, I, lam, mu, alpha, beta, z, minimax_spk_prob=minimax_spk_prob)
-	(phi, phi_cov), _ = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-
-	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, z, receptive_fields, *hist_arrs
-
-def reconnect_spont_cells(y, stim_matrix, lam, mu, alpha, beta, z, minimax_spk_prob=0.3, minimum_spike_count=3):
-	disc_cells = np.where(mu == 0.)[0]
-	powers = np.unique(stim_matrix)[1:] # skip zero power
-	z = np.array(z)
-	
-	print('Examining %i cells for false negatives...'%len(disc_cells))
-	while len(disc_cells) > 0:
-		stim_locs = []
-		for n in disc_cells:
-			stim_locs += [np.where(z[np.where(stim_matrix[n])[0]])[0]]
-
-		# Focus on cell with largest number of associated spikes
-		focus_indx = np.argmax([len(sl) for sl in stim_locs])
-		focus = disc_cells[focus_indx]
-
-		# Check pava condition
-		srates = np.zeros_like(powers)
-		spike_count = 0
-		for i, p in enumerate(powers):
-			z_locs = np.where(stim_matrix[focus] == p)[0]
-			if len(z_locs) > 0:
-				srates[i] = np.mean(z[z_locs] != 0)
-				spike_count += np.sum(z[z_locs] != 0)
-		pava = _isotonic_regression(srates, np.ones_like(srates))[-1]
-		
-		if pava >= minimax_spk_prob and spike_count >= minimum_spike_count:
-			# Passes pava condition, reconnect cell
-			print('Reconnecting cell %i with maximal pava spike rate %.2f'%(focus, pava))
-			z_locs = np.intersect1d(np.where(stim_matrix[focus])[0], np.where(z)[0])
-			mu = index_update(mu, focus, np.mean(z[z_locs]))
-			beta = index_update(beta, focus, np.std(z[z_locs]))
-			alpha = index_update(alpha, focus, 1.)
-			lam = index_update(lam, (focus, z_locs), 1.)
-			z[z_locs] = 0. # delete events from spont vector
-
-		disc_cells = np.delete(disc_cells, focus_indx)
-
-	print('Cell reconnection complete.')
-
-	return mu, beta, alpha, lam, z # then update phi
-
-
-@jax.partial(jit, static_argnums=(7))
-def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=10):
-	N, K = lam.shape
-	std = beta * (mu != 0)
-
-	alpha_samps = (jax.random.uniform(key, [num_mc_samples, N]) <= alpha) * 1.0
-	key, _ = jax.random.split(key)
-
-	w_samps = (mu + std * jax.random.normal(key, [num_mc_samples, N])) * alpha_samps
-	key, _ = jax.random.split(key)
-
-	s_samps = (jax.random.uniform(key, [num_mc_samples, N, K]) <= lam) * 1.0
-	key, _ = jax.random.split(key)
-
-	mc_ws_sq = jnp.mean(jnp.sum((w_samps[..., jnp.newaxis] * s_samps)**2, axis=1), axis=0)
-	mc_recon_err = jnp.mean((y - jnp.sum(w_samps[..., jnp.newaxis] * s_samps, axis=1))**2, axis=0)
-
-	shape = noise_scale**2 * mc_ws_sq + 1/2
-	rate = noise_scale * (mu * alpha) @ lam + 1/2 * mc_recon_err + 1e-5
-	return shape, rate, key
-
-def _eval_spike_rates(stimv, lamv, powers):
-	K = stimv.shape[0]
-	Krange = jnp.arange(K)
-	npowers = powers.shape[0]
-	inf_spike_rates = jnp.zeros(npowers)
-	with loops.Scope() as scope:
-		scope.inf_spike_rates = jnp.zeros(npowers)
-		for p in scope.range(npowers):
-			power = powers[p]
-			locs = jnp.where(stimv == power, Krange, -1)
-			mask = (locs >= 0)
-			sr = jnp.sum(lamv[locs] * mask)/(jnp.sum(mask) + 1e-4 * (jnp.sum(mask) == 0.))
-			scope.inf_spike_rates = index_update(scope.inf_spike_rates, p, sr)
-	return scope.inf_spike_rates
-
-eval_spike_rates = vmap(_eval_spike_rates, in_axes=(0, 0, None))
-
-@jit
-def update_isotonic_receptive_field(lam, stim_matrix, powers, mu, alpha, minimax_spk_prob=0.3, minimum_spike_count=3, disc_strength=0.):
-	N, K = lam.shape
-	n_powers = powers.shape[0]
-	inferred_spk_probs = jnp.zeros((N, n_powers))
-	disc_cells = jnp.zeros(N)
-	inf_spike_rates = eval_spike_rates(stim_matrix, lam, powers)
-	receptive_fields = simultaneous_isotonic_regression(powers, inf_spike_rates)
-	disc_cells = jnp.logical_or(receptive_fields[:, -1] < minimax_spk_prob, jnp.sum(lam, axis=1) < minimum_spike_count)
-
-	alpha = alpha * (1. - disc_cells) + disc_strength * disc_cells
-	mu = mu * (1. - disc_cells) + disc_strength * disc_cells
-	lam = lam * ((1. - disc_cells)[:, jnp.newaxis]) + (disc_strength * disc_cells)[:, jnp.newaxis]
-
-	return receptive_fields, disc_cells, alpha, mu, lam
-
-def update_z_l1_with_residual_tolerance(y, _alpha, _mu, _lam, lam_mask, penalty=2e1, scale_factor=0.5, max_penalty_iters=50, verbose=False, 
-	orthogonal=True, tol=0.05):
-	""" Soft thresholding with iterative penalty shrinkage
-	"""
-	if verbose:
-		print(' ==== Updating z via soft thresholding with iterative penalty shrinking ==== ')
-
-	alpha, mu, lam = np.array(_alpha), np.array(_mu), np.array(_lam)
-	N, K = lam.shape
-	resid = np.array(y - lam.T @ (mu * alpha))
-
-	for it in range(max_penalty_iters):
-		# iteratively shrink penalty until constraint is met
-		if verbose:
-			print('penalty iter: ', it)
-			print('current penalty: ', penalty)
-		
-		z = np.zeros(K)
-		hard_thresh_locs = np.where(resid < penalty)[0]
-		soft_thresh_locs = np.where(resid >= penalty)[0]
-		z[hard_thresh_locs] = 0
-		z[soft_thresh_locs] = resid[soft_thresh_locs] - penalty
-		z[z < 0] = 0
-
-		if orthogonal:
-			# enforce orthogonality
-			z[np.any(lam >= 0.5, axis=0)] = 0
-
-		z = z * lam_mask
-		err = np.sum(np.square(resid - z))/np.sum(np.square(y))
-
-		if verbose:
-			print('soft thresh err: ', err)
-			print('tol: ', tol)
-			print('')
-
-		if err <= tol:
-			if verbose:
-				print(' ==== converged on iteration: %i ==== '%it)
-			break
-		else:
-			penalty *= scale_factor # exponential backoff
-		
-	return z
+	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, *hist_arrs
 
 @jit
 def update_beta(alpha, lam, shape, rate, beta_prior):
@@ -260,7 +105,7 @@ def update_beta(alpha, lam, shape, rate, beta_prior):
 
 @jax.partial(jit, static_argnums=(9))
 def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key):
-	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
+	'''Update based on solving E_q(Z-mu_n)[ln p(y, Z)]'''
 	sig = shape/rate
 	update_order = jax.random.choice(key, N, [N], replace=False)
 	with loops.Scope() as scope:
@@ -352,7 +197,6 @@ def update_phi(lam, I, phi_prior, phi_cov_prior, key):
 	(posterior, logliks), keys = laplace_approx(lam, phi_prior, phi_cov_prior, I, key) # N keys returned due to vmapped LAs
 	return posterior, keys[-1]
 	
-
 def _laplace_approx(y, phi_prior, phi_cov, I, key, t=1e1, backtrack_alpha=0.25, backtrack_beta=0.5, max_backtrack_iters=40):
 	"""Laplace approximation to sigmoid coefficient posteriors $phi$.
 	"""
