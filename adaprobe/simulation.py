@@ -408,6 +408,7 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, s
 		'obs_responses': obs_resps,
 		'true_responses': true_resps,
 		'stim_matrix': stim_matrix,
+		'sponts': sponts
 	}
 
 	return expt
