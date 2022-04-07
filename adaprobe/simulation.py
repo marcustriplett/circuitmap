@@ -253,46 +253,46 @@ def simulate_continuous_experiment_without_spike_failures(N=100, connected_frac=
 
 #% simulate_continuous_experiment helper funcs
 def _get_psc_kernel(tau_r, tau_d, kernel_window, eps=1e-5):
-    krange = jnp.arange(kernel_window)
-    ke = jnp.exp(-krange/tau_d) - jnp.exp(-krange/tau_r) # normalised kernel
-    return ke/(np.max(ke) + eps)
+	krange = jnp.arange(kernel_window)
+	ke = jnp.exp(-krange/tau_d) - jnp.exp(-krange/tau_r) # normalised kernel
+	return ke/(np.max(ke) + eps)
 get_psc_kernel = jit(vmap(_get_psc_kernel, in_axes=(0, 0, None)), static_argnums=(2))
 
 def _kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight):
-    ''' Warning: assumes no spike occurs on very first bin due to jax workaround.
-    '''
-    stimv = jnp.zeros(trange.shape[0])
-    locs = (delta * spike).astype(int)
-    stimv = index_update(stimv, locs, weight * mult_noise)
-    stimv = index_update(stimv, 0, 0)
-    return jnp.convolve(psc_kernel, stimv, mode='full')[:trange.shape[0]]
+	''' Warning: assumes no spike occurs on very first bin due to jax workaround.
+	'''
+	stimv = jnp.zeros(trange.shape[0])
+	locs = (delta * spike).astype(int)
+	stimv = index_update(stimv, locs, weight * mult_noise)
+	stimv = index_update(stimv, 0, 0)
+	return jnp.convolve(psc_kernel, stimv, mode='full')[:trange.shape[0]]
 
 _vmap_kernel_conv = vmap(_kernel_conv, in_axes=(None, 0, 0, 0, 0, 0))
 
 @jit
 def kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight):
-    ''' Compute PSCs via convolution of weighted spikes with PSC kernel.
-    '''
-    return jnp.sum(_vmap_kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight), axis=0)
+	''' Compute PSCs via convolution of weighted spikes with PSC kernel.
+	'''
+	return jnp.sum(_vmap_kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight), axis=0)
 
 def _eval_sponts(trange, tau_r, tau_d, delta, weight, eps=1e-8):
-    ke = jnp.nan_to_num((jnp.exp(-(trange - delta)/tau_d) - jnp.exp(-(trange - delta)/tau_r)) * (trange > delta))
-    return (ke * weight)/(jnp.max(ke) + eps)
+	ke = jnp.nan_to_num((jnp.exp(-(trange - delta)/tau_d) - jnp.exp(-(trange - delta)/tau_r)) * (trange > delta))
+	return (ke * weight)/(jnp.max(ke) + eps)
 
 eval_sponts = jit(lambda *args: jnp.sum(vmap(_eval_sponts, in_axes=(None, 0, 0, 0, 0))(*args), axis=0))
 
 def _get_true_evoked_resp(spike_time, noise_weighted_spike, weight, psc_kernel, response_length=900, prior_context=100):
-    stimv = index_update(jnp.zeros(response_length), (prior_context + spike_time).astype(int), noise_weighted_spike * weight)
-    return jnp.convolve(stimv, psc_kernel)[:stimv.shape[0]]
+	stimv = index_update(jnp.zeros(response_length), (prior_context + spike_time).astype(int), noise_weighted_spike * weight)
+	return jnp.convolve(stimv, psc_kernel)[:stimv.shape[0]]
 
 get_true_evoked_resp = lambda *args: jnp.sum(vmap(_get_true_evoked_resp, in_axes=(0, 0, 0, 0))(*args), axis=0)
 get_true_evoked_resp_vmap = jit(vmap(get_true_evoked_resp, in_axes=(1, 1, None, None)))
 
-def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, spont_rate=0.0005, min_latency=60, powers=[45, 55, 65],
+def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, min_latency=60, powers=[45, 55, 65],
 	mult_noise_log_var=0.05, response_length=900, noise_std=1e-2, tau_r_min=10, tau_r_max=40, tau_delta_min=250, tau_delta_max=300, sampling_freq=20000, 
 	stim_freq=10, weight_lower=2, weight_upper=10, seed=0, ar_coef=0.95, ar_std=1e-1, weights=None, frac_strongly_connected=0.2, strong_weight_lower=20, 
 	strong_weight_upper=40, weak_exp_mean=4, min_weight=5, phi_0_lower=0.2, phi_0_upper=0.25, phi_1_lower=10, phi_1_upper=15, kernel=None, phi_0=None, phi_1=None,
-	H=10, nreps=1, connection_prob=0.1, spont_prob=0.0001, kernel_window=3000, prior_context=100, ground_truth_eval_batch_size=1000):
+	H=10, nreps=1, connection_prob=0.1, spont_rate=0.0001, kernel_window=3000, prior_context=100, ground_truth_eval_batch_size=1000):
 	'''Simulate continuous mapping experiment (to be sliced and reshaped post-hoc).
 	'''
 	
@@ -305,7 +305,7 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, s
 	print('Sampling frequency (KHz)', sampling_freq/1000)
 	print('Hologram repetitions', nreps)
 	print('Connection density', connection_prob)
-	print('Spontaneous PSC probability', spont_prob)
+	print('Spontaneous PSC probability', spont_rate)
 	print('Powers', powers)
 	
 	# time constants
@@ -383,7 +383,7 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, s
 			psc_kernels
 		)]
 	true_resps = np.array(jnp.concatenate(true_resps))
-
+	
 	# add spontaneous activity
 	nspont = int(spont_rate * expt_len)
 	spont_times = np.random.choice(expt_len, nspont, replace=False)
@@ -402,13 +402,12 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, s
 
 	pscs = pscs + sponts + ar1_noise
 	obs_resps = np.array([pscs[st-prior_context: st+response_length-prior_context] for st in stim_times])
-
+	
 	expt = {
 		'pscs': pscs,
 		'obs_responses': obs_resps,
 		'true_responses': true_resps,
 		'stim_matrix': stim_matrix,
-		'sponts': sponts
 	}
 
 	return expt
