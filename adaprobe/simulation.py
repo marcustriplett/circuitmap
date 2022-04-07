@@ -3,6 +3,7 @@ import itertools
 from jax import jit, vmap, partial
 import jax.numpy as jnp
 from jax.ops import index_update
+from jax.nn import sigmoid
 
 # Conditionally import progress bar
 try:
