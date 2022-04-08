@@ -275,11 +275,11 @@ def kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight):
 	'''
 	return jnp.sum(_vmap_kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight), axis=0)
 
-def _eval_sponts(trange, tau_r, tau_d, delta, weight, eps=1e-8):
+def _eval_sponts(trange, tau_r, tau_d, delta, weight, divisor, eps=1e-8):
 	ke = jnp.nan_to_num((jnp.exp(-(trange - delta)/tau_d) - jnp.exp(-(trange - delta)/tau_r)) * (trange > delta))
-	return (ke * weight)/(jnp.trapz(ke) + eps)
+	return (ke * weight)/(divisor + eps)
 
-eval_sponts = jit(lambda *args: jnp.sum(vmap(_eval_sponts, in_axes=(None, 0, 0, 0, 0))(*args), axis=0))
+eval_sponts = jit(lambda *args: jnp.sum(vmap(_eval_sponts, in_axes=(None, 0, 0, 0, 0, 0))(*args), axis=0))
 
 def _get_true_evoked_resp(spike_time, noise_weighted_spike, weight, psc_kernel, response_length=900, prior_context=100):
 	stimv = index_update(jnp.zeros(response_length), (prior_context + spike_time).astype(int), noise_weighted_spike * weight)
@@ -390,8 +390,10 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 	tau_r = np.random.uniform(tau_r_min, tau_r_max, nspont)
 	tau_delta = np.random.uniform(tau_delta_min, tau_delta_max, nspont)
 	tau_d = tau_r + tau_delta
+	psc_kernels = get_psc_kernel(tau_r, tau_d, kernel_window)
+	kernel_divisor = np.trapz(psc_kernels, axis=-1)
 
-	sponts = np.array(eval_sponts(trange, tau_r, tau_d, spont_times, np.random.uniform(weight_lower, weight_upper, [nspont])))
+	sponts = np.array(eval_sponts(trange, tau_r, tau_d, spont_times, np.random.uniform(weight_lower, weight_upper, [nspont]), kernel_divisor))
 
 	# compute correlated noise
 	ar1_noise = np.zeros(expt_len)
@@ -408,6 +410,7 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 		'obs_responses': obs_resps,
 		'true_responses': true_resps,
 		'stim_matrix': stim_matrix,
+		'weights': weights
 	}
 
 	return expt
