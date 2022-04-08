@@ -399,7 +399,7 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 	psc_kernels = get_unnormalised_psc_kernel(tau_r, tau_d, kernel_window)
 	kernel_divisor = np.trapz(psc_kernels, axis=-1)
 
-	sponts = np.array(eval_sponts(trange, tau_r, tau_d, spont_times, np.random.uniform(weight_lower, weight_upper, [nspont]), kernel_divisor))
+	sponts = np.array(eval_sponts(trange, tau_r, tau_d, spont_times, np.random.uniform(min_weight, np.max(weights), [nspont]), kernel_divisor))
 
 	# compute correlated noise
 	ar1_noise = np.zeros(expt_len)
