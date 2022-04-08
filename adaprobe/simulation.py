@@ -387,9 +387,9 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 		spike_times[holo, k] = sample_spike_time(power, gamma_beta=gamma_beta, min_latency=min_latency)
 
 	reorder = np.random.choice(K, K, replace=False) # shuffle trials
-    stim_matrix = stim_matrix[:, reorder]
-    spike_times = spike_times[:, reorder]
-    spks = spks[:, reorder]
+	stim_matrix = stim_matrix[:, reorder]
+	spike_times = spike_times[:, reorder]
+	spks = spks[:, reorder]
 
 	# responses
 	mult_noise = np.random.lognormal(0, mult_noise_log_var, [N, nstim])
