@@ -385,7 +385,8 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 	# sample spike times
 	for k in range(K):
 		holo = np.where(stim_matrix[:, k])[0]
-		spike_times[holo, k] = sample_spike_time(power * np.ones(holo.shape[0]), gamma_beta=gamma_beta, min_latency=min_latency)
+		power = stim_matrix[holo, k]
+		spike_times[holo, k] = sample_spike_time(power, gamma_beta=gamma_beta, min_latency=min_latency)
 	spike_times = spike_times[:, reorder]
 
 	# responses
