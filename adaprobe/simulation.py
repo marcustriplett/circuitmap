@@ -255,7 +255,7 @@ def simulate_continuous_experiment_without_spike_failures(N=100, connected_frac=
 def _get_psc_kernel(tau_r, tau_d, kernel_window, eps=1e-5):
 	krange = jnp.arange(kernel_window)
 	ke = jnp.exp(-krange/tau_d) - jnp.exp(-krange/tau_r) # normalised kernel
-	return ke/(np.trapz(ke) + eps)
+	return ke/(jnp.trapz(ke) + eps)
 get_psc_kernel = jit(vmap(_get_psc_kernel, in_axes=(0, 0, None)), static_argnums=(2))
 
 def _kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight):
