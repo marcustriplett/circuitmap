@@ -358,8 +358,6 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 			stim_matrix += [stim_trial]
 			K += 1        
 	stim_matrix = np.array(stim_matrix).T
-	reorder = np.random.choice(K, K, replace=False) # shuffle trials
-	stim_matrix = stim_matrix[:, reorder]
 
 	# opsin parameters
 	if phi_0 is None or phi_1 is None:
@@ -387,7 +385,11 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 		holo = np.where(stim_matrix[:, k])[0]
 		power = stim_matrix[holo, k]
 		spike_times[holo, k] = sample_spike_time(power, gamma_beta=gamma_beta, min_latency=min_latency)
-	spike_times = spike_times[:, reorder]
+
+	reorder = np.random.choice(K, K, replace=False) # shuffle trials
+    stim_matrix = stim_matrix[:, reorder]
+    spike_times = spike_times[:, reorder]
+    spks = spks[:, reorder]
 
 	# responses
 	mult_noise = np.random.lognormal(0, mult_noise_log_var, [N, nstim])
