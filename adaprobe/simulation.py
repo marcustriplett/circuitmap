@@ -252,10 +252,10 @@ def simulate_continuous_experiment_without_spike_failures(N=100, connected_frac=
 	return expt
 
 #% simulate_continuous_experiment helper funcs
-def _get_psc_kernel(tau_r, tau_d, kernel_window, eps=1e-5):
+def _get_psc_kernel(tau_r, tau_d, kernel_window, response_length=900, eps=1e-5):
 	krange = jnp.arange(kernel_window)
 	ke = jnp.exp(-krange/tau_d) - jnp.exp(-krange/tau_r) # normalised kernel
-	return ke/(jnp.trapz(ke) + eps)
+	return ke/(jnp.trapz(ke[:response_length]) + eps)
 get_psc_kernel = jit(vmap(_get_psc_kernel, in_axes=(0, 0, None)), static_argnums=(2))
 
 def _get_unnormalised_psc_kernel(tau_r, tau_d, kernel_window, eps=1e-5):
@@ -397,7 +397,7 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 	tau_delta = np.random.uniform(tau_delta_min, tau_delta_max, nspont)
 	tau_d = tau_r + tau_delta
 	psc_kernels = get_unnormalised_psc_kernel(tau_r, tau_d, kernel_window)
-	kernel_divisor = np.trapz(psc_kernels, axis=-1)
+	kernel_divisor = np.trapz(psc_kernels[:response_length], axis=-1)
 
 	sponts = np.array(eval_sponts(trange, tau_r, tau_d, spont_times, np.random.uniform(0., np.max(weights), [nspont]), kernel_divisor))
 
