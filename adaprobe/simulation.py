@@ -252,6 +252,7 @@ def simulate_continuous_experiment_without_spike_failures(N=100, connected_frac=
 	return expt
 
 #% simulate_continuous_experiment helper funcs
+
 def _get_psc_kernel(tau_r, tau_d, kernel_window, response_length=900, eps=1e-5):
 	krange = jnp.arange(kernel_window)
 	ke = jnp.exp(-krange/tau_d) - jnp.exp(-krange/tau_r) # normalised kernel
@@ -298,7 +299,7 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 	mult_noise_log_var=0.05, response_length=900, noise_std=1e-2, tau_r_min=10, tau_r_max=40, tau_delta_min=250, tau_delta_max=300, sampling_freq=20000, 
 	stim_freq=10, weight_lower=2, weight_upper=10, seed=0, ar_coef=0.95, ar_std=3e-4, weights=None, frac_strongly_connected=0.2, strong_weight_lower=20, 
 	strong_weight_upper=40, weak_exp_mean=4, min_weight=5, phi_0_lower=0.2, phi_0_upper=0.25, phi_1_lower=10, phi_1_upper=15, kernel=None, phi_0=None, phi_1=None,
-	H=10, nreps=1, connection_prob=0.1, spont_rate=10, kernel_window=3000, prior_context=100, ground_truth_eval_batch_size=1000):
+	H=10, nreps=1, connection_prob=0.1, spont_rate=10, kernel_window=3000, prior_context=100, ground_truth_eval_batch_size=1000, max_power_min_spike_rate=0.3):
 	'''Simulate continuous mapping experiment (to be sliced and reshaped post-hoc).
 	'''
 	
@@ -355,22 +356,40 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 			stim_trial = np.zeros(N)
 			stim_trial[holo] = power
 			stim_matrix += [stim_trial]
-			spike_times[holo, K] = sample_spike_time(power * np.ones(holo.shape[0]), gamma_beta=gamma_beta, min_latency=min_latency)
 			K += 1        
 	stim_matrix = np.array(stim_matrix).T
 	reorder = np.random.choice(K, K, replace=False) # shuffle trials
 	stim_matrix = stim_matrix[:, reorder]
-	spike_times = spike_times[:, reorder]
-	
-	# responses
-	mult_noise = np.random.lognormal(0, mult_noise_log_var, [N, nstim])
-	
+
+	# opsin parameters
 	if phi_0 is None or phi_1 is None:
 		phi_0 = np.random.uniform(phi_0_lower, phi_0_upper, N)
 		phi_1 = np.random.uniform(phi_1_lower, phi_1_upper, N)
 
+	# sample spikes
 	frates = np.array([sigmoid(phi_0 * stim_matrix[:, k] - phi_1) for k in range(K)]).T * (stim_matrix > 0)
 	spks = (np.random.rand(N, K) <= frates).astype(float)
+
+	# pad spikes to ensure min spike rate at maximal power is met, provided sufficient no-spike trials
+	max_power = np.max(powers)
+	for n in range(N):
+		locs = np.where(stim_matrix[n] == max_power)[0]
+		fr = np.mean(spks[n, locs])
+		fr_diff = max_power_min_spike_rate - fr
+		if fr_diff > 0:
+			# condition not met
+			zero_locs = np.where(spks[n, locs] == 0)[0]
+			req_spks = int(np.ceil(fr_diff * locs.shape[0]))
+			spks[n, locs[np.random.choice(zero_locs, req_spks, replace=False)]] = 1.
+
+	# sample spike times
+	for k in range(K):
+		holo = np.where(stim_matrix[:, k])[0]
+		spike_times[holo, k] = sample_spike_time(power * np.ones(holo.shape[0]), gamma_beta=gamma_beta, min_latency=min_latency)
+	spike_times = spike_times[:, reorder]
+
+	# responses
+	mult_noise = np.random.lognormal(0, mult_noise_log_var, [N, nstim])
 	
 	# compute pscs
 	psc_kernels = get_psc_kernel(tau_r, tau_d, kernel_window)
