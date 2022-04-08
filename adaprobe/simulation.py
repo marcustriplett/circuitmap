@@ -367,12 +367,14 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 	spks = (np.random.rand(N, K) <= frates).astype(float)
 	
 	# compute pscs
+	print('Generating pscs')
 	psc_kernels = get_psc_kernel(tau_r, tau_d, kernel_window)
 	pscs = np.array(kernel_conv(trange, psc_kernels[connected], spike_times[connected] + stim_times[np.newaxis], 
 					   spks[connected], mult_noise[connected], weights[connected]))
 	
 	# extract ground truth responses
 	#% batch-wise for controlling memory overhead
+	print('generating true resps')
 	true_resps = []
 	nbatches = int(np.ceil(nstim/ground_truth_eval_batch_size))
 	for i in range(nbatches):
