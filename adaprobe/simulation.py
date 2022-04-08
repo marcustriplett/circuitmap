@@ -255,7 +255,7 @@ def simulate_continuous_experiment_without_spike_failures(N=100, connected_frac=
 def _get_psc_kernel(tau_r, tau_d, kernel_window, eps=1e-5):
 	krange = jnp.arange(kernel_window)
 	ke = jnp.exp(-krange/tau_d) - jnp.exp(-krange/tau_r) # normalised kernel
-	return ke/(np.max(ke) + eps)
+	return ke/(np.trapz(ke) + eps)
 get_psc_kernel = jit(vmap(_get_psc_kernel, in_axes=(0, 0, None)), static_argnums=(2))
 
 def _kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight):
@@ -277,7 +277,7 @@ def kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight):
 
 def _eval_sponts(trange, tau_r, tau_d, delta, weight, eps=1e-8):
 	ke = jnp.nan_to_num((jnp.exp(-(trange - delta)/tau_d) - jnp.exp(-(trange - delta)/tau_r)) * (trange > delta))
-	return (ke * weight)/(jnp.max(ke) + eps)
+	return (ke * weight)/(jnp.trapz(ke) + eps)
 
 eval_sponts = jit(lambda *args: jnp.sum(vmap(_eval_sponts, in_axes=(None, 0, 0, 0, 0))(*args), axis=0))
 
@@ -367,14 +367,12 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 	spks = (np.random.rand(N, K) <= frates).astype(float)
 	
 	# compute pscs
-	print('Generating pscs')
 	psc_kernels = get_psc_kernel(tau_r, tau_d, kernel_window)
 	pscs = np.array(kernel_conv(trange, psc_kernels[connected], spike_times[connected] + stim_times[np.newaxis], 
 					   spks[connected], mult_noise[connected], weights[connected]))
 	
 	# extract ground truth responses
 	#% batch-wise for controlling memory overhead
-	print('generating true resps')
 	true_resps = []
 	nbatches = int(np.ceil(nstim/ground_truth_eval_batch_size))
 	for i in range(nbatches):
