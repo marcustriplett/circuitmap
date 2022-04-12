@@ -150,6 +150,7 @@ if __name__ == '__main__':
 		stim_matrix = expt['stim_matrix']
 		n_connected = np.sum(weights != 0)
 
+		isi = sampling_freq/sf
 		tsteps = np.arange(subsample_every, expt_len + 1, subsample_every)
 		tsteps_sec = list(map(str, (tsteps/sampling_freq).astype(int))) # for pd dataframe
 
