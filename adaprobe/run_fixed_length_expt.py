@@ -1,17 +1,17 @@
 import numpy as np
 from tqdm import tqdm
+import itertools
 import argparse
+import pandas as pd
+import yaml
+import sys
+import os
 
 # adaprobe imports
 import adaprobe
 from adaprobe.simulation import simulate_continuous_experiment
 from adaprobe.psc_denoiser import NeuralDenoiser
 from adaprobe.optimise.cosamp import cosamp
-
-import pandas as pd
-import yaml
-import sys
-import os
 
 if __name__ == '__main__':
 	# config GPU
