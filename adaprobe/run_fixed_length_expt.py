@@ -77,7 +77,7 @@ if __name__ == '__main__':
 	warm_start_lasso = True
 	minimum_spike_count = 3
 	num_mc_samples_noise_model = 100
-	minimax_spike_prob = minimax_spike_prob
+	minimax_spike_prob = max_power_min_spike_rate
 	noise_scale = 0.5
 	init_spike_prior = 0.95
 	num_mc_samples = 500
