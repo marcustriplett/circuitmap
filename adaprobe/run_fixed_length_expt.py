@@ -159,8 +159,8 @@ if __name__ == '__main__':
 			stim_matrix_subsample = stim_matrix[:, :subsample_len]
 
 			# MBCS noise priors depend on trial length
-			priors_mbcs['shape'] = np.ones(subsample_trials)
-			priors_mbcs['rate'] = 1e-1 * np.ones(subsample_trials)
+			priors_mbcs['shape'] = np.ones(psc_subsample.shape[0])
+			priors_mbcs['rate'] = 1e-1 * np.ones(psc_subsample.shape[0])
 
 			models_caviar = [adaprobe.Model(N, model_type='variational_sns', priors=priors_caviar) for _ in range(2)]
 			models_sns = [adaprobe.Model(N, model_type='variational_sns', priors=priors_caviar) for _ in range(2)]
