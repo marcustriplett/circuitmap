@@ -26,6 +26,8 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 	save_histories=True, max_backtrack_iters=20, tol=0.05):
 	'''Coordinate-ascent variational inference and isotonic regularisation.
 	'''
+	print('Running coordinate-ascent variational inference and isotonic regularisation (CAVIaR) algorithm.')
+	
 	y = np.trapz(y_psc, axis=-1)
 	K = y.shape[0]
 	lam_mask = jnp.array([jnp.correlate(y_psc[k], y_psc[k]) for k in range(K)]).squeeze() > y_xcorr_thresh

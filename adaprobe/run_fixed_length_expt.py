@@ -183,7 +183,7 @@ if __name__ == '__main__':
 				model_t = cos[1]
 
 			for mod_indx in range(2):
-				results.append({
+				results = results.append({
 					'N': N,
 					'H': H,
 					'stim_freq': sf,
@@ -208,5 +208,5 @@ if __name__ == '__main__':
 		token = '_' + token
 
 	results.to_json(save_dir \
-		+ 'N%i_connprob%.2f_spontrate%.2f_minspikerate%.2f_exptlen%i'%(N, connection_prob, spont_rate, max_power_min_spike_rate, config['expt_len'])\
+		+ 'N%i_connprob%.2f_spontrate%.2f_minspikerate%.2f_exptlen%i.json'%(N, connection_prob, spont_rate, max_power_min_spike_rate, config['expt_len'])\
 		+ token)

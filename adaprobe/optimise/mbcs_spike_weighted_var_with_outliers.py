@@ -37,6 +37,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	newton_iters=20, newton_penalty_shrinkage_iters=5, lam_update='variational_inference'):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
+	print('Running model-based compressed sensing algorithm with isotonic regularisation and spike-dependent noise.')
 
 	y = np.trapz(y_psc, axis=-1)
 	K = y.shape[0]
@@ -83,7 +84,7 @@ def mbcs_spike_weighted_var_with_outliers(y_psc, I, mu_prior, beta_prior, shape_
 	spike_prior = lam.copy()
 
 	# Iterate CAVI updates
-	for it in tqdm(range(iters), desc='CAVI', leave=True):
+	for it in tqdm(range(iters), leave=True):
 		beta = update_beta(lam, shape, rate, beta_prior)
 		# ignore z during mu and lam updates
 		mu, lam = update_mu_constr_l1(y, mu, lam, shape, rate, penalty=penalty, scale_factor=scale_factor, 

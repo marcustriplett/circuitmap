@@ -41,6 +41,7 @@ def _cavi_sns(y, I, mu_prior, beta_prior, alpha_prior, lam, shape_prior, rate_pr
 	scale_factor, penalty, lam_iters, disc_strength, noise_scale, noise_update, save_histories):
 	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
 	"""
+	print('Running coordinate-ascent variational inference for spike-and-slab model.')
 
 	spont_rate = 0.
 
