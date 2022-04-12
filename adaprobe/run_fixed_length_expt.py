@@ -52,7 +52,7 @@ if __name__ == '__main__':
 	alpha_prior 	= 0.15 * np.ones(N)
 	beta_prior 		= 3e0 * np.ones(N)
 	mu_prior 		= np.zeros(N)
-	sigma_prior 	= np.ones(N)
+	sigma 			= 1e0
 
 	priors_caviar = {
 		'alpha': alpha_prior,
@@ -67,13 +67,10 @@ if __name__ == '__main__':
 	priors_mbcs = {
 		'beta': beta_prior,
 		'mu': mu_prior,
-		'shape': shape_prior,
-		'rate': rate_prior
 	}
 
 	# config fit options
 	iters = 50
-	sigma = 1e0
 	seed = 1
 	y_xcorr_thresh = 1e-2
 	max_penalty_iters = 50
@@ -161,6 +158,10 @@ if __name__ == '__main__':
 			psc_subsample = psc[:subsample_len]
 			den_psc_subsample = den_psc[:subsample_len]
 			stim_matrix_subsample = stim_matrix[:, :subsample_len]
+
+			# MBCS noise priors depend on trial length
+			priors_mbcs['shape'] = np.ones(subsample_trials)
+			priors_mbcs['rate'] = 1e-1 * np.ones(subsample_trials)
 
 			models_caviar = [adaprobe.Model(model_type='variational_sns', priors=priors_caviar) for _ in range(2)]
 			models_sns = [adaprobe.Model(model_type='variational_sns', priors=priors_caviar) for _ in range(2)]
