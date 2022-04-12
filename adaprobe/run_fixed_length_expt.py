@@ -177,10 +177,10 @@ if __name__ == '__main__':
 			for model, data in zip(models_mbcs, [psc_subsample, den_psc_subsample]):
 				model.fit(data, stim_matrix_subsample, fit_options=fit_options_mbcs, method='mbcs_spike_weighted_var_with_outliers')
 
-			for model, model_t, data in zip(models_cosamp, models_cosamp_t, [psc_subsample, den_psc_subsample]):
+			for i, data in enumerate([psc_subsample, den_psc_subsample]):
 				cos = cosamp((stim_matrix_subsample != 0).astype(float).T, np.trapz(data, axis=-1), n_connected)
-				model = cos[0]
-				model_t = cos[1]
+				models_cosamp[i] = cos[0]
+				models_cosamp_t[i] = cos[1]
 
 			for mod_indx in range(2):
 				results = results.append({
@@ -208,5 +208,6 @@ if __name__ == '__main__':
 		token = '_' + token
 
 	results.to_json(save_dir \
-		+ 'N%i_connprob%.2f_spontrate%.2f_minspikerate%.2f_exptlen%i.json'%(N, connection_prob, spont_rate, max_power_min_spike_rate, config['expt_len'])\
-		+ token)
+		+ 'N%i_connprob%.2f_spontrate%.2f_minspikerate%.2f_exptlen%i'%(N, connection_prob, spont_rate, max_power_min_spike_rate, config['expt_len'])\
+		+ token\
+		+ '.json')
