@@ -3,6 +3,7 @@ from tqdm import tqdm
 import argparse
 
 # adaprobe imports
+import adaprobe
 from adaprobe.simulation import simulate_continuous_experiment
 from adaprobe.psc_denoiser import NeuralDenoiser
 from adaprobe.optimise.cosamp import cosamp
