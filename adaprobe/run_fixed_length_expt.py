@@ -134,8 +134,6 @@ if __name__ == '__main__':
 	weights = None
 
 	for (sf, H) in itertools.product(stim_freqs, Hs):
-		print('Simulating mapping experiment with %i targets at %i Hz'%(H, sf))
-
 		# simulate experiment
 		expt = simulate_continuous_experiment(N=N, H=H, expt_len=expt_len, stim_freq=sf, 
 			connection_prob=connection_prob, spont_rate=spont_rate, weights=weights, 
@@ -164,9 +162,9 @@ if __name__ == '__main__':
 			priors_mbcs['shape'] = np.ones(subsample_trials)
 			priors_mbcs['rate'] = 1e-1 * np.ones(subsample_trials)
 
-			models_caviar = [adaprobe.Model(model_type='variational_sns', priors=priors_caviar) for _ in range(2)]
-			models_sns = [adaprobe.Model(model_type='variational_sns', priors=priors_caviar) for _ in range(2)]
-			models_mbcs = [adaprobe.Model(model_type='mbcs', priors=priors_mbcs) for _ in range(2)]
+			models_caviar = [adaprobe.Model(N, model_type='variational_sns', priors=priors_caviar) for _ in range(2)]
+			models_sns = [adaprobe.Model(N, model_type='variational_sns', priors=priors_caviar) for _ in range(2)]
+			models_mbcs = [adaprobe.Model(N, model_type='mbcs', priors=priors_mbcs) for _ in range(2)]
 			models_cosamp = [None for _ in range(2)]
 			models_cosamp_t = [None for _ in range(2)]
 
