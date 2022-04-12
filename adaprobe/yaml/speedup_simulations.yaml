@@ -1,7 +1,7 @@
-N: 100
-Hs: [1, 10]
-stim_freqs: [10, 33]
-expt_len: 40
+N: 300
+Hs: [1, 10, 20, 30]
+stim_freqs: [10, 33, 50]
+expt_len: 600
 subsample_every: 20
 connection_prob: 0.1
 spont_rate: 3
