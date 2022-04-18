@@ -126,7 +126,8 @@ if __name__ == '__main__':
 	}
 
 	# init results dataframe
-	header = ['N', 'H', 'stim_freq', 'NWD', 'weights', 'tstep', 'CAVIaR', 'SnS', 'CoSaMP', 'MBCS', 'CAVIaR_t', 'SnS_t', 'CoSaMP_t', 'MBCS_t']
+	# header = ['N', 'H', 'stim_freq', 'NWD', 'weights', 'tstep', 'CAVIaR', 'SnS', 'CoSaMP', 'MBCS', 'CAVIaR_t', 'SnS_t', 'CoSaMP_t', 'MBCS_t']
+	header = ['N', 'H', 'stim_freq', 'NWD', 'weights', 'tstep', 'CAVIaR', 'SnS', 'CoSaMP', 'CAVIaR_t', 'SnS_t', 'CoSaMP_t']
 	results = pd.DataFrame(columns=header)
 	nwd_status = [False, True]
 
@@ -159,12 +160,12 @@ if __name__ == '__main__':
 			stim_matrix_subsample = stim_matrix[:, :subsample_len]
 
 			# MBCS noise priors depend on trial length
-			priors_mbcs['shape'] = np.ones(psc_subsample.shape[0])
-			priors_mbcs['rate'] = 1e-1 * np.ones(psc_subsample.shape[0])
+			# priors_mbcs['shape'] = np.ones(psc_subsample.shape[0])
+			# priors_mbcs['rate'] = 1e-1 * np.ones(psc_subsample.shape[0])
 
 			models_caviar = [adaprobe.Model(N, model_type='variational_sns', priors=priors_caviar) for _ in range(2)]
 			models_sns = [adaprobe.Model(N, model_type='variational_sns', priors=priors_caviar) for _ in range(2)]
-			models_mbcs = [adaprobe.Model(N, model_type='mbcs', priors=priors_mbcs) for _ in range(2)]
+			# models_mbcs = [adaprobe.Model(N, model_type='mbcs', priors=priors_mbcs) for _ in range(2)]
 			models_cosamp = [None for _ in range(2)]
 			models_cosamp_t = [None for _ in range(2)]
 
@@ -174,8 +175,8 @@ if __name__ == '__main__':
 			for model, data in zip(models_sns, [psc_subsample, den_psc_subsample]):
 				model.fit(data, stim_matrix_subsample, fit_options=fit_options_caviar, method='cavi_sns')
 
-			for model, data in zip(models_mbcs, [psc_subsample, den_psc_subsample]):
-				model.fit(data, stim_matrix_subsample, fit_options=fit_options_mbcs, method='mbcs_spike_weighted_var_with_outliers')
+			# for model, data in zip(models_mbcs, [psc_subsample, den_psc_subsample]):
+			# 	model.fit(data, stim_matrix_subsample, fit_options=fit_options_mbcs, method='mbcs_spike_weighted_var_with_outliers')
 
 			for i, data in enumerate([psc_subsample, den_psc_subsample]):
 				cos = cosamp((stim_matrix_subsample != 0).astype(float).T, np.trapz(data, axis=-1), n_connected)
@@ -192,11 +193,11 @@ if __name__ == '__main__':
 					'tstep': tsteps_sec[t],
 					'CAVIaR': models_caviar[mod_indx].state['mu'],
 					'SnS': models_sns[mod_indx].state['mu'] * models_sns[mod_indx].state['alpha'],
-					'MBCS': models_mbcs[mod_indx].state['mu'],
+					# 'MBCS': models_mbcs[mod_indx].state['mu'],
 					'CoSaMP': models_cosamp[mod_indx],
 					'CAVIaR_t': models_caviar[mod_indx].time,
 					'SnS_t': models_sns[mod_indx].time,
-					'MBCS_t': models_mbcs[mod_indx].time,
+					# 'MBCS_t': models_mbcs[mod_indx].time,
 					'CoSaMP_t': models_cosamp_t[mod_indx]
 				}, ignore_index=True)
 
@@ -207,7 +208,7 @@ if __name__ == '__main__':
 	elif token[0] != '_':
 		token = '_' + token
 
-	results.to_json(save_dir \
+	results.to_json(save_dir\
 		+ 'N%i_connprob%.2f_spontrate%.2f_minspikerate%.2f_exptlen%i'%(N, connection_prob, spont_rate, max_power_min_spike_rate, config['expt_len'])\
 		+ token\
 		+ '.json')
