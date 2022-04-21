@@ -1,8 +1,0 @@
-n_layers: 3
-channels: [16, 8, 1]
-kernel_size: 399
-padding: 199
-epochs: 1
-size: 10
-save_every: 50
-save_path: 'test'

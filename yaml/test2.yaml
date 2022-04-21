@@ -1,0 +1,9 @@
+N: 300
+Hs: [30]
+stim_freqs: [50]
+expt_len: 600
+subsample_every: 500
+connection_prob: 0.1
+spont_rate: 3
+max_power_min_spike_rate: 0.3
+demixer: '/home/mat2245/circuit_mapping/mbcs/circuitmap/demixers/nwd_ie_ChroME2f.ckpt'

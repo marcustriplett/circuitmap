@@ -1,8 +1,0 @@
-n_layers: 3
-channels: [16, 8, 1]
-kernel_size: 399
-padding: 199
-epochs: 3000
-size: 5000
-save_every: 50
-save_path: 'results/denoisers/nl3_ch16_8_1_ks399_pad199'
