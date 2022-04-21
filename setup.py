@@ -1,35 +1,19 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
-    name='adaprobe',
-    version='0.1.0',    
-    description='Waveform demixing and synaptic connectivity inference for holographic optogenetics',
-    url='',
-    author='mtriplett',
-    author_email='',
-    license='BSD 2-clause',
-    packages=['adaprobe'],
-    install_requires=[                     
-	'numpy==1.21',
-	'scikit-learn==0.24.2',
-	'torch',
-	'prettytable',
-	'scipy',
-	'pytorch-lightning',
-	'matplotlib',
-	'pandas',
-	'PyYAML'
+	name='circuitmap',
+	version='0.2.0',
+	description='Neural waveform demixing and synaptic connectivity inference for holographic ensemble stimulation',
+	author='Marcus Triplett',
+	author_email='marcus.triplett@columbia.edu',
+	packages=find_packages(),
+	install_requires=[
+		'numpy==1.21',
+		'scipy==1.6',
+		'scikit-learn==0.24',
+		'pandas',
+		'tqdm',
+		'torch',
+		'pytorch-lightning',
 	],
-
-    classifiers=[
-        'Development Status :: 1 - Planning',
-        'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: BSD License',  
-        'Operating System :: POSIX :: Linux',        
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-    ],
 )
