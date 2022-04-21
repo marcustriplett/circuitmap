@@ -21,11 +21,11 @@ def _kernel_conv_trialwise(psc_kernel, spk_time, spk, mult_noise, weight, respon
 _vmap_kernel_conv_trialwise = vmap(_kernel_conv_trialwise, in_axes=(None, 0, 0, 0, None))
 kernel_conv_trialwise = jit(lambda *args: jnp.sum(vmap(_vmap_kernel_conv_trialwise, in_axes=(0, 0, 0, 0, 0))(*args), axis=0))
 
-def simulate(N=300, T=900, H=10, trials=1000, nreps=10, connection_prob=0.05, powers=[45, 55, 65], min_latency=160, gamma_beta=1.5e1, sigma=6e-4,
+def simulate(N=300, T=900, H=10, trials=1000, nreps=1, connection_prob=0.05, powers=[45, 55, 65], min_latency=160, gamma_beta=1.5e1, sigma=6e-4,
 			frac_strongly_connected=0.2, strong_weight_lower=20, strong_weight_upper=40, weak_exp_mean=4, min_weight=5, phi_0_lower=0.2, phi_0_upper=0.25,
 			phi_1_lower=10, phi_1_upper=15, mult_noise_log_var=0.01, tau_r_min=25, tau_r_max=60, tau_delta_min=75, 
 			tau_delta_max=250, weights=None, kernel=None, phi_0=None, phi_1=None, gp_scale=4e-3, gp_lengthscale=50, spont_prob=0.05,
-			design='blockwise', max_power_min_spike_rate=0., batch_size=500):
+			design='blockwise', max_power_min_spike_rate=0.4, batch_size=500):
 	
 	assert design in ['random', 'blockwise']
 
