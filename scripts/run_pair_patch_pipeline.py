@@ -1,7 +1,7 @@
 import numpy as np
 import circuitmap as cm
 from circuitmap import NeuralDemixer
-from sklearn import r2_score
+from sklearn.metrics import r2_score
 import argparse
 from scipy.io import loadmat
 
