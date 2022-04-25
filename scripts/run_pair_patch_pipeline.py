@@ -93,8 +93,7 @@ def plot_spike_inference_comparison(den_pscs, stim_matrices, models, spks=None, 
 			ax.set_rasterization_zorder(-2)
 	
 	if save is not None:
-		plt.savefig(save, format='png', bbox_inches='tight', dpi=300, facecolor='white')
-	plt.show()
+		plt.savefig(save, format='png', bbox_inches='tight', dpi=400, facecolor='white')
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
@@ -283,10 +282,14 @@ if __name__ == '__main__':
 	out = args.out
 	if out[-1] != '/': out += '/'
 	fn = args.data.split('/')[-1][:-4] # extract filename and strip ext
-	fig.savefig('%s_%s_msrmp%s_summary.pdf'%(args.out, fn, args.msrmp), format='pdf', bbox_inches='tight', facecolor='white', dpi=400)
+	# fig.savefig('%s_%s_msrmp%s_summary.pdf'%(args.out, fn, args.msrmp), format='pdf', bbox_inches='tight', facecolor='white', dpi=400)
 	fig.savefig('%s_%s_msrmp%s_summary.png'%(args.out, fn, args.msrmp), format='png', bbox_inches='tight', facecolor='white', dpi=400)
 
 	psc_dems = [psc_dem_single, psc_dem_multi]
 	stim_matrices = [stim_single, stim_multi]
 	models = [model_single, model_multi]
+	titles = ['Single target', 'Ten target']
 
+	plot_spike_inference_comparison(psc_dems, stim_matrices, models, titles=titles, ymax=1.1, n_plots=30, max_trials_to_show=60,
+								col_widths=np.array([7, 14]), row_height=0.6, order=None, trial_len=900, lp_cell=lp_cell,
+								save='%s_%s_msrmp%s_checkerboard.png'%(args.out, fn, args.msrmp))
