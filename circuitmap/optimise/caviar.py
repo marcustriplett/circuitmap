@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import sem
 
 # Jax imports
 import jax
@@ -130,7 +131,7 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, beta, z, minimax_spk_prob=0.3
 			print('Reconnecting cell %i with maximal pava spike rate %.2f'%(focus, pava))
 			z_locs = np.intersect1d(np.where(stim_matrix[focus])[0], np.where(z)[0])
 			mu = index_update(mu, focus, np.mean(z[z_locs]))
-			beta = index_update(beta, focus, np.std(z[z_locs]))
+			beta = index_update(beta, focus, sem(z[z_locs]))
 			lam = index_update(lam, (focus, z_locs), 1.)
 			z[z_locs] = 0. # delete events from spont vector
 
