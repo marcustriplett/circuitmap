@@ -139,9 +139,13 @@ if __name__ == '__main__':
 	minv, maxv = [func(np.concatenate([model_single.state['mu'], model_multi.state['mu']])) for func in [np.min, np.max]]
 	powers = np.unique(stim_matrix)[1:].astype(float)
 	npowers = len(powers)
+	ms = 20
 	spike_threshold = 0.1
 	spk_start = 100
 	spk_end = 240
+	stim_upper = 0.6
+	stim_lower = -0.6
+	fontsize = 14
 	presyn_spikes = np.zeros(N)
 	for n in range(N):
 		locs = np.where(stim_matrix[n])[0]
@@ -175,9 +179,6 @@ if __name__ == '__main__':
 		lam_multi_tar[i] = np.mean(model_multi.state['lam'][lp_cell, np.where(stim_multi[lp_cell] == p)[0]])
 		lam_std_multi_tar[i] = np.std(model_multi.state['lam'][lp_cell, np.where(stim_multi[lp_cell] == p)[0]])
 
-	ms = 20
-	stim_upper = 0.6
-	stim_lower = -0.6
 	figure_mosaic = """
 		12345
 		ABCDE
