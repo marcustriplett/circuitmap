@@ -4,6 +4,7 @@ from circuitmap import NeuralDemixer
 from sklearn.metrics import r2_score
 import argparse
 from scipy.io import loadmat
+import matplotlib.pyplot as plt
 
 def lookup(coords, arr):
 	return np.intersect1d(*[np.where(arr[:, i] == coords[i])[0] for i in range(2)])[0]
