@@ -16,10 +16,11 @@ if __name__ == '__main__':
 	parser.add_argument('--out')
 	args = parser.parse_args()
 
+	print('Loading file at ', args.data)
 	data = loadmat(args.data)
 	stim_matrix = data['stimulus_matrix']
-	pscs = data['pscs']
-	psps = data['psps']
+	psc = data['pscs']
+	psp = data['psps']
 	targets = data['targets']
 
 	demix = NeuralDemixer(path=args.demixer, device='cpu')
@@ -35,11 +36,12 @@ if __name__ == '__main__':
 	stim_single = stim_matrix[:, single_tar_locs]
 	stim_multi = stim_matrix[:, multi_tar_locs]
 
-	psc_single, psc_multi = [demix(arr) for arr in [pscs[single_tar_locs], pscs[multi_tar_locs]]]
+	psc_single, psc_multi = [demix(arr) for arr in [psc[single_tar_locs], psc[multi_tar_locs]]]
 
+	print('Fitting models...')
 	for model, psc, stim in zip([model_single, model_multi], [psc_single, psc_multi], [stim_single, stim_multi]):
 		model.fit(psc, stim, method='caviar', fit_options={'minimax_spk_prob': msrmp})
-
+	print('Complete.')
 
 	#% PLOTTING
 
@@ -191,6 +193,6 @@ if __name__ == '__main__':
 	out = args.out
 	if out[-1] != '/': out += '/'
 	fn = args.data.split('/')[-1][:-4] # extract filename and strip ext
-	fig.savefig('%s_%s.pdf'%(args.out, fn), format='pdf', bbox_inches='tight', facecolor='white', dpi=400)
-	fig.savefig('%s_%s.png'%(args.out, fn), format='png', bbox_inches='tight', facecolor='white', dpi=400)
+	fig.savefig('%s_%s_msrmp%s.pdf'%(args.out, fn, args.msrmp), format='pdf', bbox_inches='tight', facecolor='white', dpi=400)
+	fig.savefig('%s_%s_msrmp%s.png'%(args.out, fn, args.msrmp), format='png', bbox_inches='tight', facecolor='white', dpi=400)
 
