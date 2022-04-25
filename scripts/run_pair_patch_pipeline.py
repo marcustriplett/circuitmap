@@ -135,10 +135,6 @@ if __name__ == '__main__':
 	print('Complete.')
 
 	#% PLOTTING
-
-	minv, maxv = [func(np.concatenate([model_single.state['mu'], model_multi.state['mu']])) for func in [np.min, np.max]]
-	powers = np.unique(stim_matrix)[1:].astype(float)
-	npowers = len(powers)
 	ms = 20
 	spike_threshold = 0.1
 	spk_start = 100
@@ -146,6 +142,11 @@ if __name__ == '__main__':
 	stim_upper = 0.6
 	stim_lower = -0.6
 	fontsize = 14
+	xrange = np.arange(-100, 800)
+
+	minv, maxv = [func(np.concatenate([model_single.state['mu'], model_multi.state['mu']])) for func in [np.min, np.max]]
+	powers = np.unique(stim_matrix)[1:].astype(float)
+	npowers = len(powers)
 	presyn_spikes = np.zeros(N)
 	for n in range(N):
 		locs = np.where(stim_matrix[n])[0]
