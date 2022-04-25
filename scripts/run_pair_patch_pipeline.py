@@ -112,7 +112,7 @@ if __name__ == '__main__':
 
 	demix = NeuralDemixer(path=args.demixer, device='cpu')
 
-	N, K = stim_matrix.shape[0]
+	N, K = stim_matrix.shape
 	msrmp = float(args.msrmp)
 
 	model_single, model_multi = cm.Model(N), cm.Model(N)
