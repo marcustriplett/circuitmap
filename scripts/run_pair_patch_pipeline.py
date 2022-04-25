@@ -128,8 +128,8 @@ if __name__ == '__main__':
 	psc_dem_single, psc_dem_multi = psc_dem[single_tar_locs], psc_dem[multi_tar_locs]
 
 	print('Fitting models...[TESTING]')
-	# for model, psc, stim in zip([model_single, model_multi], [psc_dem_single, psc_dem_multi], [stim_single, stim_multi]):
-	# 	model.fit(psc, stim, method='caviar', fit_options={'minimax_spk_prob': msrmp})
+	for model, psc, stim in zip([model_single, model_multi], [psc_dem_single, psc_dem_multi], [stim_single, stim_multi]):
+		model.fit(psc, stim, method='caviar', fit_options={'minimax_spk_prob': msrmp, 'iters': 2})
 	print('Complete.')
 
 	#% PLOTTING
