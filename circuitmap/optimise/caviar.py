@@ -95,9 +95,9 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 				hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 
 	# final scan for false negatives
-	# mu, beta, lam, z = reconnect_spont_cells(y, I, lam, mu, beta, z, minimax_spk_prob=minimax_spk_prob, 
-	# 	minimum_spike_count=minimum_spike_count)
-	# (phi, phi_cov), _ = update_phi(lam, I, phi_prior, phi_cov_prior, key)
+	mu, beta, lam, z = reconnect_spont_cells(y, I, lam, mu, beta, z, minimax_spk_prob=minimax_spk_prob, 
+		minimum_spike_count=minimum_spike_count)
+	(phi, phi_cov), _ = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 	return mu, beta, lam, shape, rate, phi, phi_cov, z, receptive_fields, *hist_arrs
 

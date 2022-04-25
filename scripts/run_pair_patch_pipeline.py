@@ -129,9 +129,9 @@ if __name__ == '__main__':
 	psc_single, psc_multi = psc[single_tar_locs], psc[multi_tar_locs]
 	psc_dem_single, psc_dem_multi = psc_dem[single_tar_locs], psc_dem[multi_tar_locs]
 
-	print('Fitting models...[TESTING]')
+	print('Fitting models...')
 	for model, psc_arr, stim in zip([model_single, model_multi], [psc_dem_single, psc_dem_multi], [stim_single, stim_multi]):
-		model.fit(psc_arr, stim, method='caviar', fit_options={'minimax_spk_prob': msrmp, 'iters': 2})
+		model.fit(psc_arr, stim, method='caviar', fit_options={'minimax_spk_prob': msrmp})
 	print('Complete.')
 
 	#% PLOTTING
@@ -287,7 +287,7 @@ if __name__ == '__main__':
 	if out[-1] != '/': out += '/'
 	fn = args.data.split('/')[-1][:-4] # extract filename and strip ext
 	# fig.savefig('%s_%s_msrmp%s_summary.pdf'%(args.out, fn, args.msrmp), format='pdf', bbox_inches='tight', facecolor='white', dpi=400)
-	fig.savefig('%s_%s_msrmp%s_summary.png'%(args.out, fn, args.msrmp), format='png', bbox_inches='tight', facecolor='white', dpi=400)
+	fig.savefig('%s%s_msrmp%s_summary.png'%(args.out, fn, args.msrmp), format='png', bbox_inches='tight', facecolor='white', dpi=400)
 
 	psc_dems = [psc_dem_single, psc_dem_multi]
 	stim_matrices = [stim_single, stim_multi]
@@ -296,4 +296,4 @@ if __name__ == '__main__':
 
 	plot_spike_inference_comparison(psc_dems, stim_matrices, models, titles=titles, ymax=1.1, n_plots=30, max_trials_to_show=60,
 								col_widths=np.array([7, 14]), row_height=0.6, order=None, trial_len=900, lp_cell=lp_cell,
-								save='%s_%s_msrmp%s_checkerboard.png'%(args.out, fn, args.msrmp))
+								save='%s%s_msrmp%s_checkerboard.png'%(args.out, fn, args.msrmp))
