@@ -110,6 +110,7 @@ if __name__ == '__main__':
 	psc = data['pscs']
 	psp = data['psps']
 	targets = data['targets']
+	planes = np.unique(targets[:, -1])
 
 	demix = NeuralDemixer(path=args.demixer, device='cpu')
 
@@ -244,7 +245,7 @@ if __name__ == '__main__':
 	ax.set_xlim([minv - 2, maxv + 2])
 
 	ax = axes['7']
-	locs = np.where(stim_single[lp_cell])[0]
+	locs = np.intersect1d(np.where(stim_matrix[lp_cell])[0], single_tar_locs)
 	ax.set_title('Single target', fontsize=fontsize)
 	ax.plot(xrange, psp[locs].T, color='k', zorder=50, linewidth=0.5)
 	ax.plot(xrange, psc[locs].T, color='gray', zorder=0, linewidth=0.5)
