@@ -113,12 +113,12 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=1, connection_prob=0.05, pow
 				spk_times[n, k] = sample_spike_time(stim_matrix[n, k], gamma_beta=gamma_beta)
 	
 	if weights is None:
-		connected = np.random.rand(N) <= connection_prob
-		n_connected = len(np.where(connected)[0])
+		n_connected = int(connection_prob * N)
+		connected = np.random.choice(np.arange(N), n_connected, replace=False)
 		n_strongly_connected = int(np.ceil(frac_strongly_connected * n_connected))
-		strongly_connected = np.random.choice(np.where(connected)[0], n_strongly_connected, replace=False)
-		n_weakly_connected = n_connected - n_strongly_connected
-		weakly_connected = np.setdiff1d(np.where(connected)[0], strongly_connected)
+		strongly_connected = np.random.choice(connected, n_strongly_connected, replace=False)
+		weakly_connected = np.setdiff1d(connected, strongly_connected)
+		n_weakly_connected = len(weakly_connected)
 
 		weights = np.zeros(N)
 		weights[strongly_connected] = np.random.uniform(strong_weight_lower, strong_weight_upper, n_strongly_connected)
