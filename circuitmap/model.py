@@ -18,7 +18,7 @@ class Model:
 		'''
 
 		self.N = N
-		self.priors = priors
+		self.priors = {}; self.priors = priors
 
 		# Set up priors
 		self.priors.setdefault('alpha', 1/4 * np.ones(N))
@@ -31,7 +31,7 @@ class Model:
 		self.priors.setdefault('rate', 1e-1)
 		
 		self.state = deepcopy(self.priors)
-		
+
 		# self.state = self.priors.copy()
 
 		# Set initial state to prior
