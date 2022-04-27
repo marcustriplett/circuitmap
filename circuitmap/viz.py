@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=None, spike_thresh=0.01, save=None, ymax=None, n_plots=15, max_trials_to_show=30, 
-						 col_width=7.5, row_height=0.6, order=None, sdevs=None, fig_width=None, overlay_spikes=True, annotate_spikes=False, wspace=0.05, 
-						 hspace=0.5, ylabelpad=0.05, facecol=None, edgecol=None, trial_len=900):
+	col_width=7.5, row_height=0.6, order=None, sdevs=None, fig_width=None, overlay_spikes=True, annotate_spikes=False, wspace=0.05, 
+	hspace=0.5, ylabelpad=0.05, facecol=None, edgecol=None, trial_len=900, save_fmt='png', fontsize=14):
 	''' plot_checkerboard
 	'''
 
@@ -53,7 +53,6 @@ def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=No
 		n_repeats = np.min([len(stim_locs), max_trials_to_show])
 		trial_breaks = np.arange(0, trial_len * n_repeats + 1, trial_len)
 		plt.xlim([0, trial_len*n_repeats])
-
 
 		# Colours
 		trace_col = 'k' if mu[n] != 0 else 'gray'
@@ -145,6 +144,6 @@ def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=No
 	
 	fig.supylabel('Neuron', fontsize=fontsize, x=ylabelpad)
 	if save is not None:
-		plt.savefig(save, format='pdf', bbox_inches='tight', dpi=300, backend='pgf')
+		plt.savefig(save, format=save_fmt, bbox_inches='tight', dpi=300, backend='pgf')
 
 	plt.show()

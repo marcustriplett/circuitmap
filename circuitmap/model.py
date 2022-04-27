@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import os
+from copy import deepcopy
 
 from circuitmap import optimise
 
@@ -29,12 +30,16 @@ class Model:
 		self.priors.setdefault('shape', 1.)
 		self.priors.setdefault('rate', 1e-1)
 		
-		# Set initial state to prior
-		self.reset()
+		self.state = deepcopy(self.priors)
+		
+		# self.state = self.priors.copy()
 
-	def reset(self):
-		self.state = self.priors.copy()
-		return
+		# Set initial state to prior
+		# self.reset()
+
+	# def reset(self):
+	# 	self.state = self.priors.copy()
+	# 	return
 
 	def fit(self, obs, stimuli, method='caviar', fit_options=dict()):
 		if method == 'mbcs':
