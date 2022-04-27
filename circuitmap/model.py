@@ -13,12 +13,12 @@ except:
 	from tqdm import tqdm
 
 class Model:
-	def __init__(self, N, priors=dict()):
+	def __init__(self, N, priors=None):
 		''' Initialise circuitmap model.
 		'''
 
 		self.N = N
-		self.priors = {}; self.priors = priors
+		self.priors if priors is not None else {}
 
 		# Set up priors
 		self.priors.setdefault('alpha', 1/4 * np.ones(N))
@@ -30,16 +30,8 @@ class Model:
 		self.priors.setdefault('shape', 1.)
 		self.priors.setdefault('rate', 1e-1)
 		
+		# initialise state dict
 		self.state = deepcopy(self.priors)
-
-		# self.state = self.priors.copy()
-
-		# Set initial state to prior
-		# self.reset()
-
-	# def reset(self):
-	# 	self.state = self.priors.copy()
-	# 	return
 
 	def fit(self, obs, stimuli, method='caviar', fit_options=dict()):
 		if method == 'mbcs':
