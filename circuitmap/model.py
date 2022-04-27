@@ -18,7 +18,7 @@ class Model:
 		'''
 
 		self.N = N
-		self.priors if priors is not None else {}
+		self.priors = priors if priors is not None else {}
 
 		# Set up priors
 		self.priors.setdefault('alpha', 1/4 * np.ones(N))
