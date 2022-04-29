@@ -106,7 +106,7 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, beta, z, minimax_spk_prob=0.3
 	powers = np.unique(stim_matrix)[1:] # skip zero power
 	z = np.array(z)
 	
-	print('Examining %i cells for false negatives...'%len(disc_cells))
+	print('Examining %i/%i cells for false negatives...'%(len(disc_cells), stim_matrix.shape[0]))
 	while len(disc_cells) > 0:
 		stim_locs = []
 		for n in disc_cells:

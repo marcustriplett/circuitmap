@@ -6,11 +6,15 @@ import argparse
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+
 def lookup(coords, arr):
 	return np.intersect1d(*[np.where(arr[:, i] == coords[i])[0] for i in range(2)])[0]
 
-def plot_spike_inference_comparison(den_pscs, stim_matrices, models, spks=None, titles=None, save=None, ymax=1.1, n_plots=15, max_trials_to_show=30, 
-										 col_widths=None, row_height=0.6, order=None, trial_len=900, lp_cell=None):
+def plot_spike_inference_comparison(den_pscs, stim_matrices, models, spks=None, titles=None, save=None, 
+	ymax=1.1, n_plots=15, max_trials_to_show=30, col_widths=None, row_height=0.6, order=None, trial_len=900, 
+	lp_cell=None):
 	if col_widths is None:
 		col_widths = 7.5 * np.ones(len(models))
 		
@@ -287,7 +291,7 @@ if __name__ == '__main__':
 	if out[-1] != '/': out += '/'
 	fn = args.data.split('/')[-1][:-4] # extract filename and strip ext
 	# fig.savefig('%s_%s_msrmp%s_summary.pdf'%(args.out, fn, args.msrmp), format='pdf', bbox_inches='tight', facecolor='white', dpi=400)
-	fig.savefig('%s%s_msrmp%s_summary.png'%(args.out, fn, args.msrmp), format='png', bbox_inches='tight', facecolor='white', dpi=400)
+	fig.savefig('%s%s_msrmp%s_summary.png'%(out, fn, args.msrmp), format='png', bbox_inches='tight', facecolor='white', dpi=400)
 
 	psc_dems = [psc_dem_single, psc_dem_multi]
 	stim_matrices = [stim_single, stim_multi]
@@ -296,4 +300,7 @@ if __name__ == '__main__':
 
 	plot_spike_inference_comparison(psc_dems, stim_matrices, models, titles=titles, ymax=1.1, n_plots=30, max_trials_to_show=60,
 								col_widths=np.array([7, 14]), row_height=0.6, order=None, trial_len=900, lp_cell=lp_cell,
-								save='%s%s_msrmp%s_checkerboard.png'%(args.out, fn, args.msrmp))
+								save='%s%s_msrmp%s_checkerboard.png'%(out, fn, args.msrmp))
+
+	np.savez('%s%s_msrmp%s_models.npz'%(out, fn, args.msrmp), model_single=model_single.state, model_multi=model_multi.state,
+		stim_single=stim_single, stim_multi=stim_multi)
