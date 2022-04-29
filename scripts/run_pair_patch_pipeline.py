@@ -130,12 +130,14 @@ if __name__ == '__main__':
 	stim_multi = stim_matrix[:, multi_tar_locs]
 
 	psc_dem = demix(psc)
-	psc_single, psc_multi = psc[single_tar_locs], psc[multi_tar_locs]
+	# psc_single, psc_multi = psc[single_tar_locs], psc[multi_tar_locs]
 	psc_dem_single, psc_dem_multi = psc_dem[single_tar_locs], psc_dem[multi_tar_locs]
 
 	print('Fitting models...')
-	for model, psc_arr, stim in zip([model_single, model_multi], [psc_dem_single, psc_dem_multi], [stim_single, stim_multi]):
-		model.fit(psc_arr, stim, method='caviar', fit_options={'minimax_spk_prob': msrmp})
+	model_single.fit(psc_dem_single, stim_single, method='caviar', fit_options={'minimax_spk_prob': msrmp})
+	model_multi.fit(psc_dem_multi, stim_multi, method='caviar', fit_options={'minimax_spk_prob': msrmp})
+	# for model, psc_arr, stim in zip([model_single, model_multi], [psc_dem_single, psc_dem_multi], [stim_single, stim_multi]):
+	# 	model.fit(psc_arr, stim, method='caviar', fit_options={'minimax_spk_prob': msrmp})
 	print('Complete.')
 
 	#% PLOTTING
