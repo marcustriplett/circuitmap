@@ -34,7 +34,7 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 	lam = np.zeros_like(I)
 	lam[I > 0] = 0.95
 	lam = lam * lam_mask
-	I = jnp.array(1.0 * I)
+	I = jnp.array(I.astype(float))
 
 	spont_rate = 0.
 

@@ -127,7 +127,9 @@ if __name__ == '__main__':
 	multi_tar_locs = np.where(np.sum(stim_matrix > 0, 0) > 1)[0]
 
 	stim_single = stim_matrix[:, single_tar_locs]
+	stim_single = stim_matrix[:, single_tar_locs] * 1.0
 	stim_multi = stim_matrix[:, multi_tar_locs]
+	stim_multi = stim_matrix[:, multi_tar_locs] * 1.0
 
 	psc_dem = demix(psc)
 	# psc_single, psc_multi = psc[single_tar_locs], psc[multi_tar_locs]
