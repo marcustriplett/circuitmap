@@ -306,5 +306,4 @@ if __name__ == '__main__':
 								col_widths=np.array([7, 14]), row_height=0.6, order=None, trial_len=900, lp_cell=lp_cell,
 								save='%s%s_msrmp%s_checkerboard.png'%(out, fn, args.msrmp))
 
-	np.savez('%s%s_msrmp%s_models.npz'%(out, fn, args.msrmp), model_single=model_single.state, model_multi=model_multi.state,
-		stim_single=stim_single, stim_multi=stim_multi, psp_single=psp[single_tar_locs], psp_multi=psp[multi_tar_locs])
+	np.savez('%s%s_msrmp%s_models.npz'%(out, fn, args.msrmp), model_single=model_single.state, model_multi=model_multi.state)
