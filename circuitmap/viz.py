@@ -28,7 +28,7 @@ def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=No
 	
 	fig = plt.figure(figsize=(fig_width, row_height * n_plots * 1.5))
 
-	nrows = n_plots + 2 if append_last_row else nplots
+	nrows = n_plots + 2 if append_last_row else n_plots
 	gs = fig.add_gridspec(ncols=1, nrows=nrows, hspace=hspace, wspace=wspace)
 	
 	normalisation_factor = np.max(np.abs(psc))
