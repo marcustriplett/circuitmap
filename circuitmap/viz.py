@@ -118,10 +118,10 @@ def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=No
 		
 		ax.set_rasterization_zorder(-2)
 	
-	fig.add_subplot(gs[n_plots])
-	plt.axis('off')
-	
 	if append_last_row:
+		fig.add_subplot(gs[n_plots])
+		plt.axis('off')
+		
 		ax = fig.add_subplot(gs[n_plots + 1])
 		n = N-1
 		stim_locs = np.array([])  
