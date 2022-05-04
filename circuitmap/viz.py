@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=None, spike_thresh=0.01, save=None, ymax=None, n_plots=15, max_trials_to_show=30, 
-	col_width=7.5, row_height=0.6, order=None, sdevs=None, fig_width=None, overlay_spikes=False, annotate_spikes=False, wspace=0.05, 
+	col_width=7.5, row_height=0.6, order=None, sdevs=None, fig_width=None, overlay_spikes=False, annotate_spikes=False, wspace=0.05, labels=None,
 	hspace=0.5, ylabelpad=0.05, facecol=None, edgecol=None, trial_len=900, save_fmt='png', fontsize=14, append_last_row=False):
 	''' plot_checkerboard
 	'''
@@ -107,16 +107,18 @@ def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=No
 		plt.xticks([])
 		plt.yticks([])
 		plt.ylim([ymin, ymax])
-		if m % 4 == 0:
-			label_col = 'k' if mu[n] != 0 else 'gray'
-			plt.ylabel(m+1, fontsize=fontsize-1, rotation=0, labelpad=15, va='center', color=label_col)
+		if labels is not None:
+			plt.ylabel(labels[m] + 1, fontsize=fontsize-1, rotation=0, labelpad=15, va='center', color='k')
+		else:
+			if m % 4 == 0:
+				label_col = 'k' if mu[n] != 0 else 'gray'
+				plt.ylabel(m+1, fontsize=fontsize-1, rotation=0, labelpad=15, va='center', color=label_col)
 		
 		ax.set_rasterization_zorder(-2)
 	
 	fig.add_subplot(gs[n_plots])
 	plt.axis('off')
 	
-
 	if append_last_row:
 		ax = fig.add_subplot(gs[n_plots + 1])
 		n = N-1
