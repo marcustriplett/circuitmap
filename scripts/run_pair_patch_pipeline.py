@@ -5,9 +5,59 @@ from sklearn.metrics import r2_score
 import argparse
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
+from sklearn.linear_model import Ridge
 
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+
+def _get_pairwise_dist_xy(tars):
+	return np.array([[np.sqrt(np.sum(np.square(tar1 - tar2))) for tar1 in tars] for tar2 in tars])
+
+def _get_pairwise_adjacency_z(tars, planes):
+	plane_representation = np.array([np.where(tar == planes)[0][0] for tar in tars])
+	adj = np.array([[
+		np.abs(tar1 - tar2) <= 1 for tar1 in plane_representation] 
+		for tar2 in plane_representation
+	]).astype(int)
+	return adj
+
+def _get_cluster_reps_pixelbased(clusters, targets, img):
+	planes = np.unique(targets[:, -1])
+	n_clusters = len(clusters)
+	cluster_reps = [None for _ in range(n_clusters)]
+	for i in range(n_clusters):
+		pixel_brightness = []
+		for cl in clusters[i]:
+			tar = targets[cl].astype(int)
+			depth_indx = np.where(tar[-1] == planes)[0][0]
+			pixel_brightness += [img[0][depth_indx][tar[0], tar[1]][0]]
+		cluster_reps[i] = clusters[i][np.argmax(pixel_brightness)]
+	return cluster_reps
+
+def compute_ridge_waveforms(psc, model, stim_matrix):
+	cnx = np.where(model.state['mu'])[0]
+	locs = np.unique(np.concatenate(np.array([np.where(stim_matrix[n])[0] for n in cnx])))
+	lr = Ridge(fit_intercept=False, alpha=1e-3, positive=True)
+	lr.fit(model.state['lam'][cnx][:, locs].T, psc[locs])
+	return lr.coef_.T
+
+def merge_duplicates(psc, stim_matrix, model, targets, img, mse_threshold=0.1, dist_threshold=15):
+	planes = np.unique(targets[:, -1])
+	weights = model.state['mu']
+	found_cnx = np.where(weights)[0]
+	n_cnx = len(found_cnx)
+	waveforms = compute_ridge_waveforms(psc, model, stim_matrix)
+	pairwise_errs = np.array([
+		[
+			np.sum(np.square(waveforms[cnx1] - waveforms[cnx2])) for cnx1 in range(n_cnx)
+		] for cnx2 in range(n_cnx)
+	])
+	pairwise_adj = _get_pairwise_adjacency_z(targets[found_cnx][:, -1], planes)
+	pairwise_close = (_get_pairwise_dist_xy(targets[found_cnx][:, :2]) < dist_threshold) * pairwise_adj # close in xy and lie on adjacent planes
+	pairwise_duplicates = (pairwise_errs < mse_threshold) * pairwise_close
+	clusters = [list(x) for x in set([tuple(found_cnx[np.where(row)[0]].tolist()) for row in pairwise_duplicates])] # extract duplicate clusters
+	cluster_reps = _get_cluster_reps_pixelbased(clusters, targets, img) # select cluster representatives
+	return cluster_reps
 
 def lookup(coords, arr):
 	return np.intersect1d(*[np.where(arr[:, i] == coords[i])[0] for i in range(2)])[0]
@@ -115,6 +165,7 @@ if __name__ == '__main__':
 	psp = data['psps']
 	targets = data['targets']
 	planes = np.unique(targets[:, -1])
+	img = data['img']
 
 	demix = NeuralDemixer(path=args.demixer, device='cpu')
 
@@ -126,9 +177,7 @@ if __name__ == '__main__':
 	single_tar_locs = np.where(np.sum(stim_matrix > 0, 0) == 1)[0]
 	multi_tar_locs = np.where(np.sum(stim_matrix > 0, 0) > 1)[0]
 
-	stim_single = stim_matrix[:, single_tar_locs]
 	stim_single = stim_matrix[:, single_tar_locs] * 1.0
-	stim_multi = stim_matrix[:, multi_tar_locs]
 	stim_multi = stim_matrix[:, multi_tar_locs] * 1.0
 
 	psc_dem = demix(psc)
@@ -141,6 +190,9 @@ if __name__ == '__main__':
 	# for model, psc_arr, stim in zip([model_single, model_multi], [psc_dem_single, psc_dem_multi], [stim_single, stim_multi]):
 	# 	model.fit(psc_arr, stim, method='caviar', fit_options={'minimax_spk_prob': msrmp})
 	print('Complete.')
+
+	cnx_single = merge_duplicates(psc_dem_single, stim_single, model_single, targets, img)
+	cnx_multi = merge_duplicates(psc_dem_multi, stim_multi, model_multi, targets, img)
 
 	#% PLOTTING
 	ms = 20
@@ -204,8 +256,7 @@ if __name__ == '__main__':
 		ax.set_yticks([])
 		if i == 0:
 			ax.set_ylabel('Single-target\nconnections', fontsize=fontsize)
-		found_cnx = np.where(model_single.state['mu'])[0]
-		targets_cnx = targets[found_cnx]
+		targets_cnx = targets[cnx_single]
 		tars = targets_cnx[targets_cnx[:, -1] == planes[i]][:, :2]
 		ax.scatter(tars[:, 1], tars[:, 0], edgecolor='white', facecolor='None', marker='o', s=13, linewidth=0.5)
 		for j, tar in enumerate(tars):
@@ -219,8 +270,7 @@ if __name__ == '__main__':
 		if i == 0:
 			ax.set_ylabel('Ten-target\nconnections', fontsize=fontsize)
 
-		found_cnx = np.where(model_multi.state['mu'])[0]
-		targets_cnx = targets[found_cnx]
+		targets_cnx = targets[cnx_multi]
 		tars = targets_cnx[targets_cnx[:, -1] == planes[i]]
 		ax.scatter(tars[:, 1], tars[:, 0], edgecolor='white', facecolor='None', marker='o', s=13, linewidth=0.5)
 		for j, tar in enumerate(tars):
