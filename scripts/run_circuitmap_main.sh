@@ -1,11 +1,15 @@
 #!/bin/sh
 
 set -e
+export PATH="/home/mat2245/anaconda3/bin:$PATH"
+
 # userhome="/home/ubuntu"
 # datastore="circuitmap/data"
 # # outstore="ncapdata/localout"
 
 echo "---- DOWNLOADING DATA ----"
+
+
 conda init bash
 conda activate jax
 
