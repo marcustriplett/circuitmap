@@ -1,9 +1,0 @@
-N: 100
-Hs: [1, 10]
-stim_freqs: [10, 33]
-expt_len: 40
-subsample_every: 20
-connection_prob: 0.1
-spont_rate: 3
-max_power_min_spike_rate: 0.3
-denoiser: '/home/mat2245/circuit_mapping/mbcs/denoisers/seq_unet_sim50k_ep4k_templates.ckpt'
