@@ -9,9 +9,7 @@ export PATH="/home/mat2245/anaconda3/bin:$PATH"
 
 echo "---- DOWNLOADING DATA ----"
 
-
-conda init bash
-conda activate jax
+source activate jax
 
 # neurocaas-contrib workflow get-data -f -o $userhome/$datastore/
 # neurocaas-contrib workflow get-config -f -o $userhome/$datastore/
