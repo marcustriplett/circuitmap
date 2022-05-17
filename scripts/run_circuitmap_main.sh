@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 # userhome="/home/ubuntu"
@@ -8,8 +8,6 @@ set -e
 echo "---- DOWNLOADING DATA ----"
 conda init bash
 conda activate jax
-
-neurocaas-contrib workflow register-dataset -l ../neurocaas_tmp/220414_cell3_pv_mapB_A_cmFormat.mat
 
 # neurocaas-contrib workflow get-data -f -o $userhome/$datastore/
 # neurocaas-contrib workflow get-config -f -o $userhome/$datastore/
