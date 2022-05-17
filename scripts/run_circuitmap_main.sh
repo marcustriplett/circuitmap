@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# set -e
+set -e
 # userhome="/home/ubuntu"
 # datastore="circuitmap/data"
 # # outstore="ncapdata/localout"
@@ -8,6 +8,9 @@
 echo "---- DOWNLOADING DATA ----"
 conda init bash
 conda activate jax
+
+neurocaas-contrib workflow register-dataset -l ../neurocaas_tmp/220414_cell3_pv_mapB_A_cmFormat.mat
+
 # neurocaas-contrib workflow get-data -f -o $userhome/$datastore/
 # neurocaas-contrib workflow get-config -f -o $userhome/$datastore/
 
