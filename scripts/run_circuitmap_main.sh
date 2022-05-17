@@ -6,7 +6,8 @@
 # # outstore="ncapdata/localout"
 
 echo "---- DOWNLOADING DATA ----"
-source activate jax
+conda init bash
+conda activate jax
 # neurocaas-contrib workflow get-data -f -o $userhome/$datastore/
 # neurocaas-contrib workflow get-config -f -o $userhome/$datastore/
 
