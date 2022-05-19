@@ -42,7 +42,7 @@ if __name__ == '__main__':
 	model = cm.Model(N)
 
 	# fit model
-	cm.fit(psc_dem, stim_matrix, method='caviar', fit_options={'msrmp': msrmp})
+	model.fit(psc_dem, stim_matrix, method='caviar', fit_options={'msrmp': msrmp})
 
 	# save results
 	out = args.out
