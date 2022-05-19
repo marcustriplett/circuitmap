@@ -17,7 +17,7 @@ import jax
 import jax.numpy as jnp
 from jax import jit, vmap, grad
 from jax.lax import scan, while_loop
-from jax.ops import index_update
+# from jax.ops import index_update
 from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
 
@@ -103,7 +103,8 @@ def mbcs(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, iters=50,
 
 		# record history
 		for hindx, pa in enumerate([mu, beta, lam, shape, rate, z]):
-			hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
+			# hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
+			hist_arrs[indx] = hist_arrs[hindx].at[it].set(pa)
 
 	return mu, beta, lam, shape, rate, z, receptive_fields, *hist_arrs
 
@@ -121,14 +122,18 @@ def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4)
 def isotonic_filtering(mu, lam, I, isotonic_receptive_field, minimum_spike_count=1, minimum_maximal_spike_prob=0.2):
 	# Enforce minimum maximal spike probability
 	disc_locs = np.where(isotonic_receptive_field[:, -1] < minimum_maximal_spike_prob)[0]
-	mu = index_update(mu, disc_locs, 0.)
-	lam = index_update(lam, disc_locs, 0.)
+	# mu = index_update(mu, disc_locs, 0.)
+	mu = mu.at[disc_locs].set(0.)
+	# lam = index_update(lam, disc_locs, 0.)
+	lam = lam.at[disc_locs].set(0.)
 
 	# Filter connection vector via spike counts
 	spks = np.array([len(np.where(lam[n] >= 0.5)[0]) for n in range(mu.shape[0])])
 	few_spk_locs = np.where(spks < minimum_spike_count)[0]
-	mu = index_update(mu, few_spk_locs, 0.)
-	lam = index_update(lam, few_spk_locs, 0.)
+	# mu = index_update(mu, few_spk_locs, 0.)
+	mu = mu.at[few_spk_locs].set(0.)
+	# lam = index_update(lam, few_spk_locs, 0.)
+	lam = lam.at[few_spk_locs].set(0.)
 
 	return mu, lam
 
@@ -318,7 +323,8 @@ def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, l
 			mask = jnp.array(np.delete(all_ids, n)).squeeze()
 			arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
 			+ (mu[n]**2 + beta[n]**2)
-			lam = index_update(lam, n, lam_mask * (I[n] > 0) * (mu[n] != 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
+			# lam = index_update(lam, n, lam_mask * (I[n] > 0) * (mu[n] != 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
+			lam = lam.at[n].set(lam_mask * (I[n] > 0) * (mu[n] != 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
 			# lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
 
 	return lam
@@ -356,7 +362,8 @@ def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_
 			# monte carlo approximation of expectation
 			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
 			
-			scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg))
+			# scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg))
+			scope.lam = scope.lam.at[n].set(lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg))
 
 	return scope.lam, scope.key_next
 

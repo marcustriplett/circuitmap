@@ -1,6 +1,7 @@
 import numpy as np
 import itertools
-from jax import jit, vmap, partial
+from functools import partial
+from jax import jit, vmap
 import jax.numpy as jnp
 # from jax.ops import index_update
 from jax.nn import sigmoid

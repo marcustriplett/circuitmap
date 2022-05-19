@@ -1,4 +1,5 @@
 import numpy as np
+from functools import partial
 
 # Jax imports
 import jax
@@ -93,7 +94,7 @@ def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prio
 def update_beta(alpha, lam, shape, rate, beta_prior):
 	return 1/jnp.sqrt(alpha * jnp.sum(shape/rate * lam, 1) + 1/(beta_prior**2))
 
-@jax.partial(jit, static_argnums=(9))
+@partial(jit, static_argnums=(9))
 def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key):
 	''' Update based on solving E_q(Z-mu_n)[ln p(y, Z)]
 	'''
@@ -115,7 +116,7 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key
 	key, _ = jax.random.split(key)
 	return scope.mu, key
 
-@jax.partial(jit, static_argnums=(8))
+@partial(jit, static_argnums=(8))
 def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
 	update_order = jax.random.choice(key, N, [N], replace=False)
 	with loops.Scope() as scope:
@@ -133,7 +134,7 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
 	key, _ = jax.random.split(key)
 	return scope.alpha, key
 
-@jax.partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
+@partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, minimum_spike_count):
 	''' Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	'''
