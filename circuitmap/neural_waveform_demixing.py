@@ -49,7 +49,7 @@ class NeuralDemixer():
 			monotone_start=monotone_filter_start)
 
 		t2 = time.time()
-		if verbose: print('complete (elapsed time %.2fs).'%(t2 - t1))
+		if verbose: print('complete (elapsed time %.2fs, device=%s).'%(t2 - t1, self.device))
 
 		return dem
 
