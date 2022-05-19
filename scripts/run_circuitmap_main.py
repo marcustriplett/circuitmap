@@ -14,7 +14,7 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	# parse inputs
-	ext = args.file[-4:]
+	ext = args.data[-4:]
 	if ext == '.mat':
 		load_func = loadmat
 	elif ext == '.npy' or ext == '.npz':
@@ -22,7 +22,7 @@ if __name__ == '__main__':
 	else:
 		raise Exception
 
-	f = load_func(args.path + args.file)
+	f = load_func(args.data)
 	psc = f['pscs']
 	stim_matrix = f['stimulus_matrix']
 
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 	if out[-1] != '/':
 		out += '/'
 
-	save_name = args.out + args.file[:-4] + '_cmap.' + save_fmt
+	save_name = args.out + args.data[:-4] + '_cmap.' + save_fmt
 
 	if save_fmt == 'mat':
 		savemat(save_name, {'weights': cm.state['mu'], 'weight_uncertainty': cm.state['beta'],
