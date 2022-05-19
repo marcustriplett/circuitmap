@@ -1,7 +1,7 @@
 import argparse
 import numpy as np
-from circuitmap.neural_waveform_demixing import NeuralDemixer
 import circuitmap as cm
+from circuitmap.neural_waveform_demixing import NeuralDemixer
 from scipy.io import savemat, loadmat
 import yaml
 
