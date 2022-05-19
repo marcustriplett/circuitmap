@@ -100,7 +100,7 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 		minimum_spike_count=minimum_spike_count)
 	(phi, phi_cov), _ = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
-	return mu, beta, lam, shape, rate, phi, phi_cov, z, receptive_fields, *hist_arrs
+	return (mu, beta, lam, shape, rate, phi, phi_cov, z, receptive_fields, *hist_arrs)
 
 def reconnect_spont_cells(y, stim_matrix, lam, mu, beta, z, minimax_spk_prob=0.3, minimum_spike_count=3):
 	disc_cells = np.where(mu == 0.)[0]
