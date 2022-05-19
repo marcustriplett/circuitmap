@@ -5,7 +5,7 @@ set -e
 
 source activate pytorch_p38
 
-# userhome="~/"
+userhome="home/ubuntu/"
 # datastore="circuitmap/data"
 # # outstore="ncapdata/localout"
 
@@ -20,7 +20,7 @@ configpath=$(neurocaas-contrib workflow get-configpath)
 resultpath=$(neurocaas-contrib workflow get-resultpath-tmp)
 
 echo "---- LAUNCHING CIRCUITMAP ----"
-# cd "~/circuit_mapping/circuitmap/"
+cd $userhome/circuitmap
 python ./scripts/run_circuitmap_main.py --data $datapath --config $configpath --out $resultpath
 
 # echo "---- WRITING RESULTS ----"
