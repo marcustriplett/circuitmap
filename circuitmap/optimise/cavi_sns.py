@@ -88,7 +88,7 @@ def cavi_sns(y_psc, I, mu_prior, beta_prior, alpha_prior, shape_prior, rate_prio
 			for hindx, pa in enumerate([mu, beta, alpha, lam, shape, rate, phi, phi_cov]):
 				hist_arrs[hindx] = hist_arrs[hindx].at[it].set(pa)
 
-	return mu, beta, alpha, lam, shape, rate, phi, phi_cov, *hist_arrs
+	return (mu, beta, alpha, lam, shape, rate, phi, phi_cov, *hist_arrs)
 
 @jit
 def update_beta(alpha, lam, shape, rate, beta_prior):

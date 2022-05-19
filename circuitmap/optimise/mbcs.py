@@ -106,7 +106,7 @@ def mbcs(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, iters=50,
 			# hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 			hist_arrs[indx] = hist_arrs[hindx].at[it].set(pa)
 
-	return mu, beta, lam, shape, rate, z, receptive_fields, *hist_arrs
+	return (mu, beta, lam, shape, rate, z, receptive_fields, *hist_arrs)
 
 def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4):
 	N, K = lam.shape

@@ -5,6 +5,10 @@ import circuitmap as cm
 from scipy.io import savemat, loadmat
 import yaml
 
+# configure JAX memory preallocation
+import os
+os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'False'
+
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--data')

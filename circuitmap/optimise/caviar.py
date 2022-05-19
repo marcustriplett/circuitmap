@@ -72,7 +72,7 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 		hist_arrs = [jax.device_put(ha, cpu) for ha in hist_arrs]
 
 	else:
-		hist_arrs = [None] * 9
+		hist_arrs = [None] * 8
 		
 	# init key
 	key = jax.random.PRNGKey(seed)
