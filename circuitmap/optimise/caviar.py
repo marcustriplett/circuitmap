@@ -21,7 +21,7 @@ from .pava import _isotonic_regression, simultaneous_isotonic_regression
 
 def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters=50, num_mc_samples=100, seed=0, y_xcorr_thresh=1e-2, minimum_spike_count=3,
-	delay_spont_est=1, minimax_spk_prob=0.3, scale_factor=0.75, penalty=5e0, save_histories=True, 
+	delay_spont_est=1, msrmp=0.3, scale_factor=0.75, penalty=5e0, save_histories=True, 
 	max_backtrack_iters=20, tol=0.05):
 	''' Coordinate-ascent variational inference and isotonic regularisation.
 	'''
@@ -82,7 +82,7 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 
 		mu, beta 			= block_update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N)
 		lam, key 			= update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, 
-								num_mc_samples, N, powers, minimum_spike_count, minimax_spk_prob + spont_rate, 
+								num_mc_samples, N, powers, minimum_spike_count, msrmp + spont_rate, 
 								it, delay_spont_est)
 		shape, rate 		= update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
@@ -96,7 +96,7 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 				hist_arrs[hindx] = hist_arrs[hindx].at[it].set(pa)
 
 	# final scan for false negatives
-	mu, beta, lam, z = reconnect_spont_cells(y, I, lam, mu, beta, z, minimax_spk_prob=minimax_spk_prob, 
+	mu, beta, lam, z = reconnect_spont_cells(y, I, lam, mu, beta, z, minimax_spk_prob=msrmp, 
 		minimum_spike_count=minimum_spike_count)
 	(phi, phi_cov), _ = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 

@@ -23,7 +23,7 @@ if __name__ == '__main__':
 		raise Exception
 
 	f = load_func(args.path + args.file)
-	psc = f['psc']
+	psc = f['pscs']
 	stim_matrix = f['stimulus_matrix']
 
 	# read demixer and msrmp from config file
