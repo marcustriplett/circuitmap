@@ -5,7 +5,7 @@ set -e
 
 source activate pytorch_p38
 
-userhome="home/ubuntu/"
+userhome="/home/ubuntu/"
 # datastore="circuitmap/data"
 # # outstore="ncapdata/localout"
 
