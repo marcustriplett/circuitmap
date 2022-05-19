@@ -2,7 +2,7 @@ import numpy as np
 import itertools
 from jax import jit, vmap, partial
 import jax.numpy as jnp
-from jax.ops import index_update
+# from jax.ops import index_update
 from jax.nn import sigmoid
 
 # Conditionally import progress bar
@@ -15,7 +15,8 @@ except:
 #% simulate helper funcs
 def _kernel_conv_trialwise(psc_kernel, spk_time, spk, mult_noise, weight, response_length=900):
 	stimv = jnp.zeros(response_length)
-	stimv = index_update(stimv, spk_time, spk)
+	# stimv = index_update(stimv, spk_time, spk)
+	stimv = stimv.at[spk_time].set(spk)
 	ke = jnp.convolve(psc_kernel, stimv)[:response_length]
 	return ke/(np.sum(ke) + 1e-5) * mult_noise * weight
 _vmap_kernel_conv_trialwise = vmap(_kernel_conv_trialwise, in_axes=(None, 0, 0, 0, None))
@@ -299,8 +300,10 @@ def _kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight):
 	'''
 	stimv = jnp.zeros(trange.shape[0])
 	locs = (delta * spike).astype(int)
-	stimv = index_update(stimv, locs, weight * mult_noise)
-	stimv = index_update(stimv, 0, 0)
+	# stimv = index_update(stimv, locs, weight * mult_noise)
+	stimv = stimv.at[locs].set(weight * mult_noise)
+	# stimv = index_update(stimv, 0, 0)
+	stimv = stimv.at[0].set(0)
 	return jnp.convolve(psc_kernel, stimv, mode='full')[:trange.shape[0]]
 
 _vmap_kernel_conv = vmap(_kernel_conv, in_axes=(None, 0, 0, 0, 0, 0))
@@ -318,7 +321,8 @@ def _eval_sponts(trange, tau_r, tau_d, delta, weight, divisor, eps=1e-8):
 eval_sponts = jit(lambda *args: jnp.sum(vmap(_eval_sponts, in_axes=(None, 0, 0, 0, 0, 0))(*args), axis=0))
 
 def _get_true_evoked_resp(spike_time, noise_weighted_spike, weight, psc_kernel, response_length=900, prior_context=100):
-	stimv = index_update(jnp.zeros(response_length), (prior_context + spike_time).astype(int), noise_weighted_spike * weight)
+	# stimv = index_update(jnp.zeros(response_length), (prior_context + spike_time).astype(int), noise_weighted_spike * weight)
+	stimv = jnp.zeros(response_length).at[(prior_context + spike_time).astype(int)].set(noise_weighted_spike * weight)
 	return jnp.convolve(stimv, psc_kernel)[:stimv.shape[0]]
 
 get_true_evoked_resp = lambda *args: jnp.sum(vmap(_get_true_evoked_resp, in_axes=(0, 0, 0, 0))(*args), axis=0)

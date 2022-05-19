@@ -6,8 +6,7 @@ import jax.numpy as jnp
 
 from jax import vmap, jit
 from jax.experimental import loops
-from jax.ops import index_update
-
+# from jax.ops import index_update
 
 @jit
 def simultaneous_isotonic_regression(X, Ys, y_min=0, y_max=1):
@@ -55,7 +54,8 @@ def _isotonic_regression(y, weight):
 				
 			s.j = s.i
 			for _ in s.while_range(lambda: s.j < s.k + 1):
-				s.solution = index_update(s.solution, s.j, s.numerator / s.denominator)
+				# s.solution = index_update(s.solution, s.j, s.numerator / s.denominator)
+				s.solution = s.solution.at[s.j].set(s.numerator / s.denominator)
 				s.j += 1
 			s.pooled = 1
 			return s.solution, s.numerator, s.denominator, s.pooled
