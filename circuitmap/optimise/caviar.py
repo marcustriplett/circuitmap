@@ -93,7 +93,7 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 		if save_histories:
 			for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
 				# hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
-				hist_arrs = hist_arrs[hindx].at[it].set(pa)
+				hist_arrs[hindx] = hist_arrs[hindx].at[it].set(pa)
 
 	# final scan for false negatives
 	mu, beta, lam, z = reconnect_spont_cells(y, I, lam, mu, beta, z, minimax_spk_prob=minimax_spk_prob, 
