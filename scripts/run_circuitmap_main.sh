@@ -1,7 +1,9 @@
 #!/bin/bash
 
 set -e
-export PATH="/home/mat2245/anaconda3/bin:$PATH"
+# export PATH="/home/mat2245/anaconda3/bin:$PATH"
+
+source activate pytorch_p38
 
 # userhome="~/"
 # datastore="circuitmap/data"
@@ -18,7 +20,6 @@ configpath=$(neurocaas-contrib workflow get-configpath)
 resultpath=$(neurocaas-contrib workflow get-resultpath-tmp)
 
 echo "---- LAUNCHING CIRCUITMAP ----"
-source activate jax
 # cd "~/circuit_mapping/circuitmap/"
 python ./scripts/run_circuitmap_main.py --data $datapath --config $configpath --out $resultpath
 
