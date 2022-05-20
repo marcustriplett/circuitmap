@@ -4,6 +4,7 @@ import circuitmap as cm
 from circuitmap.neural_waveform_demixing import NeuralDemixer
 from scipy.io import savemat, loadmat
 import yaml
+from pathlib import Path
 
 # configure JAX memory preallocation
 import os
@@ -53,7 +54,8 @@ if __name__ == '__main__':
 	if out[-1] != '/':
 		out += '/'
 
-	save_name = args.out + args.data[:-4] + '_cmap.' + save_fmt
+	base = Path(args.data).stem
+	save_name = args.out + base + '_cmap.' + save_fmt
 
 	if save_fmt == 'mat':
 		savemat(save_name, {'weights': model.state['mu'], 'weight_uncertainty': model.state['beta'],
