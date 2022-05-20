@@ -46,7 +46,7 @@ if __name__ == '__main__':
 	model = cm.Model(N)
 
 	# fit model
-	model.fit(psc_dem, stim_matrix, method='caviar', fit_options={'msrmp': msrmp})
+	model.fit(psc_dem, stim_matrix, method='caviar', fit_options={'msrmp': msrmp, 'save_histories': False})
 
 	# save results
 	out = args.out
@@ -56,8 +56,8 @@ if __name__ == '__main__':
 	save_name = args.out + args.data[:-4] + '_cmap.' + save_fmt
 
 	if save_fmt == 'mat':
-		savemat(save_name, {'weights': cm.state['mu'], 'weight_uncertainty': cm.state['beta'],
-			'spikes': cm.state['lam']})
+		savemat(save_name, {'weights': model.state['mu'], 'weight_uncertainty': model.state['beta'],
+			'spikes': model.state['lam']})
 	else:
-		np.savez(save_name + save_fmt, weights=cm.state['mu'], weight_uncertainty=cm.state['beta'], 
-			spikes=cm.state['lam'])
+		np.savez(save_name + save_fmt, weights=model.state['mu'], weight_uncertainty=model.state['beta'], 
+			spikes=model.state['lam'])
