@@ -55,7 +55,7 @@ if __name__ == '__main__':
 		out += '/'
 
 	base = Path(args.data).stem
-	save_name = args.out + base + '_cmap.' + save_fmt
+	save_name = out + base + '_cmap.' + save_fmt
 
 	if save_fmt == 'mat':
 		savemat(save_name, {'weights': model.state['mu'], 'weight_uncertainty': model.state['beta'],
