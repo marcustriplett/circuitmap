@@ -15,13 +15,12 @@ if __name__ == '__main__':
 	parser.add_argument('--spont_prob')
 	parser.add_argument('--ntars')
 	parser.add_argument('--trials')
-	parser.add_argument('--design')
 	parser.add_argument('--demixer')
 	parser.add_argument('--token')
 	parser.add_argument('--out')
+	parser.add_argument('--weights')
+	parser.add_argument('--weight_index')
 	args = parser.parse_args()
-
-	assert args.design in ['random', 'blockwise']
 
 	N = int(args.N)
 	nreps = int(args.nreps)
@@ -31,13 +30,19 @@ if __name__ == '__main__':
 	trials = int(args.trials)
 	design = args.design
 
-	powers = np.array([45, 55, 65])
+	if (args.weights is not None) and (args.weight_index is not None):
+		weights_list = np.load(args.weights)
+		weight_indx = int(args.weight_indx)
+		weights = weights_list[weight_indx] # load weights
+	else:
+		weights = None
 
-	minimax_spike_prob = 0.3
+	powers = np.array([45, 55, 65])
+	msrmp = 0.4
 
 	# Simulate data
 	sim = simulate(H=ntars, N=N, nreps=nreps, spont_prob=spont_prob, connection_prob=connection_prob,
-		design=design, trials=trials, powers=powers, max_power_min_spike_rate=minimax_spike_prob, batch_size=100)
+		design='blockwise', trials=trials, powers=powers, max_power_min_spike_rate=msrmp, batch_size=100)
 
 	# Denoise traces
 	demix = NeuralDemixer(path=args.demixer, device='cpu')
@@ -48,88 +53,24 @@ if __name__ == '__main__':
 
 	# Configure fit options
 	iters = 50
-	sigma = 1
 	seed = 1
-	y_xcorr_thresh = 1e-2
-	max_penalty_iters = 50
-	warm_start_lasso = True
-	verbose = False
-	minimum_spike_count = 2
-	num_mc_samples_noise_model = 100
-	noise_scale = 0.5
-	init_spike_prior = 0.5
-	num_mc_samples = 500
-	penalty = 2
-	max_lasso_iters = 1000
-	scale_factor = 0.75
-	constrain_weights = 'positive'
-	orthogonal_outliers = True
+	minimum_spike_count = 3
 	lam_mask_fraction = 0.025
-
-	# priors_mbcs = {
-	# 	'beta': 3e0 * np.ones(N),
-	# 	'mu': np.zeros(N),
-	# 	'shape': np.ones(K),
-	# 	'rate': 1e-1 * np.ones(K),
-	# }
-
-	# config priors
-	phi_prior 		= np.c_[0.125 * np.ones(N), 5 * np.ones(N)]
-	phi_cov_prior 	= np.array([np.array([[1e-1, 0], [0, 1e0]]) for _ in range(N)])
-	alpha_prior 	= 0.15 * np.ones(N)
-	beta_prior 		= 3e0 * np.ones(N)
-	mu_prior 		= np.zeros(N)
-	sigma 			= 1e0
-
-	priors_caviar = {
-		'alpha': alpha_prior,
-		'beta': beta_prior,
-		'mu': mu_prior,
-		'phi': phi_prior,
-		'phi_cov': phi_cov_prior,
-		'shape': 1.,
-		'rate': sigma**2,
-	}
 
 	fit_options_caviar = { 
 		'iters': iters,
-		'num_mc_samples': num_mc_samples,
-		'y_xcorr_thresh': y_xcorr_thresh,
 		'seed': seed,
-		'minimax_spk_prob': minimax_spike_prob,
-		'scale_factor': scale_factor,
-		'penalty': penalty,
+		'msrmp': msrmp,
 		'minimum_spike_count': minimum_spike_count,
+		'lam_mask_fraction': lam_mask_fraction
 	}
 
 	fit_options_sns = { 
 		'iters': iters,
-		'num_mc_samples': num_mc_samples,
 		'seed': seed,
 		'minimum_spike_count': minimum_spike_count,
+		'lam_mask_fraction': lam_mask_fraction
 	}
-
-	# fit_options_mbcs = { 
-	# 	'iters': iters,
-	# 	'num_mc_samples': num_mc_samples,
-	# 	'penalty': penalty,
-	# 	'max_penalty_iters': max_penalty_iters,
-	# 	'max_lasso_iters': max_lasso_iters,
-	# 	'scale_factor': scale_factor,
-	# 	'constrain_weights': constrain_weights,
-	# 	'y_xcorr_thresh': y_xcorr_thresh,
-	# 	'seed': seed,
-	# 	'verbose': verbose,
-	# 	'warm_start_lasso': warm_start_lasso,
-	# 	'minimum_spike_count': minimum_spike_count,
-	# 	'minimum_maximal_spike_prob': minimax_spike_prob,
-	# 	'noise_scale': noise_scale,
-	# 	'init_spike_prior': init_spike_prior,
-	# 	'orthogonal_outliers': orthogonal_outliers,
-	# 	'lam_mask_fraction': lam_mask_fraction,
-	# 	'outlier_penalty': outlier_penalty,
-	# 	'delay_spont_estimation': delay_spont_estimation,
-	# }
 
 	model_caviar = cm.Model(N, priors=priors_caviar)
 	model_caviar.fit(psc_dem, stim_matrix, fit_options=fit_options_caviar, method='caviar')
@@ -143,7 +84,6 @@ if __name__ == '__main__':
 		'ntars': ntars,
 		'spont_prob': spont_prob,
 		'connection_prob': connection_prob,
-		'design': design,
 		'weights': sim['weights']
 	}
 
@@ -160,6 +100,6 @@ if __name__ == '__main__':
 	out = args.out
 	if out[-1] != '/': out += '/'
 
-	with bz2.BZ2File('%ssim_N%i_K%i_ntars%i_nreps%i_connprob%.3f_spontprob%.3f_design%s'%(out, N, K, ntars, nreps, connection_prob, spont_prob, design) \
+	with bz2.BZ2File('%ssim_N%i_K%i_ntars%i_nreps%i_connprob%.3f_spontprob%.3f'%(out, N, K, ntars, nreps, connection_prob, spont_prob) \
 		+ '_trial%s_%s.pkl'%(args.token, date.today().__str__()), 'wb') as savefile:
 		cpickle.dump(d, savefile)

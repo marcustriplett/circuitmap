@@ -3,7 +3,6 @@ import itertools
 from functools import partial
 from jax import jit, vmap
 import jax.numpy as jnp
-# from jax.ops import index_update
 from jax.nn import sigmoid
 
 # Conditionally import progress bar
@@ -16,7 +15,6 @@ except:
 #% simulate helper funcs
 def _kernel_conv_trialwise(psc_kernel, spk_time, spk, mult_noise, weight, response_length=900):
 	stimv = jnp.zeros(response_length)
-	# stimv = index_update(stimv, spk_time, spk)
 	stimv = stimv.at[spk_time].set(spk)
 	ke = jnp.convolve(psc_kernel, stimv)[:response_length]
 	return ke/(np.sum(ke) + 1e-5) * mult_noise * weight
@@ -27,7 +25,7 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=1, connection_prob=0.05, pow
 			frac_strongly_connected=0.2, strong_weight_lower=20, strong_weight_upper=40, weak_exp_mean=4, min_weight=5, phi_0_lower=0.2, phi_0_upper=0.25,
 			phi_1_lower=10, phi_1_upper=15, mult_noise_log_var=0.01, tau_r_min=25, tau_r_max=60, tau_delta_min=75, 
 			tau_delta_max=250, weights=None, kernel=None, phi_0=None, phi_1=None, gp_scale=4e-3, gp_lengthscale=50, spont_prob=0.05,
-			design='blockwise', max_power_min_spike_rate=0.4, batch_size=500):
+			design='blockwise', max_power_min_spike_rate=0.4, batch_size=500, neuron_batch_size=500):
 	
 	assert design in ['random', 'blockwise']
 
@@ -140,20 +138,19 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=1, connection_prob=0.05, pow
 
 	psc = []
 	nbatches = int(np.ceil(trials/batch_size))
+	nbatches_neurons = int(np.ceil(N/neuron_batch_size))
 	for i in tqdm(range(nbatches), leave=True):
-		psc += [kernel_conv_trialwise(
-			psc_kernels, 
-			spk_times[:, i*batch_size: (i+1)*batch_size].astype(int), 
-			spks[:, i*batch_size: (i+1)*batch_size],
-			mult_noise[:, i*batch_size: (i+1)*batch_size],
-			weights
-		)]
-		# true_resps += [_population_pscs(
-		# 	spike_times[:, i*ground_truth_eval_batch_size:(i+1)*ground_truth_eval_batch_size],
-		# 	(spks * mult_noise)[:, i*ground_truth_eval_batch_size:(i+1)*ground_truth_eval_batch_size],
-		# 	weights,
-		# 	psc_kernels
-		# )]
+		_psc_batch = jnp.zeros(T)
+		for j in range(nbatches_neurons):
+			_psc_batch += kernel_conv_trialwise(
+				psc_kernels[j*neuron_batch_size: (j+1)*neuron_batch_size], 
+				spk_times[j*neuron_batch_size: (j+1)*neuron_batch_size, i*batch_size: (i+1)*batch_size].astype(int), 
+				spks[j*neuron_batch_size: (j+1)*neuron_batch_size, i*batch_size: (i+1)*batch_size],
+				mult_noise[j*neuron_batch_size: (j+1)*neuron_batch_size, i*batch_size: (i+1)*batch_size],
+				weights[j*neuron_batch_size: (j+1)*neuron_batch_size]
+			)
+		psc += [_psc_batch]
+
 	psc = np.array(jnp.concatenate(psc))
 
 	print('Generating spontaneous PSCs...')
@@ -165,7 +162,7 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=1, connection_prob=0.05, pow
 			tau_delta_sample = np.random.uniform(tau_delta_min, tau_delta_max)
 			tau_d_sample = tau_r_sample + tau_delta_sample
 			spont_kern = get_kernel(tau_r_sample, tau_d_sample)
-			spike_time_sample = np.random.randint(10, 500)
+			spike_time_sample = np.random.randint(10, 500) # place spont in admissible zone to better control effect of spont rate
 			weight_sample = np.random.uniform(np.min(weights[connected]), np.max(weights[connected]))
 			kern = spont_kern(Trange, spike_time_sample)
 			spont_psc = weight_sample * kern/np.trapz(kern)
