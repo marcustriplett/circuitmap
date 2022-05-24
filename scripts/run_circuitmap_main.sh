@@ -2,8 +2,7 @@
 
 set -e
 export PATH="/home/mat2245/anaconda3/bin:$PATH"
-source activate pytorch_p38
-
+source activate neurocaas
 userhome="/home/ubuntu/"
 
 echo "---- DOWNLOADING DATA ----"
@@ -18,7 +17,9 @@ resultpath=$(neurocaas-contrib workflow get-resultpath-tmp)
 
 echo "---- LAUNCHING CIRCUITMAP ----"
 cd $userhome/circuitmap
+source activate pytorch_p38
 python ./scripts/run_circuitmap_main.py --data $datapath --config $configpath --out $resultpath
+source activate neurocaas
 
 echo "---- UPLOADING RESULTS ----"
 neurocaas-contrib workflow put-result -r $resultpath/*

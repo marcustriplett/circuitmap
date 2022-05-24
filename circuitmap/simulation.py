@@ -162,7 +162,7 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=1, connection_prob=0.05, pow
 			tau_delta_sample = np.random.uniform(tau_delta_min, tau_delta_max)
 			tau_d_sample = tau_r_sample + tau_delta_sample
 			spont_kern = get_kernel(tau_r_sample, tau_d_sample)
-			spike_time_sample = np.random.randint(10, 500) # place spont in admissible zone to better control effect of spont rate
+			spike_time_sample = np.random.randint(1, T) 
 			weight_sample = np.random.uniform(np.min(weights[connected]), np.max(weights[connected]))
 			kern = spont_kern(Trange, spike_time_sample)
 			spont_psc = weight_sample * kern/np.trapz(kern)
