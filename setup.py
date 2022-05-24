@@ -8,7 +8,6 @@ setup(
 	author_email='marcus.triplett@columbia.edu',
 	packages=find_packages(),
 	install_requires=[
-		'PyYAML==5.4'
 		'numpy>=1.21',
 		'scipy>=1.6',
 		'scikit-learn==0.24',
