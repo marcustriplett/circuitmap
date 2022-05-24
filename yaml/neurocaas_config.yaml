@@ -1,2 +1,2 @@
-demixer: './demixers/nwd_ie_ChroME2f.ckpt'
+demixer: './circuitmap/demixers/nwd_ie_ChroME2f.ckpt'
 msrmp: 0.4

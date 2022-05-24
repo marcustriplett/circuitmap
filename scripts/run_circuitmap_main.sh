@@ -21,7 +21,8 @@ source deactivate
 echo "---- LAUNCHING CIRCUITMAP ----"
 source activate pytorch_p38
 python $userhome/circuitmap/scripts/run_circuitmap_main.py --data $datapath --config $configpath --out $resultpath
-zip -r $savname.zip $resultpath/*
+cd $resultpath
+zip -r $savname.zip *
 source deactivate
 
 echo "---- UPLOADING RESULTS ----"
