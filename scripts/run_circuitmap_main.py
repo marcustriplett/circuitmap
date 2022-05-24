@@ -33,9 +33,6 @@ if __name__ == '__main__':
 
 	# read demixer and msrmp from config file
 	config = yaml.safe_load(open(args.config))
-	save_fmt = config['save_fmt']
-
-	assert save_fmt in ['mat', 'npy']
 
 	# place demixer on cpu to avoid memory clash between pytorch and JAX
 	demix = NeuralDemixer(path=config['demixer'], device='cpu')
@@ -55,11 +52,12 @@ if __name__ == '__main__':
 		out += '/'
 
 	base = Path(args.data).stem
-	save_name = out + base + '_cmap.' + save_fmt
+	save_name = out + base + '_cmap'
 
-	if save_fmt == 'mat':
-		savemat(save_name, {'weights': model.state['mu'], 'weight_uncertainty': model.state['beta'],
-			'spikes': model.state['lam']})
-	else:
-		np.savez(save_name + save_fmt, weights=model.state['mu'], weight_uncertainty=model.state['beta'], 
-			spikes=model.state['lam'])
+	# save mat output
+	savemat(save_name + '.mat', {'weights': model.state['mu'], 'weight_uncertainty': model.state['beta'],
+		'spikes': model.state['lam']})
+
+	# save npy output
+	np.savez(save_name, weights=model.state['mu'], weight_uncertainty=model.state['beta'], 
+		spikes=model.state['lam'])

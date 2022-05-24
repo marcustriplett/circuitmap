@@ -1,3 +1,2 @@
 demixer: './demixers/nwd_ie_ChroME2f.ckpt'
-save_fmt: 'mat'
 msrmp: 0.4
