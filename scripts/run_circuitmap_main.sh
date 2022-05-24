@@ -26,5 +26,6 @@ zip -r $savname.zip *
 source deactivate
 
 echo "---- UPLOADING RESULTS ----"
+cd $userhome
 source activate neurocaas
 neurocaas-contrib workflow put-result -r $savname.zip
