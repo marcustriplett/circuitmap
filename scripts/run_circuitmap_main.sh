@@ -1,7 +1,8 @@
 #!/bin/bash
 
+# @author Marcus A. Triplett (2022), Columbia University
+
 set -e
-export PATH="/home/mat2245/anaconda3/bin:$PATH"
 source activate neurocaas
 userhome="/home/ubuntu/"
 
@@ -19,8 +20,9 @@ echo "---- LAUNCHING CIRCUITMAP ----"
 cd $userhome/circuitmap
 source activate pytorch_p38
 python ./scripts/run_circuitmap_main.py --data $datapath --config $configpath --out $resultpath
+zip -r out.zip $resultpath/*
 source deactivate
 
 echo "---- UPLOADING RESULTS ----"
 source activate neurocaas
-neurocaas-contrib workflow put-result -r $resultpath/*
+neurocaas-contrib workflow put-result -r out.zip
