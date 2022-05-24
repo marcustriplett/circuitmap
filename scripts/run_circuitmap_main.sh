@@ -19,3 +19,6 @@ resultpath=$(neurocaas-contrib workflow get-resultpath-tmp)
 echo "---- LAUNCHING CIRCUITMAP ----"
 cd $userhome/circuitmap
 python ./scripts/run_circuitmap_main.py --data $datapath --config $configpath --out $resultpath
+
+echo "---- UPLOADING RESULTS ----"
+neurocaas-contrib workflow put-result -r $resultpath/*
