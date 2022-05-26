@@ -162,7 +162,7 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=1, connection_prob=0.05, pow
 			tau_delta_sample = np.random.uniform(tau_delta_min, tau_delta_max)
 			tau_d_sample = tau_r_sample + tau_delta_sample
 			spont_kern = get_kernel(tau_r_sample, tau_d_sample)
-			spike_time_sample = np.random.randint(1, T) 
+			spike_time_sample = np.random.randint(1, T)
 			weight_sample = np.random.uniform(np.min(weights[connected]), np.max(weights[connected]))
 			kern = spont_kern(Trange, spike_time_sample)
 			spont_psc = weight_sample * kern/np.trapz(kern)
@@ -293,14 +293,13 @@ def _get_unnormalised_psc_kernel(tau_r, tau_d, kernel_window, eps=1e-5):
 	return ke
 get_unnormalised_psc_kernel = jit(vmap(_get_unnormalised_psc_kernel, in_axes=(0, 0, None)), static_argnums=(2))
 
+@jit
 def _kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight):
 	''' Warning: assumes no spike occurs on very first bin due to jax workaround.
 	'''
 	stimv = jnp.zeros(trange.shape[0])
 	locs = (delta * spike).astype(int)
-	# stimv = index_update(stimv, locs, weight * mult_noise)
 	stimv = stimv.at[locs].set(weight * mult_noise)
-	# stimv = index_update(stimv, 0, 0)
 	stimv = stimv.at[0].set(0)
 	return jnp.convolve(psc_kernel, stimv, mode='full')[:trange.shape[0]]
 
@@ -319,7 +318,6 @@ def _eval_sponts(trange, tau_r, tau_d, delta, weight, divisor, eps=1e-8):
 eval_sponts = jit(lambda *args: jnp.sum(vmap(_eval_sponts, in_axes=(None, 0, 0, 0, 0, 0))(*args), axis=0))
 
 def _get_true_evoked_resp(spike_time, noise_weighted_spike, weight, psc_kernel, response_length=900, prior_context=100):
-	# stimv = index_update(jnp.zeros(response_length), (prior_context + spike_time).astype(int), noise_weighted_spike * weight)
 	stimv = jnp.zeros(response_length).at[(prior_context + spike_time).astype(int)].set(noise_weighted_spike * weight)
 	return jnp.convolve(stimv, psc_kernel)[:stimv.shape[0]]
 
@@ -427,8 +425,12 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 	
 	# compute pscs
 	psc_kernels = get_psc_kernel(tau_r, tau_d, kernel_window)
-	pscs = np.array(kernel_conv(trange, psc_kernels[connected], spike_times[connected] + stim_times[np.newaxis], 
-					   spks[connected], mult_noise[connected], weights[connected]))
+
+	pscs = np.zeros(expt_len)
+	for c in connected:
+		pscs += _kernel_conv(trange, psc_kernel[c], spike_times[c] + stim_times, spks[c], mult_noise[c], weights[c])
+	# pscs = np.array(kernel_conv(trange, psc_kernels[connected], spike_times[connected] + stim_times[np.newaxis], 
+	# 				   spks[connected], mult_noise[connected], weights[connected]))
 	
 	# extract ground truth responses
 	#% batch-wise for controlling memory overhead
