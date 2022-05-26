@@ -428,7 +428,7 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 
 	pscs = np.zeros(expt_len)
 	for c in connected:
-		pscs += _kernel_conv(trange, psc_kernel[c], spike_times[c] + stim_times, spks[c], mult_noise[c], weights[c])
+		pscs += _kernel_conv(trange, psc_kernels[c], spike_times[c] + stim_times, spks[c], mult_noise[c], weights[c])
 	# pscs = np.array(kernel_conv(trange, psc_kernels[connected], spike_times[connected] + stim_times[np.newaxis], 
 	# 				   spks[connected], mult_noise[connected], weights[connected]))
 	
