@@ -311,6 +311,7 @@ def kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight):
 	'''
 	return jnp.sum(_vmap_kernel_conv(trange, psc_kernel, delta, spike, mult_noise, weight), axis=0)
 
+@jit
 def _eval_sponts(trange, tau_r, tau_d, delta, weight, divisor, eps=1e-8):
 	ke = jnp.nan_to_num((jnp.exp(-(trange - delta)/tau_d) - jnp.exp(-(trange - delta)/tau_r)) * (trange > delta))
 	return (ke * weight)/(divisor + eps)
@@ -453,8 +454,13 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 	tau_d = tau_r + tau_delta
 	psc_kernels = get_unnormalised_psc_kernel(tau_r, tau_d, kernel_window)
 	kernel_divisor = np.trapz(psc_kernels[:, :response_length], axis=1)
+	spont_weights = np.random.uniform(0., np.max(weights), [nspont])
 
-	sponts = np.array(eval_sponts(trange, tau_r, tau_d, spont_times, np.random.uniform(0., np.max(weights), [nspont]), kernel_divisor))
+	sponts = np.zeros(expt_len)
+	for sp in range(nspont):
+		sponts += _eval_sponts(trange, tau_r[sp], tau_d[sp], spont_times[sp], spont_weights[sp], kernel_divisor[sp])
+
+	# sponts = np.array(eval_sponts(trange, tau_r, tau_d, spont_times,np.random.uniform(0., np.max(weights), [nspont]) , kernel_divisor))
 
 	# compute correlated noise
 	ar1_noise = np.zeros(expt_len)
