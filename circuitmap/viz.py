@@ -100,9 +100,8 @@ def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=No
 		
 		# Overlay true spikes
 		if overlay_spikes:
-			if mu[n] != 0:
-				spk_times = np.array([trial_breaks[tb] for tb in range(len(trial_breaks)-1) if true_spikes[n][stim_locs][tb] == 1])
-				plt.scatter(spk_times + trial_len//2, 0.75 * ymax * np.ones_like(spk_times), 20, marker='v', edgecolor='k', facecolor='None', linewidth=0.5)
+			spk_times = np.array([trial_breaks[tb] for tb in range(len(trial_breaks)-1) if true_spikes[n][stim_locs][tb] == 1])
+			plt.scatter(spk_times + trial_len//2, 0.75 * ymax * np.ones_like(spk_times), 20, marker='v', edgecolor='k', facecolor='None', linewidth=0.5)
 
 		for loc in ['top', 'right', 'left', 'bottom']:
 			plt.gca().spines[loc].set_visible(False)
