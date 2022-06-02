@@ -3,7 +3,7 @@ import numpy as np
 
 def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=None, spike_thresh=0.01, save=None, ymax=None, n_plots=15, max_trials_to_show=30, 
 	col_width=7.5, row_height=0.6, order=None, sdevs=None, fig_width=None, overlay_spikes=False, annotate_spikes=False, wspace=0.05, labels=None,
-	hspace=0.5, ylabelpad=0.05, facecol=None, edgecol=None, trial_len=900, save_fmt='png', fontsize=14, append_last_row=False, backend='pgf'):
+	hspace=0.5, ylabelpad=0.05, facecol=None, edgecol=None, trial_len=900, save_fmt='png', fontsize=14, append_last_row=False, backend='pgf', plot_sponts=True):
 	''' plot_checkerboard
 	'''
 
@@ -25,6 +25,9 @@ def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=No
 
 	if fig_width is None:
 		fig_width = num_trials * col_width
+
+	if 'z' in model.state.keys():
+		z = model.state['z']
 	
 	fig = plt.figure(figsize=(fig_width, row_height * n_plots * 1.5))
 
@@ -95,6 +98,10 @@ def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=No
 
 				if num_spiking_inferred > 0:
 					plt.text(trial_breaks[tb] + trial_len//4, -0.3, '%i: %i'%(num_spiking_true, num_spiking_inferred), fontsize=7)
+
+			if plot_sponts:
+				if z[stim_locs][tb] != 0:
+					plt.plot(trial_len * (tb + 0.5), 0.7 * ymax, marker='*', markerfacecolor='b', markeredgecolor='None', markersize=6)
 
 		plt.plot(this_y_psc, color=trace_col, linewidth=trace_linewidth)
 		
