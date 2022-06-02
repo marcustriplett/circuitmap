@@ -79,7 +79,6 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 
 	# iterate CAVIaR updates
 	for it in trange(iters):
-
 		mu, beta 			= block_update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N)
 		lam, key 			= update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, 
 								num_mc_samples, N, powers, minimum_spike_count, msrmp + spont_rate, 
@@ -131,15 +130,13 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, beta, z, minimax_spk_prob=0.3
 			# Passes pava condition, reconnect cell
 			print('Reconnecting cell %i with maximal pava spike rate %.2f'%(focus, pava))
 			z_locs = np.intersect1d(np.where(stim_matrix[focus])[0], np.where(z)[0])
-			# mu = index_update(mu, focus, np.mean(z[z_locs]))
 			mu = mu.at[focus].set(np.mean(z[z_locs]))
-			# beta = index_update(beta, focus, sem(z[z_locs]))
 			beta = beta.at[focus].set(sem(z[z_locs]))
-			# lam = index_update(lam, (focus, z_locs), 1.)
 			lam = lam.at[(focus, z_locs)].set(1.)
 			z[z_locs] = 0. # delete events from spont vector
 
 		disc_cells = np.delete(disc_cells, focus_indx)
+
 
 	print('Cell reconnection complete.')
 
@@ -240,6 +237,7 @@ def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, nu
 			# update lam
 			# scope.lam = index_update(scope.lam, n, est_lam * pava)
 			scope.lam = scope.lam.at[n].set(est_lam * pava)
+			scope.mu = scope.mu.at[n].set(scope.mu[n] * (pava == 1.))
 
 	return scope.lam, scope.key_next
 

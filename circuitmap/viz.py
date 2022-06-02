@@ -3,7 +3,7 @@ import numpy as np
 
 def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=None, spike_thresh=0.01, save=None, ymax=None, n_plots=15, max_trials_to_show=30, 
 	col_width=7.5, row_height=0.6, order=None, sdevs=None, fig_width=None, overlay_spikes=False, annotate_spikes=False, wspace=0.05, labels=None,
-	hspace=0.5, ylabelpad=0.05, facecol=None, edgecol=None, trial_len=900, save_fmt='png', fontsize=14, append_last_row=False):
+	hspace=0.5, ylabelpad=0.05, facecol=None, edgecol=None, trial_len=900, save_fmt='png', fontsize=14, append_last_row=False, backend='pgf'):
 	''' plot_checkerboard
 	'''
 
@@ -150,7 +150,7 @@ def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=No
 	
 	fig.supylabel('Neuron', fontsize=fontsize, x=ylabelpad)
 	if save is not None:
-		plt.savefig(save, format=save_fmt, bbox_inches='tight', dpi=300, backend='pgf')
+		plt.savefig(save, format=save_fmt, bbox_inches='tight', dpi=300, backend=backend)
 
 	plt.show()
 
