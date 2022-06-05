@@ -204,6 +204,7 @@ def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, nu
 		
 		# declare within-scope types
 		scope.lam = lam
+		scope.mu = mu
 		scope.all_ids = jnp.arange(N)
 		scope.mask = jnp.zeros(N - 1, dtype=int)
 		scope.arg = jnp.zeros(K, dtype=float)
