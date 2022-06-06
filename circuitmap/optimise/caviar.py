@@ -22,7 +22,7 @@ from .pava import _isotonic_regression, simultaneous_isotonic_regression
 def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters=50, num_mc_samples=100, seed=0, y_xcorr_thresh=1e-2, minimum_spike_count=3,
 	delay_spont_est=1, msrmp=0.3, scale_factor=0.75, penalty=5e0, save_histories=True, 
-	max_backtrack_iters=20, tol=0.05):
+	max_backtrack_iters=20, tol=0.05, spont_orthogonality=0.1):
 	''' Coordinate-ascent variational inference and isotonic regularisation.
 	'''
 	print('Running coordinate-ascent variational inference and isotonic regularisation (CAVIaR) algorithm.')
@@ -86,12 +86,11 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 		shape, rate 		= update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 		z 					= estimate_spont_act_soft_thresh((y, mu, lam, it, max_backtrack_iters, jnp.sum(y), 
-								z, penalty, lam_mask, scale_factor, tol))[6]
+								z, penalty, lam_mask, scale_factor, tol, spont_orthogonality))[6]
 		spont_rate 			= jnp.mean(z != 0.)
 
 		if save_histories:
 			for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
-				# hist_arrs[hindx] = index_update(hist_arrs[hindx], it, pa)
 				hist_arrs[hindx] = hist_arrs[hindx].at[it].set(pa)
 
 	# final scan for false negatives
@@ -148,16 +147,16 @@ def _esast_cond_fun(carry):
 	return jnp.logical_and(it < max_iters, err > tol)
 
 def _esast_body_fun(carry):
-	y, mu, lam, it, max_iters, err, z, pen, mask, scale_factor, tol = carry
+	y, mu, lam, it, max_iters, err, z, pen, mask, scale_factor, tol, spont_orthogonality = carry
 	resid = y - lam.T @ mu
 	z = jnp.where(resid < pen, 0., resid - pen)
 	z = jnp.where(z < 0., 0., z)
-	z = jnp.where(jnp.any(lam >= 0.25, axis=0), 0., z)
+	z = jnp.where(jnp.any(lam >= spont_orthogonality, axis=0), 0., z)
 	z *= mask
 	err = jnp.sum(jnp.square(resid - z))/(jnp.sum(jnp.square(y)) + 1e-5)
 	it += 1
 	pen *= scale_factor
-	return y, mu, lam, it, max_iters, err, z, pen, mask, scale_factor, tol
+	return y, mu, lam, it, max_iters, err, z, pen, mask, scale_factor, tol, spont_orthogonality
 
 estimate_spont_act_soft_thresh = jit(lambda carry: while_loop(_esast_cond_fun, _esast_body_fun, carry))
 
