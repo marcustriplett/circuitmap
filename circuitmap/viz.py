@@ -17,12 +17,18 @@ def plot_checkerboard(_psc, _stim_matrix, model, true_spikes=None, true_weights=
 		stim_matrix = _stim_matrix[:, trials]
 
 	N, K = stim_matrix.shape
+
+	# Load model estimates
 	mu, _lam = [model.state[key] for key in ['mu', 'lam']]
+	if 'z' in model.state.keys():
+		_z = model.state['z']
 
 	if trials is None:
 		lam = _lam
+		z = _z
 	else:
 		lam = _lam[:, trials]
+		z = _z[trials]
 
 	if ymax is None:
 		ymax = np.percentile(psc/np.max(psc), 99.99)
@@ -40,21 +46,19 @@ def plot_checkerboard(_psc, _stim_matrix, model, true_spikes=None, true_weights=
 	if fig_width is None:
 		fig_width = num_trials * col_width
 
-	if 'z' in model.state.keys():
-		z = model.state['z']
-	
-	fig = plt.figure(figsize=(fig_width, row_height * n_plots * 1.5))
-
-	nrows = n_plots + 2 if append_last_row else n_plots
-	gs = fig.add_gridspec(ncols=1, nrows=nrows, hspace=hspace, wspace=wspace)
-	
 	normalisation_factor = np.max(np.abs(psc))
 	trace_linewidth = 1.5
-	
+
 	I = np.array([np.unique(stim_matrix[:, k])[1] for k in range(stim_matrix.shape[1])])
 	powers = np.unique(I)
 	trials_per_power = num_trials // len(powers)
 	
+	# Setup fig
+	fig = plt.figure(figsize=(fig_width, row_height * n_plots * 1.5))
+	nrows = n_plots + 2 if append_last_row else n_plots
+	gs = fig.add_gridspec(ncols=1, nrows=nrows, hspace=hspace, wspace=wspace)
+
+	# Plot checkerboard rows
 	for m in range(n_plots):
 		n = order[m]
 
