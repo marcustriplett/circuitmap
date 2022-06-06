@@ -1,15 +1,28 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_checkerboard(psc, stim_matrix, model, true_spikes=None, true_weights=None, spike_thresh=0.01, save=None, ymax=None, n_plots=15, max_trials_to_show=30, 
+def plot_checkerboard(_psc, _stim_matrix, model, true_spikes=None, true_weights=None, spike_thresh=0.01, save=None, ymax=None, n_plots=15, max_trials_to_show=30, 
 	col_width=7.5, row_height=0.6, order=None, sdevs=None, fig_width=None, overlay_spikes=False, annotate_spikes=False, wspace=0.05, labels=None,
 	hspace=0.5, ylabelpad=0.05, facecol=None, edgecol=None, trial_len=900, save_fmt='png', fontsize=14, append_last_row=False, backend='pgf', plot_sponts=True,
-	spont_alpha=0.75, spont_col='C0'):
+	spont_alpha=0.75, spont_col='C0', trials=None):
 	''' plot_checkerboard
 	'''
 
+	# Parse trial subset
+	if trials is None:
+		psc = _psc
+		stim_matrix = _stim_matrix
+	else:
+		psc = _psc[trials]
+		stim_matrix = _stim_matrix[:, trials]
+
 	N, K = stim_matrix.shape
-	mu, lam = [model.state[key] for key in ['mu', 'lam']]
+	mu, _lam = [model.state[key] for key in ['mu', 'lam']]
+
+	if trials is None:
+		lam = _lam
+	else:
+		lam = _lam[:, trials]
 
 	if ymax is None:
 		ymax = np.percentile(psc/np.max(psc), 99.99)
