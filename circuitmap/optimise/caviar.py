@@ -22,7 +22,7 @@ from .pava import _isotonic_regression, simultaneous_isotonic_regression
 def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters=50, num_mc_samples=100, seed=0, y_xcorr_thresh=1e-2, minimum_spike_count=3,
 	delay_spont_est=1, msrmp=0.3, scale_factor=0.75, penalty=5e0, save_histories=True, 
-	max_backtrack_iters=20, tol=0.05, spont_orthogonality=0.1):
+	max_backtrack_iters=20, tol=0.05, spont_orthogonality=0.1, new_mu_update=True):
 	''' Coordinate-ascent variational inference and isotonic regularisation.
 	'''
 	print('Running coordinate-ascent variational inference and isotonic regularisation (CAVIaR) algorithm.')
@@ -79,7 +79,10 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 
 	# iterate CAVIaR updates
 	for it in trange(iters):
-		mu, beta 			= block_update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N)
+		if new_mu_update:
+			mu, beta 		= block_update_mu_approx(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N)
+		else:
+			mu, beta 			= block_update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N)
 		lam, key 			= update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, 
 								num_mc_samples, N, powers, minimum_spike_count, msrmp + spont_rate, 
 								it, delay_spont_est)
@@ -172,6 +175,16 @@ def block_update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
 	posterior_cov = jnp.linalg.inv(shape/rate * (D + L) + 1/(beta_prior**2) * jnp.eye(N))
 	posterior_mean = posterior_cov @ (shape/rate * jnp.sum(y * lam, axis=1) + 1/(beta_prior**2) * mu_prior)
 	return posterior_mean, jnp.diag(posterior_cov)
+
+@partial(jit, static_argnums=(8))
+def block_update_mu_approx(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
+	D, L = _bu_D(lam), _bu_L(lam)
+	cov_inverse = shape/rate * (D + L) + 1/(beta_prior**2) * jnp.eye(N)
+	posterior_cov = jnp.diag(cov_inverse) / jnp.linalg.norm(cov_inverse, axis=0)**2 # sparse approximate inverse
+	cho_factor = jax.scipy.linalg.cho_factor(cov_inverse)
+	posterior_mean = jax.scipy.linalg.cho_solve(cho_factor, 
+		shape/rate * jnp.sum(y * lam, axis=1) + 1/(beta_prior**2) * mu_prior, overwrite_b=True)
+	return posterior_mean, posterior_cov
 
 def _eval_spike_rates(stimv, lamv, powers):
 	K = stimv.shape[0]
