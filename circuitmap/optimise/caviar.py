@@ -160,15 +160,11 @@ def _esast_body_fun(carry):
 
 estimate_spont_act_soft_thresh = jit(lambda carry: while_loop(_esast_cond_fun, _esast_body_fun, carry))
 
-#% block-update helper funs
-_bu_D_k = vmap(lambda vec: jnp.diag(vec * (1 - vec)), in_axes=(1))
-_bu_D = jit(lambda lam: jnp.sum(_bu_D_k(lam), axis=0))
-_bu_L_k = vmap(lambda vec: jnp.outer(vec, vec), in_axes=(1))
-_bu_L = jit(lambda lam: jnp.sum(_bu_L_k(lam), axis=0))
 
 @partial(jit, static_argnums=(8))
 def block_update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N):
-	D, L = _bu_D(lam), _bu_L(lam)
+	L = lam @ lam.T
+	D = jnp.diag(jnp.sum(lam * (1 - lam), axis=-1))
 	posterior_cov = jnp.linalg.inv(shape/rate * (D + L) + 1/(beta_prior**2) * jnp.eye(N))
 	posterior_mean = posterior_cov @ (shape/rate * jnp.sum(y * lam, axis=1) + 1/(beta_prior**2) * mu_prior)
 	return posterior_mean, jnp.diag(posterior_cov)
@@ -411,4 +407,5 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
 			scope.alpha = scope.alpha.at[n].set(sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - scope.arg))
 	key, _ = jax.random.split(key)
 	return scope.alpha, key
+
 
