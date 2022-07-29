@@ -103,42 +103,43 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 def reconnect_spont_cells(y, stim_matrix, lam, mu, beta, z, minimax_spk_prob=0.3, minimum_spike_count=3):
 	disc_cells = np.where(mu == 0.)[0]
 	powers = np.unique(stim_matrix)[1:] # skip zero power
-	z = np.array(z)
+	z = np.array(z) # convert to np array
 	
 	print('Examining %i/%i cells for false negatives...'%(len(disc_cells), stim_matrix.shape[0]))
 	while len(disc_cells) > 0:
-		stim_locs = []
-		for n in disc_cells:
-			stim_locs += [np.where(z[np.where(stim_matrix[n])[0]])[0]]
+		if len(np.where(z)[0]) > minimum_spike_count:
+			stim_locs = []
+			for n in disc_cells:
+				stim_locs += [np.where(z[np.where(stim_matrix[n])[0]])[0]]
 
-		# Focus on cell with largest number of associated spikes
-		focus_indx = np.argmax([len(sl) for sl in stim_locs])
-		focus = disc_cells[focus_indx]
+			# Focus on cell with largest number of associated spikes
+			focus_indx = np.argmax([len(sl) for sl in stim_locs])
+			focus = disc_cells[focus_indx]
 
-		# Check pava condition
-		srates = np.zeros_like(powers)
-		spike_count = 0
-		for i, p in enumerate(powers):
-			z_locs = np.where(stim_matrix[focus] == p)[0]
-			if len(z_locs) > 0:
-				srates[i] = np.mean(z[z_locs] != 0)
-				spike_count += np.sum(z[z_locs] != 0)
-		pava = _isotonic_regression(srates, np.ones_like(srates))[-1]
-		
-		if pava >= minimax_spk_prob and spike_count >= minimum_spike_count:
-			# Passes pava condition, reconnect cell
-			print('Reconnecting cell %i with maximal pava spike rate %.2f'%(focus, pava))
-			z_locs = np.intersect1d(np.where(stim_matrix[focus])[0], np.where(z)[0])
-			mu = mu.at[focus].set(np.mean(z[z_locs]))
-			beta = beta.at[focus].set(sem(z[z_locs]))
-			lam = lam.at[(focus, z_locs)].set(1.)
-			z[z_locs] = 0. # delete events from spont vector
+			# Check pava condition
+			srates = np.zeros_like(powers)
+			spike_count = 0
+			for i, p in enumerate(powers):
+				z_locs = np.where(stim_matrix[focus] == p)[0]
+				if len(z_locs) > 0:
+					srates[i] = np.mean(z[z_locs] != 0)
+					spike_count += np.sum(z[z_locs] != 0)
+			pava = _isotonic_regression(srates, np.ones_like(srates))[-1]
+			
+			if pava >= minimax_spk_prob and spike_count >= minimum_spike_count:
+				# Passes pava condition, reconnect cell
+				print('Reconnecting cell %i with maximal pava spike rate %.2f'%(focus, pava))
+				z_locs = np.intersect1d(np.where(stim_matrix[focus])[0], np.where(z)[0])
+				mu = mu.at[focus].set(np.mean(z[z_locs]))
+				beta = beta.at[focus].set(sem(z[z_locs]))
+				lam = lam.at[(focus, z_locs)].set(1.)
+				z[z_locs] = 0. # delete events from spont vector
 
-		disc_cells = np.delete(disc_cells, focus_indx)
-
+			disc_cells = np.delete(disc_cells, focus_indx)
+		else:
+			break
 
 	print('Cell reconnection complete.')
-
 	return mu, beta, lam, z
 
 #% estimate_spont_act_soft_thresh
