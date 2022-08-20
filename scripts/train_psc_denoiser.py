@@ -8,10 +8,12 @@ if __name__ == '__main__':
 	parser.add_argument('--epochs')
 	parser.add_argument('--templates')
 	parser.add_argument('--pretrained')
+	parser.add_argument('--num_gpus', default=0)
 	args = parser.parse_args()
 
 	size = int(args.size)
 	epochs = int(args.epochs)
+	num_gpus = int(args.num_gpus)
 
 	# Optionally load negative training templates
 	if args.templates is None:
@@ -48,4 +50,4 @@ if __name__ == '__main__':
 								tau_r_upper=tau_r_upper, noise_std_lower=0.001,
 								noise_std_upper=0.02, gp_lengthscale=45, templates=templates,
 								convolve=convolve, sigma=sigma)
-	demixer.train(epochs=epochs)
+	demixer.train(epochs=epochs, num_gpus=num_gpus)

@@ -3,9 +3,13 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 
+
 import numpy as np
 import time
 import scipy.signal as sg
+
+import jax.random as jrand
+from circuitmap.photocurrent_sim import sample_photocurrent_shapes
 
 # Conditionally import progress bar
 try:
@@ -101,7 +105,8 @@ class NeuralDemixer():
 		noise_std_lower=0.01, noise_std_upper=0.1, gp_lengthscale=25, gp_scale=0.01, 
 		max_modes=4, observed_amplitude_lower=0.75, observed_amplitude_upper=1.25, 
 		prob_zero_event=0.001, templates=None, convolve=False, sigma=20, template_prob=0.075, 
-		save_path=None):
+		save_path=None, prev_pc_fraction=0.2, pc_fraction=0.2, next_pc_fraction=0.2,
+		pc_scale_min=0.05, pc_scale_max=2.0):
 		''' Simulate data for training a PSC demixer. 
 		'''
 
@@ -116,6 +121,12 @@ class NeuralDemixer():
 		iid_noise = np.zeros((size, trial_dur))
 
 		b_lp, a_lp = sg.butter(4, lp_cutoff, btype='low', fs=srate)
+
+		# generate photocurrent shapes using vmap
+		key = jrand.PRNGKey(0)
+		prev_pc_shapes, curr_pc_shapes, next_pc_shapes = \
+			sample_photocurrent_shapes(key,
+				size, trial_dur, pc_scale_range=(pc_scale_min, pc_scale_max))
 
 		# generate PSC traces
 		for i in tqdm(range(size), desc='Trace generation', leave=True):
@@ -138,8 +149,16 @@ class NeuralDemixer():
 								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper, 
 								delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i], convolve=convolve), 0)
 
+				include_pc = np.random.rand() < pc_fraction
+				include_prev_pc = np.random.rand() < prev_pc_fraction
+				include_next_pc = np.random.rand() < next_pc_fraction
+				pc_scales = np.random.uniform(low=pc_scale_min, high=pc_scale_max, size=3)
+				pc_shape = include_prev_pc * pc_scales[0] * prev_pc_shapes[i] \
+					+ include_pc * pc_scales[1] * curr_pc_shapes[i] \
+					+ include_next_pc * pc_scales[2] * next_pc_shapes[i]
+
 				# lowpass filter inputs as with experimental data
-				inputs[i] = sg.filtfilt(b_lp, a_lp, prev_pscs[i] + targets[i] + next_pscs[i], axis=-1)
+				inputs[i] = sg.filtfilt(b_lp, a_lp, pc_shape + prev_pscs[i] + targets[i] + next_pscs[i], axis=-1)
 
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
