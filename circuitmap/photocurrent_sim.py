@@ -1,10 +1,8 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from functools import partial
 import jax
 import jax.numpy as jnp
 import jax.random as jrand
 import jax.scipy as jsp
+import circuitmap as cm
 jax.config.update('jax_platform_name', 'cpu')
 
 def _photocurrent_shape(
