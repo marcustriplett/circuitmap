@@ -106,9 +106,11 @@ class NeuralDemixer():
 		max_modes=4, observed_amplitude_lower=0.75, observed_amplitude_upper=1.25, 
 		prob_zero_event=0.001, templates=None, convolve=False, sigma=20, template_prob=0.075, 
 		save_path=None, prev_pc_fraction=0.2, pc_fraction=0.2, next_pc_fraction=0.2,
-		pc_scale_min=0.05, pc_scale_max=2.0):
+		pc_scale_min=0.05, pc_scale_max=2.0, target='demixed'):
 		''' Simulate data for training a PSC demixer. 
 		'''
+		# determines whether we're demixing traces or predicting photocurrents
+		assert target in ['demixed', 'photocurrent']
 
 		n_modes = np.random.choice(max_modes, size, p=mode_probs)
 		n_modes_prev = np.random.choice(max_modes, size, p=prev_mode_probs)
@@ -153,13 +155,21 @@ class NeuralDemixer():
 				include_prev_pc = np.random.rand() < prev_pc_fraction
 				include_next_pc = np.random.rand() < next_pc_fraction
 				pc_scales = np.random.uniform(low=pc_scale_min, high=pc_scale_max, size=3)
-				pc_shape = include_prev_pc * pc_scales[0] * prev_pc_shapes[i] \
-					+ include_pc * pc_scales[1] * curr_pc_shapes[i] \
-					+ include_next_pc * pc_scales[2] * next_pc_shapes[i]
+
+				# form scaled photocurrents from current, previous, and next trial
+				curr_pc_shape = include_pc * pc_scales[0] * curr_pc_shapes[i]
+				prev_pc_shape = include_prev_pc * pc_scales[1] * prev_pc_shapes[i]
+				next_pc_shape = include_next_pc * pc_scales[2] * next_pc_shapes[i]
+
+				pc_shape = curr_pc_shape + prev_pc_shape + next_pc_shape
 
 				# lowpass filter inputs as with experimental data
 				inputs[i] = sg.filtfilt(b_lp, a_lp, pc_shape + prev_pscs[i] + targets[i] + next_pscs[i], axis=-1)
 
+				# choose whether target is PC shape or demixed trace
+				if target == 'photocurrent':
+					targets[i] = curr_pc_shape
+					
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
 		gp_noise = _sample_gp(n_samples=size, trial_dur=trial_dur, gp_lengthscale=gp_lengthscale,

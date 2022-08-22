@@ -9,6 +9,13 @@ if __name__ == '__main__':
 	parser.add_argument('--templates')
 	parser.add_argument('--pretrained')
 	parser.add_argument('--num_gpus', default=0)
+	parser.add_argument('--target', type=str, default='demixed')
+	parser.add_argument('--pc_scale_min', type=float, default=0.05)
+	parser.add_argument('--pc_scale_max', type=float, default=10.0)
+	parser.add_argument('--prev_pc_fraction', type=float, default=0.2)
+	parser.add_argument('--pc_fraction', type=float, default=0.2)
+	parser.add_argument('--next_pc_fraction', type=float, default=0.2)
+	parser.add_argument('--dataset_save_path', type=str)
 	args = parser.parse_args()
 
 	size = int(args.size)
@@ -49,5 +56,12 @@ if __name__ == '__main__':
 								tau_diff_upper=tau_diff_upper, tau_r_lower=tau_r_lower, 
 								tau_r_upper=tau_r_upper, noise_std_lower=0.001,
 								noise_std_upper=0.02, gp_lengthscale=45, templates=templates,
-								convolve=convolve, sigma=sigma)
+								convolve=convolve, sigma=sigma,
+								target=args.target,
+								pc_scale_min=args.pc_scale_min,
+								pc_scale_max=args.pc_scale_max,
+								prev_pc_fraction=args.prev_pc_fraction,
+								pc_fraction=args.pc_fraction,
+								next_pc_fraction=args.next_pc_fraction,
+								save_path=args.dataset_save_path)
 	demixer.train(epochs=epochs, num_gpus=num_gpus)
