@@ -128,7 +128,7 @@ class NeuralDemixer():
 		key = jrand.PRNGKey(0)
 		prev_pc_shapes, curr_pc_shapes, next_pc_shapes = \
 			sample_photocurrent_shapes(key,
-				size, trial_dur, pc_scale_range=(pc_scale_min, pc_scale_max))
+				size,)
 
 		# generate PSC traces
 		for i in tqdm(range(size), desc='Trace generation', leave=True):
@@ -169,7 +169,7 @@ class NeuralDemixer():
 				# choose whether target is PC shape or demixed trace
 				if target == 'photocurrent':
 					targets[i] = curr_pc_shape
-					
+
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
 		gp_noise = _sample_gp(n_samples=size, trial_dur=trial_dur, gp_lengthscale=gp_lengthscale,

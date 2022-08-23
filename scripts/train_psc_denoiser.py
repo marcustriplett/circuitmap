@@ -13,7 +13,7 @@ if __name__ == '__main__':
 	parser.add_argument('--pc_scale_min', type=float, default=0.05)
 	parser.add_argument('--pc_scale_max', type=float, default=10.0)
 	parser.add_argument('--prev_pc_fraction', type=float, default=0.2)
-	parser.add_argument('--pc_fraction', type=float, default=0.2)
+	parser.add_argument('--pc_fraction', type=float, default=0.5)
 	parser.add_argument('--next_pc_fraction', type=float, default=0.2)
 	parser.add_argument('--dataset_save_path', type=str)
 	args = parser.parse_args()
