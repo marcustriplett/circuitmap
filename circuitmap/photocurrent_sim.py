@@ -162,40 +162,59 @@ def _sample_experiment_noise_and_scales(
 
     return observations, targets
 
+def _default_pc_shape_params():
+    return dict(
+        # shape params
+        O_inf_min=0.3,
+        O_inf_max=1.0,
+        R_inf_min=0.3,
+        R_inf_max=1.0,
+        tau_o_min=3,
+        tau_o_max=8,
+        tau_r_min=25,
+        tau_r_max=30,
+    )
+
 
 def sample_photocurrent_shapes(
-    key, num_expts,
-    onset_jitter_ms=2.0,
-    msecs_per_sample=0.05,
-    tstart=-10.0,
-    tend=45.0,
-    time_zero_idx: int = 200,
+        key, num_expts,
+        onset_jitter_ms=2.0,
+        onset_latency_ms=0.2,
+        msecs_per_sample=0.05,
+        tstart=-10.0,
+        tend=45.0,
+        time_zero_idx: int = 200,
+        pc_shape_params=None,
     ):
     keys = jrand.split(key, num=num_expts)
+    if pc_shape_params is None:
+        pc_shape_params = _default_pc_shape_params()
 
     # generate all photocurrent templates.
     # We create a separate function to sample each of previous, current, and
     # next PSC shapes.
-    
     prev_pc_params = jax.vmap(
         functools.partial(
             _sample_photocurrent_params,
-            t_on_min=-7.0, t_on_max=-7.0 + onset_jitter_ms,
-            t_off_min=-2.0, t_off_max=-2.0 + onset_jitter_ms,
+            **pc_shape_params,
+            t_on_min=-7.0 + onset_latency_ms, t_on_max=-7.0 + onset_latency_ms + onset_jitter_ms,
+            t_off_min=-2.0 + onset_latency_ms, t_off_max=-2.0 + onset_latency_ms + onset_jitter_ms,
         )
     )(keys)
     curr_pc_params = jax.vmap(
         functools.partial(
             _sample_photocurrent_params,
-            t_on_min=5.0, t_on_max=5.0 + onset_jitter_ms,
-            t_off_min=10.0, t_off_max=10.0 + onset_jitter_ms,
+            **pc_shape_params,
+            t_on_min=5.0 + onset_latency_ms, t_on_max=5.0 + onset_latency_ms + onset_jitter_ms,
+            t_off_min=10.0 + onset_latency_ms, t_off_max=10.0 + onset_latency_ms + onset_jitter_ms,
         )
     )(keys)
     next_pc_params = jax.vmap(
         functools.partial(
             _sample_photocurrent_params,
-            t_on_min=38.0, t_on_max=38.0 + onset_jitter_ms,
-            t_off_min=43.0, t_off_max=43.0 + onset_jitter_ms,
+            **pc_shape_params,
+            t_on_min=38.0 + onset_latency_ms, t_on_max=38.0 + onset_latency_ms + onset_jitter_ms,
+            t_off_min=43.0 + onset_latency_ms, t_off_max=43.0 + onset_latency_ms + onset_jitter_ms,
         )
     )(keys)
     

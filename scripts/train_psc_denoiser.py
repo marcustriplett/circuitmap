@@ -16,7 +16,32 @@ if __name__ == '__main__':
 	parser.add_argument('--pc_fraction', type=float, default=0.5)
 	parser.add_argument('--next_pc_fraction', type=float, default=0.2)
 	parser.add_argument('--dataset_save_path', type=str)
+
+	# photocurrent shape args
+	parser.add_argument('--O_inf_min', type='float', default=0.3)
+	parser.add_argument('--O_inf_max', type='float', default=1.0)
+	parser.add_argument('--R_inf_min', type='float', default=0.3)
+	parser.add_argument('--R_inf_max', type='float', default=1.0)
+	parser.add_argument('--tau_o_min', type='float', default=5)
+	parser.add_argument('--tau_o_max', type='float', default=7)
+	parser.add_argument('--tau_r_min', type='float', default=26)
+	parser.add_argument('--tau_r_max', type='float', default=29)
+
+	# photocurrent timing args
+	parser.add_argument('--onset_jitter_ms', type='float', default=1.0)
+	parser.add_argument('--onset_latency_ms', type='float', default=0.2)
+	
 	args = parser.parse_args()
+	pc_shape_params = dict(
+		O_inf_min=args.O_inf_min,
+		O_inf_max=args.O_inf_max,
+		R_inf_min=args.R_inf_min,
+		R_inf_max=args.R_inf_max,
+		tau_o_min=args.tau_o_min,
+		tau_o_max=args.tau_o_max,
+		tau_r_min=args.tau_r_min,
+		tau_r_max=args.tau_r_max,
+	)
 
 	size = int(args.size)
 	epochs = int(args.epochs)
@@ -63,5 +88,8 @@ if __name__ == '__main__':
 								prev_pc_fraction=args.prev_pc_fraction,
 								pc_fraction=args.pc_fraction,
 								next_pc_fraction=args.next_pc_fraction,
-								save_path=args.dataset_save_path)
+								save_path=args.dataset_save_path,
+								pc_shape_params=pc_shape_params,
+								onset_jitter_ms=args.onset_jitter_ms,
+								onset_latency_ms=args.onset_latency_ms)
 	demixer.train(epochs=epochs, num_gpus=num_gpus)

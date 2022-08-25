@@ -106,7 +106,8 @@ class NeuralDemixer():
 		max_modes=4, observed_amplitude_lower=0.75, observed_amplitude_upper=1.25, 
 		prob_zero_event=0.001, templates=None, convolve=False, sigma=20, template_prob=0.075, 
 		save_path=None, prev_pc_fraction=0.2, pc_fraction=0.2, next_pc_fraction=0.2,
-		pc_scale_min=0.05, pc_scale_max=2.0, target='demixed'):
+		pc_scale_min=0.05, pc_scale_max=2.0, target='demixed', pc_shape_params=None,
+		onset_latency_ms=0.2, onset_jitter_ms=2.0):
 		''' Simulate data for training a PSC demixer. 
 		'''
 		# determines whether we're demixing traces or predicting photocurrents
@@ -127,8 +128,12 @@ class NeuralDemixer():
 		# generate photocurrent shapes using vmap
 		key = jrand.PRNGKey(0)
 		prev_pc_shapes, curr_pc_shapes, next_pc_shapes = \
-			sample_photocurrent_shapes(key,
-				size,)
+			sample_photocurrent_shapes(
+				key,
+				size,
+				onset_jitter_ms=onset_jitter_ms,
+				onset_latency_ms=onset_latency_ms,
+				pc_shape_params=pc_shape_params)
 
 		# generate PSC traces
 		for i in tqdm(range(size), desc='Trace generation', leave=True):
