@@ -13,7 +13,7 @@ setup(
 		'scikit-learn',
 		'pandas',
 		'tqdm',
-		'torch',
+		'torch=1.12.1',
 		'pytorch-lightning',
 	],
 )
