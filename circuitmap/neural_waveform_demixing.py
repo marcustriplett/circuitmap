@@ -27,6 +27,8 @@ class NeuralDemixer():
 			self.device = torch.device(device)
 
 		# Load or initialise demixer object
+		if unet_args is None:
+			unet_args = dict()
 		if path is not None:
 			self.demixer = NWDUNet(**unet_args).load_from_checkpoint(path)
 			if eval_mode:
