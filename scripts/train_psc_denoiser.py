@@ -16,8 +16,8 @@ if __name__ == '__main__':
 	parser.add_argument('--pc_fraction', type=float, default=0.5)
 	parser.add_argument('--next_pc_fraction', type=float, default=0.2)
 	parser.add_argument('--dataset_save_path', type=str)
-	parser.add_argument('--down_filter_sizes', nargs=4, type=int, default=(16, 16, 32, 32))
-	parser.add_argument('--up_filter_sizes', nargs=4, type=int, default=(16, 16, 16, 4))
+	parser.add_argument('--down_filter_sizes', nargs=4, type=int, default=(16, 32, 64, 128))
+	parser.add_argument('--up_filter_sizes', nargs=4, type=int, default=(64, 32, 16, 4))
 
 	# whether we use the linear onset in the training data
 	parser.add_argument('--linear_onset', action='store_true')
