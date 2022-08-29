@@ -16,6 +16,13 @@ if __name__ == '__main__':
 	parser.add_argument('--pc_fraction', type=float, default=0.5)
 	parser.add_argument('--next_pc_fraction', type=float, default=0.2)
 	parser.add_argument('--dataset_save_path', type=str)
+	parser.add_argument('--down_filter_sizes', nargs=4, type=int, default=(16, 16, 32, 32))
+	parser.add_argument('--up_filter_sizes', nargs=4, type=int, default=(16, 16, 16, 4))
+
+	# whether we use the linear onset in the training data
+	parser.add_argument('--linear_onset', action='store_true')
+	parser.add_argument('--no_linear_onset', dest='linear_onset', action='store_false')
+	parser.set_defaults(use_ls_solve=True)
 
 	# photocurrent shape args
 	parser.add_argument('--O_inf_min', type=float, default=0.3)
@@ -32,6 +39,10 @@ if __name__ == '__main__':
 	parser.add_argument('--onset_latency_ms', type=float, default=0.2)
 	
 	args = parser.parse_args()
+	unet_args = dict(
+		down_filter_sizes=args.down_filter_sizes,
+		up_filter_sizes=args.up_filter_sizes,
+	)
 	pc_shape_params = dict(
 		O_inf_min=args.O_inf_min,
 		O_inf_max=args.O_inf_max,
@@ -55,9 +66,9 @@ if __name__ == '__main__':
 
 	# Optionally load pretrained model
 	if args.pretrained is None:
-		demixer = NeuralDemixer()
+		demixer = NeuralDemixer(unet_args=unet_args)
 	else:
-		demixer = NeuralDemixer(path=args.pretrained)
+		demixer = NeuralDemixer(path=args.pretrained, unet_args=unet_args)
 
 	# Params
 	tau_r_lower = 10

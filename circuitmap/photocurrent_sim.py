@@ -10,9 +10,13 @@ jax.config.update('jax_platform_name', 'cpu')
 def _photocurrent_shape(
     O_inf, R_inf, tau_o, tau_r, g,  # shape params
     t_on, t_off,  # timing params
-    t=None, time_zero_idx=None,
+    t=None,
+    time_zero_idx=None,
     O_0=0.0, R_0=1.0,
-    window_len=900, msecs_per_sample=0.05, conv_window_len=25,
+    window_len=900,
+    msecs_per_sample=0.05,
+    conv_window_len=25,
+    linear_onset=True,
 ):
 
     # In order to correctly handle stim times which start at t < 0,
@@ -27,11 +31,11 @@ def _photocurrent_shape(
     # # window we'll return to the user.
     # time_zero_idx = int(-jnp.minimum(t_on / msecs_per_sample, 0))
 
-    mask_stim_on = jnp.where((t >= t_on) & (t <= t_off), 1.0, 0.0)
-    mask_stim_off = jnp.where((t > t_off), 1.0, 0.0)
+    mask_stim_on = jnp.where((t >= t_on) & (t <= t_off), 1, 0)
+    mask_stim_off = jnp.where((t > t_off), 1, 0)
 
     # get index where stim is off
-    index_t_off = time_zero_idx + jnp.array(t_off // msecs_per_sample, dtype=int)
+    index_t_off = time_zero_idx + jnp.array(t_off // msecs_per_sample, dtype=int)    
 
     O_on = mask_stim_on * (O_inf - (O_inf - O_0) *
                            jnp.exp(- (t - t_on)/(tau_o)))
@@ -44,6 +48,13 @@ def _photocurrent_shape(
     # form photocurrent from each part
     i_photo = g * (O_on + O_off) * (R_on + R_off)
 
+    if linear_onset:
+        stim_off_val = i_photo[index_t_off]
+        # zero out the current during the stim
+        i_photo = i_photo - (i_photo * mask_stim_on)
+        # add linear onset back in
+        i_photo = i_photo + ((t - t_on) / (t - t_on)[index_t_off] * stim_off_val) * mask_stim_on
+        
     # convolve with gaussian to smooth
     x = jnp.linspace(-3, 3, conv_window_len)
     window = jsp.stats.norm.pdf(x, scale=25)
@@ -55,6 +66,8 @@ def _photocurrent_shape(
             O_off[time_zero_idx:time_zero_idx + window_len],
             R_on[time_zero_idx:time_zero_idx + window_len],
             R_off[time_zero_idx:time_zero_idx + window_len])
+
+photocurrent_shape = jax.jit(_photocurrent_shape, static_argnames=('linear_onset', 'time_zero_idx'))
 
 
 def _sample_photocurrent_params(key,
@@ -185,6 +198,7 @@ def sample_photocurrent_shapes(
         tend=45.0,
         time_zero_idx: int = 200,
         pc_shape_params=None,
+        linear_onset=True,
     ):
     keys = jrand.split(key, num=num_expts)
     if pc_shape_params is None:
@@ -220,17 +234,18 @@ def sample_photocurrent_shapes(
     
     # Note that we simulate using a longer window than we'll eventually use.
     time = jnp.arange(tstart / msecs_per_sample, tend / msecs_per_sample) * msecs_per_sample
-    photocurrent_shape = jax.vmap(
+    batched_photocurrent_shape = jax.vmap(
         functools.partial(
-            _photocurrent_shape,
+            photocurrent_shape,
             t=time,
             time_zero_idx=time_zero_idx,
+            linear_onset=linear_onset,
         ),
         in_axes=(0, 0, 0, 0, 0, 0, 0)
     )
-    prev_pc_shapes = photocurrent_shape(*prev_pc_params)[0]
-    curr_pc_shapes = photocurrent_shape(*curr_pc_params)[0]
-    next_pc_shapes = photocurrent_shape(*next_pc_params)[0]
+    prev_pc_shapes = batched_photocurrent_shape(*prev_pc_params)[0]
+    curr_pc_shapes = batched_photocurrent_shape(*curr_pc_params)[0]
+    next_pc_shapes = batched_photocurrent_shape(*next_pc_params)[0]
 
     return prev_pc_shapes, curr_pc_shapes, next_pc_shapes
 
@@ -238,16 +253,31 @@ def sample_photocurrent_shapes(
 def sample_photocurrent_expts_batch(
     key, num_expts, num_traces_per_expt, trial_dur,
     pc_scale_range=(0.05, 2.0),
+    onset_jitter_ms=1.0,
+    onset_latency_ms=0.2,
+    pc_shape_params=None,
     iid_noise_scale_range=(0.01, 0.05),
     gp_scale_range=(0.01, 2.0),
+    min_pc_scale = 0.05,
+    min_pc_fraction = 0.1,
+    max_pc_fraction = 0.9,
+    prev_pc_fraction = 0.1,
+    gp_lengthscale = 50,
     ):
+
+    if pc_shape_params is None:
+        pc_shape_params = _default_pc_shape_params()
 
     # generate all photocurrent templates.
     # We create a separate function to sample each of previous, current, and
     # next PSC shapes.
     prev_pc_shapes, curr_pc_shapes, next_pc_shapes = \
         sample_photocurrent_shapes(
-            key, num_expts, trial_dur, pc_scale_range=pc_scale_range)
+            key,
+            num_expts,
+            onset_jitter_ms=onset_jitter_ms,
+            onset_latency_ms=onset_latency_ms,
+            pc_shape_params=pc_shape_params)
     key = jax.random.fold_in(key, 0)
 
     # Generate all psc traces from neural demixer.
@@ -289,11 +319,6 @@ def sample_photocurrent_expts_batch(
 
     )
     
-    min_pc_scale = 0.05
-    min_pc_fraction = 0.1
-    max_pc_fraction = 0.5
-    prev_pc_fraction = 0.1
-    gp_lengthscale = 50
     keys = jrand.split(key, num=num_expts)
     return sample_experiment_noise_and_scales_batch(
         keys,

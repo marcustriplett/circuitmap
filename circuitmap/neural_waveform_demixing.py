@@ -19,7 +19,7 @@ except:
 	from tqdm import tqdm
 
 class NeuralDemixer():
-	def __init__(self, path=None, eval_mode=True, device=None):
+	def __init__(self, path=None, eval_mode=True, device=None, unet_args=None):
 		# Set device dynamically
 		if device is None:
 			self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -28,11 +28,11 @@ class NeuralDemixer():
 
 		# Load or initialise demixer object
 		if path is not None:
-			self.demixer = NWDUNet().load_from_checkpoint(path)
+			self.demixer = NWDUNet(**unet_args).load_from_checkpoint(path)
 			if eval_mode:
 				self.demixer.eval()
 		else:
-			self.demixer = NWDUNet()
+			self.demixer = NWDUNet(**unet_args)
 
 		# Move demixer to device
 		self.demixer = self.demixer.to(self.device)
@@ -287,17 +287,20 @@ class ConvolutionBlock(nn.Module):
 class NWDUNet(pl.LightningModule):
 	''' Neural waveform demixing U-Net
 	'''
-	def __init__(self):
+	def __init__(self,
+			down_filter_sizes=(16, 16, 32, 32),
+			up_filter_sizes=(16, 16, 16, 4),
+		):
 		super(NWDUNet, self).__init__()
-		self.dblock1 = DownsamplingBlock(1, 16, 32, 2)
-		self.dblock2 = DownsamplingBlock(16, 16, 32, 1)
-		self.dblock3 = DownsamplingBlock(16, 32, 16, 1)
-		self.dblock4 = DownsamplingBlock(32, 32, 16, 1)
+		self.dblock1 = DownsamplingBlock(1, down_filter_sizes[0], 32, 2)
+		self.dblock2 = DownsamplingBlock(down_filter_sizes[0], down_filter_sizes[1], 32, 1)
+		self.dblock3 = DownsamplingBlock(down_filter_sizes[1], down_filter_sizes[2], 16, 1)
+		self.dblock4 = DownsamplingBlock(down_filter_sizes[2], down_filter_sizes[3], 16, 1)
 		
-		self.ublock1 = UpsamplingBlock(32, 16, 16, 1)
-		self.ublock2 = UpsamplingBlock(48, 16, 16, 1)
-		self.ublock3 = UpsamplingBlock(32, 16, 32, 1)
-		self.ublock4 = UpsamplingBlock(32, 4, 32, 2)
+		self.ublock1 = UpsamplingBlock(down_filter_sizes[3], up_filter_sizes[0], 16, 1)
+		self.ublock2 = UpsamplingBlock(down_filter_sizes[2] + up_filter_sizes[0], up_filter_sizes[1], 16, 1)
+		self.ublock3 = UpsamplingBlock(down_filter_sizes[1] + up_filter_sizes[1], up_filter_sizes[2], 32, 1)
+		self.ublock4 = UpsamplingBlock(down_filter_sizes[0] + up_filter_sizes[2], up_filter_sizes[3], 32, 2) 
 		
 		self.conv = ConvolutionBlock(4, 1, 256, 255, 1, 2)
 		
