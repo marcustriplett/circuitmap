@@ -67,7 +67,8 @@ def _photocurrent_shape(
             R_on[time_zero_idx:time_zero_idx + window_len],
             R_off[time_zero_idx:time_zero_idx + window_len])
 
-photocurrent_shape = jax.jit(_photocurrent_shape, static_argnames=('linear_onset', 'time_zero_idx'))
+photocurrent_shape = jax.jit(_photocurrent_shape,
+    static_argnames=('linear_onset', 'time_zero_idx', 'window_len'))
 
 
 def _sample_photocurrent_params(key,
@@ -194,11 +195,16 @@ def sample_photocurrent_shapes(
         onset_jitter_ms=2.0,
         onset_latency_ms=0.2,
         msecs_per_sample=0.05,
+        stim_start=5.0,
         tstart=-10.0,
         tend=45.0,
+        window_len=900,
         time_zero_idx: int = 200,
         pc_shape_params=None,
         linear_onset=True,
+        add_target_gp=True,
+        target_gp_lengthscale=50,
+        target_gp_scale=0.01,
     ):
     keys = jrand.split(key, num=num_expts)
     if pc_shape_params is None:
@@ -240,12 +246,29 @@ def sample_photocurrent_shapes(
             t=time,
             time_zero_idx=time_zero_idx,
             linear_onset=linear_onset,
+            window_len=window_len,
         ),
         in_axes=(0, 0, 0, 0, 0, 0, 0)
     )
     prev_pc_shapes = batched_photocurrent_shape(*prev_pc_params)[0]
     curr_pc_shapes = batched_photocurrent_shape(*curr_pc_params)[0]
     next_pc_shapes = batched_photocurrent_shape(*next_pc_params)[0]
+
+    if add_target_gp:
+        stim_start_idx = int(stim_start // msecs_per_sample)
+        key = jrand.fold_in(key, 0)
+        target_gp = np.abs(np.array(_sample_gp(
+            key, 
+            curr_pc_shapes,
+            gp_lengthscale=target_gp_lengthscale,
+            gp_scale=target_gp_scale,
+        )))
+        curr_pc_shapes = np.array(curr_pc_shapes)
+        curr_pc_shapes[:, stim_start_idx+10:] += target_gp[:, stim_start_idx+10:]
+        curr_pc_shapes = cm.neural_waveform_demixing._monotone_decay_filter(
+            curr_pc_shapes,
+            inplace=True,
+        )
 
     return prev_pc_shapes, curr_pc_shapes, next_pc_shapes
 

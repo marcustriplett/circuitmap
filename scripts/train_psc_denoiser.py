@@ -19,6 +19,13 @@ if __name__ == '__main__':
 	parser.add_argument('--down_filter_sizes', nargs=4, type=int, default=(16, 32, 64, 128))
 	parser.add_argument('--up_filter_sizes', nargs=4, type=int, default=(64, 32, 16, 4))
 
+	# whether we add a gp to the target waveforms
+	parser.add_argument('--add_target_gp', action='store_true')
+	parser.add_argument('--no_add_target_gp', dest='add_target_gp', action='store_false')
+	parser.set_defaults(add_target_gp=True)
+	parser.add_argument('--target_gp_lengthscale', default=25)
+	parser.add_argument('--target_gp_scale', default=0.01)
+
 	# whether we use the linear onset in the training data
 	parser.add_argument('--linear_onset', action='store_true')
 	parser.add_argument('--no_linear_onset', dest='linear_onset', action='store_false')
@@ -102,5 +109,9 @@ if __name__ == '__main__':
 								save_path=args.dataset_save_path,
 								pc_shape_params=pc_shape_params,
 								onset_jitter_ms=args.onset_jitter_ms,
-								onset_latency_ms=args.onset_latency_ms)
+								onset_latency_ms=args.onset_latency_ms,
+								add_target_gp=args.add_target_gp,
+								target_gp_lengthscale=args.target_gp_lengthscale,
+								target_gp_scale=args.target_gp_scale,
+								)
 	demixer.train(epochs=epochs, num_gpus=num_gpus)

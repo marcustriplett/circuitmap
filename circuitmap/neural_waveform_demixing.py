@@ -30,7 +30,7 @@ class NeuralDemixer():
 		if unet_args is None:
 			unet_args = dict()
 		if path is not None:
-			self.demixer = NWDUNet(**unet_args).load_from_checkpoint(path)
+			self.demixer = NWDUNet().load_from_checkpoint(path, **unet_args)
 			if eval_mode:
 				self.demixer.eval()
 		else:
@@ -109,7 +109,9 @@ class NeuralDemixer():
 		prob_zero_event=0.001, templates=None, convolve=False, sigma=20, template_prob=0.075, 
 		save_path=None, prev_pc_fraction=0.2, pc_fraction=0.2, next_pc_fraction=0.2,
 		pc_scale_min=0.05, pc_scale_max=2.0, target='demixed', pc_shape_params=None,
-		onset_latency_ms=0.2, onset_jitter_ms=2.0):
+		onset_latency_ms=0.2, onset_jitter_ms=2.0,
+		add_target_gp=True, target_gp_lengthscale=25.0,
+		target_gp_scale=0.01):
 		''' Simulate data for training a PSC demixer. 
 		'''
 		# determines whether we're demixing traces or predicting photocurrents
@@ -135,7 +137,10 @@ class NeuralDemixer():
 				size,
 				onset_jitter_ms=onset_jitter_ms,
 				onset_latency_ms=onset_latency_ms,
-				pc_shape_params=pc_shape_params)
+				pc_shape_params=pc_shape_params,
+				add_target_gp=add_target_gp,
+				target_gp_lengthscale=target_gp_lengthscale,
+				target_gp_scale=target_gp_scale)
 
 		# generate PSC traces
 		for i in tqdm(range(size), desc='Trace generation', leave=True):
