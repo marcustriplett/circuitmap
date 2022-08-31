@@ -27,9 +27,7 @@ if __name__ == '__main__':
 	parser.add_argument('--target_gp_scale', default=0.01)
 
 	# whether we use the linear onset in the training data
-	parser.add_argument('--linear_onset', action='store_true')
-	parser.add_argument('--no_linear_onset', dest='linear_onset', action='store_false')
-	parser.set_defaults(use_ls_solve=True)
+	parser.add_argument('--linear_onset_frac', type=float, default=0.5)
 
 	# photocurrent shape args
 	parser.add_argument('--O_inf_min', type=float, default=0.3)
@@ -113,5 +111,6 @@ if __name__ == '__main__':
 								add_target_gp=args.add_target_gp,
 								target_gp_lengthscale=args.target_gp_lengthscale,
 								target_gp_scale=args.target_gp_scale,
+								linear_onset_frac=args.linear_onset_frac,
 								)
 	demixer.train(epochs=epochs, num_gpus=num_gpus)

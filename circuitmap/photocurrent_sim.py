@@ -10,13 +10,13 @@ jax.config.update('jax_platform_name', 'cpu')
 def _photocurrent_shape(
     O_inf, R_inf, tau_o, tau_r, g,  # shape params
     t_on, t_off,  # timing params
+    linear_onset, # boolean, whether or not we use a linear onset
     t=None,
     time_zero_idx=None,
     O_0=0.0, R_0=1.0,
     window_len=900,
     msecs_per_sample=0.05,
     conv_window_len=25,
-    linear_onset=True,
 ):
 
     # In order to correctly handle stim times which start at t < 0,
@@ -48,12 +48,23 @@ def _photocurrent_shape(
     # form photocurrent from each part
     i_photo = g * (O_on + O_off) * (R_on + R_off)
 
-    if linear_onset:
-        stim_off_val = i_photo[index_t_off]
-        # zero out the current during the stim
-        i_photo = i_photo - (i_photo * mask_stim_on)
-        # add linear onset back in
-        i_photo = i_photo + ((t - t_on) / (t - t_on)[index_t_off] * stim_off_val) * mask_stim_on
+
+    # if linear_onset=True, use a different version of i_photo with the rising
+    # period replaced.
+    i_photo_linear = jnp.copy(i_photo)
+    stim_off_val = i_photo_linear[index_t_off]
+    # zero out the current during the stim
+    i_photo_linear = i_photo_linear - (i_photo * mask_stim_on)
+    # add linear onset back in
+    i_photo_linear = i_photo_linear + ((t - t_on) / (t - t_on)[index_t_off] * stim_off_val) * mask_stim_on
+
+    # conditionally replace i_photo
+    i_photo = jax.lax.cond(
+        linear_onset,
+        lambda _:i_photo_linear,
+        lambda _:i_photo,
+        None,
+    )
         
     # convolve with gaussian to smooth
     x = jnp.linspace(-3, 3, conv_window_len)
@@ -67,9 +78,7 @@ def _photocurrent_shape(
             R_on[time_zero_idx:time_zero_idx + window_len],
             R_off[time_zero_idx:time_zero_idx + window_len])
 
-photocurrent_shape = jax.jit(_photocurrent_shape,
-    static_argnames=('linear_onset', 'time_zero_idx', 'window_len'))
-
+photocurrent_shape = jax.jit(_photocurrent_shape, static_argnames=('time_zero_idx'))
 
 def _sample_photocurrent_params(key,
     t_on_min=5.0,
@@ -198,10 +207,9 @@ def sample_photocurrent_shapes(
         stim_start=5.0,
         tstart=-10.0,
         tend=45.0,
-        window_len=900,
         time_zero_idx: int = 200,
         pc_shape_params=None,
-        linear_onset=True,
+        linear_onset_frac=0.5,
         add_target_gp=True,
         target_gp_lengthscale=50,
         target_gp_scale=0.01,
@@ -238,6 +246,10 @@ def sample_photocurrent_shapes(
         )
     )(keys)
     
+    # form boolean for each trace deciding whether to use linear onset
+    key = jrand.fold_in(key, 0)
+    linear_onset_bools = jrand.uniform(key, shape=(num_expts,)) > linear_onset_frac
+
     # Note that we simulate using a longer window than we'll eventually use.
     time = jnp.arange(tstart / msecs_per_sample, tend / msecs_per_sample) * msecs_per_sample
     batched_photocurrent_shape = jax.vmap(
@@ -245,24 +257,25 @@ def sample_photocurrent_shapes(
             photocurrent_shape,
             t=time,
             time_zero_idx=time_zero_idx,
-            linear_onset=linear_onset,
-            window_len=window_len,
         ),
-        in_axes=(0, 0, 0, 0, 0, 0, 0)
+        in_axes=(0, 0, 0, 0, 0, 0, 0, 0)
     )
-    prev_pc_shapes = batched_photocurrent_shape(*prev_pc_params)[0]
-    curr_pc_shapes = batched_photocurrent_shape(*curr_pc_params)[0]
-    next_pc_shapes = batched_photocurrent_shape(*next_pc_params)[0]
+    prev_pc_shapes = batched_photocurrent_shape(*prev_pc_params, linear_onset_bools)[0]
+    curr_pc_shapes = batched_photocurrent_shape(*curr_pc_params, linear_onset_bools)[0]
+    next_pc_shapes = batched_photocurrent_shape(*next_pc_params, linear_onset_bools)[0]
 
+    # Add variability to target waveforms to account for mis-specification of 
+    # photocurrent model.
     if add_target_gp:
         stim_start_idx = int(stim_start // msecs_per_sample)
         key = jrand.fold_in(key, 0)
-        target_gp = np.abs(np.array(_sample_gp(
+        target_gp = np.array(_sample_gp(
             key, 
             curr_pc_shapes,
             gp_lengthscale=target_gp_lengthscale,
             gp_scale=target_gp_scale,
-        )))
+        ))
+        target_gp = np.maximum(0, target_gp)
         curr_pc_shapes = np.array(curr_pc_shapes)
         curr_pc_shapes[:, stim_start_idx+10:] += target_gp[:, stim_start_idx+10:]
         curr_pc_shapes = cm.neural_waveform_demixing._monotone_decay_filter(

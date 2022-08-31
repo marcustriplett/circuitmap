@@ -111,7 +111,7 @@ class NeuralDemixer():
 		pc_scale_min=0.05, pc_scale_max=2.0, target='demixed', pc_shape_params=None,
 		onset_latency_ms=0.2, onset_jitter_ms=2.0,
 		add_target_gp=True, target_gp_lengthscale=25.0,
-		target_gp_scale=0.01):
+		target_gp_scale=0.01, linear_onset_frac=0.5):
 		''' Simulate data for training a PSC demixer. 
 		'''
 		# determines whether we're demixing traces or predicting photocurrents
@@ -140,7 +140,8 @@ class NeuralDemixer():
 				pc_shape_params=pc_shape_params,
 				add_target_gp=add_target_gp,
 				target_gp_lengthscale=target_gp_lengthscale,
-				target_gp_scale=target_gp_scale)
+				target_gp_scale=target_gp_scale,
+				linear_onset_frac=linear_onset_frac)
 
 		# generate PSC traces
 		for i in tqdm(range(size), desc='Trace generation', leave=True):
