@@ -20,7 +20,7 @@ from .pava import _isotonic_regression, simultaneous_isotonic_regression
 
 def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters=50, num_mc_samples=100, seed=0, y_xcorr_thresh=1e-2, minimum_spike_count=3,
-	delay_spont_est=1, msrmp=0.3, scale_factor=0.75, penalty=5e0, save_histories=True, 
+	delay_spont_est=1, msrmp=0.3, scale_factor=0.75, penalty=5e0, save_histories=False, 
 	max_backtrack_iters=20, tol=0.05, spont_orthogonality=0.1):
 	''' Coordinate-ascent variational inference and isotonic regularisation.
 	'''
