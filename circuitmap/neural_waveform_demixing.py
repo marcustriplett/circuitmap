@@ -150,16 +150,18 @@ class NeuralDemixer():
 			with h5py.File(templates_path, 'r') as f:
 				print('loading templates from %s' % templates_path)
 				pc_templates = np.array(f['traces'])
-		num_templates_to_use = int(np.round(templates_frac * size))
-		template_shapes = photocurrent_sim.sample_from_templates(
-			pc_templates,
-			size=num_templates_to_use,
-			add_target_gp=add_target_gp,
-			target_gp_lengthscale=target_gp_lengthscale,
-			target_gp_scale=target_gp_scale,
-			jitter_ms=onset_jitter_ms
-		)
-		curr_pc_shapes[0:num_templates_to_use] = template_shapes
+			num_templates_to_use = int(np.round(templates_frac * size))
+			key = jrand.fold_in(key, 0)
+			template_shapes = photocurrent_sim.sample_from_templates(
+				pc_templates,
+				key,
+				size=num_templates_to_use,
+				add_target_gp=add_target_gp,
+				target_gp_lengthscale=target_gp_lengthscale,
+				target_gp_scale=target_gp_scale,
+				jitter_ms=onset_jitter_ms
+			)
+			curr_pc_shapes[0:num_templates_to_use] = template_shapes
 		
 		# generate PSC traces
 		for i in tqdm(range(size), desc='Trace generation', leave=True):
@@ -185,7 +187,7 @@ class NeuralDemixer():
 			# for the training examples which use real PC templates,
 			# do not scale, since that is done inside of `sample_from_templates`.
 			# We do not want to scale templates too far from their original height.
-			if i < num_templates_to_use:
+			if (templates_path is not None) and (i < num_templates_to_use):
 				pc_scales[0] = 1.0
 
 			# form scaled photocurrents from current, previous, and next trial
