@@ -5,6 +5,10 @@ import jax.numpy as jnp
 import jax.random as jrand
 import jax.scipy as jsp
 import circuitmap as cm
+
+from scipy.optimize import curve_fit
+from scipy.ndimage import gaussian_filter1d
+
 jax.config.update('jax_platform_name', 'cpu')
 
 def _photocurrent_shape(
@@ -199,6 +203,102 @@ def _default_pc_shape_params():
     )
 
 
+def _exp_func(t, a, b, c):
+    ''' Exponential function
+    '''
+    return a * np.exp(b * t) + c
+
+
+def _fit_exponential_tail(trace, t, a0, b0, c0):
+    '''
+    Fit exponentials to the provided traces.
+    params:
+        traces: N x T array
+    returns:
+        a, b, c: length N arrays of parameters, such that the exponential
+                 a[i] * exp(b[i] * t) + c[i] ~= traces[i] for i = 1,...,N
+    '''
+    popt, pcov = curve_fit(
+        _exp_func,
+        t, trace,
+        p0=(a0, b0, c0)
+    )
+    return popt
+
+
+def _extend_traces(
+    traces,
+    msecs_per_sample,
+    num_samples_to_add,
+    fit_start_idx=400,
+    replace_start_idx=600,
+    a0=0.1,
+    b0=-1.0/20.0,
+    c0=0.5
+    ):
+    N, window_len = traces.shape
+    t_fit = np.arange(fit_start_idx, window_len) * msecs_per_sample
+    params = [_fit_exponential_tail(trace, t_fit, a0, b0, c0)
+        for trace in traces[:, fit_start_idx:]]
+    
+    # create decaying exponentials of length num_samples_to_add
+    t_new = np.arange(replace_start_idx, window_len + num_samples_to_add) \
+         * msecs_per_sample
+    extensions = np.array([_exp_func(t_new, *popt) for popt in params])
+
+    # concatenate traces with estimated tails
+    out = np.zeros((N, window_len + 2 * num_samples_to_add))
+    out[:, num_samples_to_add:num_samples_to_add + replace_start_idx] = traces[:, 0:replace_start_idx]
+    out[:, num_samples_to_add + replace_start_idx:] = extensions
+
+    # extend beginning of trace by appending constant
+    out[:, 0:num_samples_to_add] = traces[:,0:1]
+
+    return out
+
+
+def sample_from_templates(
+    templates,
+    size=100,
+    jitter_ms=0.5,
+    window_len=900,
+    smoothing_sigma=5,
+    max_scaling_frac=0.5,
+    msecs_per_sample=0.05,
+    stim_start=100,
+    exponential_fit_start_idx=450,
+    ):
+    '''
+    sample traces from templates with augmentation by jitter and scaling
+    '''
+
+    templates[:, 0:stim_start] = 0.0
+
+    # extend templates so that we can sample using jitter
+    num_samples_to_add =  int(np.round(jitter_ms / msecs_per_sample))
+    extended_traces = _extend_traces(
+        templates,
+        msecs_per_sample,
+        num_samples_to_add,
+        exponential_fit_start_idx,
+    )
+    extended_traces_smoothed = gaussian_filter1d(
+        extended_traces, sigma=smoothing_sigma)
+    
+    out = np.zeros((size, templates.shape[-1]))
+    for i in range(size):
+        this_template_idx = np.random.randint(templates.shape[0])
+        this_template = np.copy(extended_traces_smoothed[this_template_idx])
+        this_scale = 1.0 + np.random.uniform(low=-max_scaling_frac, high=max_scaling_frac)
+        this_template *= this_scale
+
+        # sample jitter in number of samples to shift
+        this_jitter_samples = np.random.randint(low=-num_samples_to_add, high=num_samples_to_add)
+        start_idx = num_samples_to_add + this_jitter_samples
+        out[i] = this_template[start_idx:start_idx + window_len]
+    return out
+
+
 def sample_photocurrent_shapes(
         key, num_expts,
         onset_jitter_ms=2.0,
@@ -299,6 +399,10 @@ def sample_photocurrent_expts_batch(
     max_pc_fraction = 0.9,
     prev_pc_fraction = 0.1,
     gp_lengthscale = 50,
+    add_target_gp=True,
+    target_gp_lengthscale=25.0,
+	target_gp_scale=0.01,
+    linear_onset_frac=0.5
     ):
 
     if pc_shape_params is None:
@@ -308,12 +412,16 @@ def sample_photocurrent_expts_batch(
     # We create a separate function to sample each of previous, current, and
     # next PSC shapes.
     prev_pc_shapes, curr_pc_shapes, next_pc_shapes = \
-        sample_photocurrent_shapes(
-            key,
-            num_expts,
-            onset_jitter_ms=onset_jitter_ms,
-            onset_latency_ms=onset_latency_ms,
-            pc_shape_params=pc_shape_params)
+			sample_photocurrent_shapes(
+				key,
+				num_expts,
+				onset_jitter_ms=onset_jitter_ms,
+				onset_latency_ms=onset_latency_ms,
+				pc_shape_params=pc_shape_params,
+				add_target_gp=add_target_gp,
+				target_gp_lengthscale=target_gp_lengthscale,
+				target_gp_scale=target_gp_scale,
+				linear_onset_frac=linear_onset_frac)
     key = jax.random.fold_in(key, 0)
 
     # Generate all psc traces from neural demixer.

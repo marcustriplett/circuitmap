@@ -42,6 +42,9 @@ if __name__ == '__main__':
 	# photocurrent timing args
 	parser.add_argument('--onset_jitter_ms', type=float, default=1.0)
 	parser.add_argument('--onset_latency_ms', type=float, default=0.2)
+
+	parser.add_argument('--templates_path', type=str)
+	parser.add_argument('--templates_frac', type=float, default=0.2)
 	
 	args = parser.parse_args()
 	unet_args = dict(
@@ -112,5 +115,7 @@ if __name__ == '__main__':
 								target_gp_lengthscale=args.target_gp_lengthscale,
 								target_gp_scale=args.target_gp_scale,
 								linear_onset_frac=args.linear_onset_frac,
+								templates_path=args.templates_path,
+								templates_frac=args.templates_frac,
 								)
 	demixer.train(epochs=epochs, num_gpus=num_gpus)

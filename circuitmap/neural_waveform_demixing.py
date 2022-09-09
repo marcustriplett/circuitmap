@@ -1,7 +1,9 @@
+from circuitmap import photocurrent_sim
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
+import h5py
 
 
 import numpy as np
@@ -111,7 +113,7 @@ class NeuralDemixer():
 		pc_scale_min=0.05, pc_scale_max=2.0, target='demixed', pc_shape_params=None,
 		onset_latency_ms=0.2, onset_jitter_ms=2.0,
 		add_target_gp=True, target_gp_lengthscale=25.0,
-		target_gp_scale=0.01, linear_onset_frac=0.5):
+		target_gp_scale=0.01, linear_onset_frac=0.5, templates_path=None, templates_frac=0.2):
 		''' Simulate data for training a PSC demixer. 
 		'''
 		# determines whether we're demixing traces or predicting photocurrents
@@ -142,6 +144,22 @@ class NeuralDemixer():
 				target_gp_lengthscale=target_gp_lengthscale,
 				target_gp_scale=target_gp_scale,
 				linear_onset_frac=linear_onset_frac)
+
+		# if available, substitue some fraction of the PC shapes for real templates
+		if templates_path is not None:
+			with h5py.File(templates_path, 'r') as f:
+				print('loading templates from %s' % templates_path)
+				templates = np.array(f['traces'])
+		num_templates_to_use = int(np.round(templates_frac * size))
+		template_shapes = photocurrent_sim.sample_from_templates(
+			templates,
+			size=num_templates_to_use,
+		)
+		curr_pc_shapes[0:num_templates_to_use] = template_shapes
+		curr_pc_shapes = np.random.permutation(curr_pc_shapes)
+		
+
+
 
 		# generate PSC traces
 		for i in tqdm(range(size), desc='Trace generation', leave=True):
