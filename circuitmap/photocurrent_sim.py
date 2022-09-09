@@ -259,6 +259,7 @@ def _extend_traces(
 
 def sample_from_templates(
     templates,
+    key,
     size=100,
     jitter_ms=0.5,
     window_len=900,
@@ -267,6 +268,9 @@ def sample_from_templates(
     msecs_per_sample=0.05,
     stim_start=100,
     exponential_fit_start_idx=450,
+    add_target_gp=False,
+    target_gp_lengthscale=50,
+    target_gp_scale=0.01,
     ):
     '''
     sample traces from templates with augmentation by jitter and scaling
@@ -293,9 +297,27 @@ def sample_from_templates(
         this_template *= this_scale
 
         # sample jitter in number of samples to shift
-        this_jitter_samples = np.random.randint(low=-num_samples_to_add, high=num_samples_to_add)
+        this_jitter_samples = np.random.randint(low=0, high=num_samples_to_add)
         start_idx = num_samples_to_add + this_jitter_samples
         out[i] = this_template[start_idx:start_idx + window_len]
+
+    if add_target_gp:
+        stim_start_idx = int(stim_start // msecs_per_sample)
+        key = jrand.fold_in(key, 0)
+        target_gp = np.array(_sample_gp(
+            key, 
+            out,
+            gp_lengthscale=target_gp_lengthscale,
+            gp_scale=target_gp_scale,
+        ))
+        target_gp = np.maximum(0, target_gp)
+        out = np.array(out)
+        out[:, stim_start_idx+10:] += target_gp[:, stim_start_idx+10:]
+        out = cm.neural_waveform_demixing._monotone_decay_filter(
+            out,
+            inplace=True,
+        )
+
     return out
 
 

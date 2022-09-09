@@ -108,7 +108,7 @@ class NeuralDemixer():
 		prev_mode_probs=[0.5, 0.4, 0.05, 0.05], next_mode_probs=[0.5, 0.4, 0.05, 0.05],
 		noise_std_lower=0.01, noise_std_upper=0.1, gp_lengthscale=25, gp_scale=0.01, 
 		max_modes=4, observed_amplitude_lower=0.75, observed_amplitude_upper=1.25, 
-		prob_zero_event=0.001, templates=None, convolve=False, sigma=20, template_prob=0.075, 
+		prob_zero_event=0.001, pc_templates=None, convolve=False, sigma=20, template_prob=0.075, 
 		save_path=None, prev_pc_fraction=0.2, pc_fraction=0.2, next_pc_fraction=0.2,
 		pc_scale_min=0.05, pc_scale_max=2.0, target='demixed', pc_shape_params=None,
 		onset_latency_ms=0.2, onset_jitter_ms=2.0,
@@ -149,57 +149,58 @@ class NeuralDemixer():
 		if templates_path is not None:
 			with h5py.File(templates_path, 'r') as f:
 				print('loading templates from %s' % templates_path)
-				templates = np.array(f['traces'])
+				pc_templates = np.array(f['traces'])
 		num_templates_to_use = int(np.round(templates_frac * size))
 		template_shapes = photocurrent_sim.sample_from_templates(
-			templates,
+			pc_templates,
 			size=num_templates_to_use,
+			add_target_gp=add_target_gp,
+			target_gp_lengthscale=target_gp_lengthscale,
+			target_gp_scale=target_gp_scale,
+			jitter_ms=onset_jitter_ms
 		)
 		curr_pc_shapes[0:num_templates_to_use] = template_shapes
-		curr_pc_shapes = np.random.permutation(curr_pc_shapes)
 		
-
-
-
 		# generate PSC traces
 		for i in tqdm(range(size), desc='Trace generation', leave=True):
 			# target PSCs initiate between 100 and 300 frames (5-15ms after trial onset)
 
-			if (templates is not None) and (np.random.rand() <= template_prob):
-				inputs[i] = templates[np.random.choice(templates.shape[0], 1)]
-				targets[i] = np.zeros(templates.shape[1])
+			targets[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
+							delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i], convolve=convolve), 0)
 
-			else:
-				targets[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
-								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-								delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i], convolve=convolve), 0)
+			next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
+							delta_lower=next_delta_lower, delta_upper=next_delta_upper, n_samples=n_modes_next[i], convolve=convolve), 0)
 
-				next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
-								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-								delta_lower=next_delta_lower, delta_upper=next_delta_upper, n_samples=n_modes_next[i], convolve=convolve), 0)
+			prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
+							tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper, 
+							delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i], convolve=convolve), 0)
 
-				prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
-								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper, 
-								delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i], convolve=convolve), 0)
+			include_pc = np.random.rand() < pc_fraction
+			include_prev_pc = np.random.rand() < prev_pc_fraction
+			include_next_pc = np.random.rand() < next_pc_fraction
+			pc_scales = np.random.uniform(low=pc_scale_min, high=pc_scale_max, size=3)
 
-				include_pc = np.random.rand() < pc_fraction
-				include_prev_pc = np.random.rand() < prev_pc_fraction
-				include_next_pc = np.random.rand() < next_pc_fraction
-				pc_scales = np.random.uniform(low=pc_scale_min, high=pc_scale_max, size=3)
+			# for the training examples which use real PC templates,
+			# do not scale, since that is done inside of `sample_from_templates`.
+			# We do not want to scale templates too far from their original height.
+			if i < num_templates_to_use:
+				pc_scales[0] = 1.0
 
-				# form scaled photocurrents from current, previous, and next trial
-				curr_pc_shape = include_pc * pc_scales[0] * curr_pc_shapes[i]
-				prev_pc_shape = include_prev_pc * pc_scales[1] * prev_pc_shapes[i]
-				next_pc_shape = include_next_pc * pc_scales[2] * next_pc_shapes[i]
+			# form scaled photocurrents from current, previous, and next trial
+			curr_pc_shape = include_pc * pc_scales[0] * curr_pc_shapes[i]
+			prev_pc_shape = include_prev_pc * pc_scales[1] * prev_pc_shapes[i]
+			next_pc_shape = include_next_pc * pc_scales[2] * next_pc_shapes[i]
 
-				pc_shape = curr_pc_shape + prev_pc_shape + next_pc_shape
+			pc_shape = curr_pc_shape + prev_pc_shape + next_pc_shape
 
-				# lowpass filter inputs as with experimental data
-				inputs[i] = sg.filtfilt(b_lp, a_lp, pc_shape + prev_pscs[i] + targets[i] + next_pscs[i], axis=-1)
+			# lowpass filter inputs as with experimental data
+			inputs[i] = sg.filtfilt(b_lp, a_lp, pc_shape + prev_pscs[i] + targets[i] + next_pscs[i], axis=-1)
 
-				# choose whether target is PC shape or demixed trace
-				if target == 'photocurrent':
-					targets[i] = curr_pc_shape
+			# choose whether target is PC shape or demixed trace
+			if target == 'photocurrent':
+				targets[i] = curr_pc_shape
 
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 

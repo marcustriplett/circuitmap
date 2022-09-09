@@ -99,7 +99,7 @@ if __name__ == '__main__':
 								prev_delta_upper=150, tau_diff_lower=tau_diff_lower, 
 								tau_diff_upper=tau_diff_upper, tau_r_lower=tau_r_lower, 
 								tau_r_upper=tau_r_upper, noise_std_lower=0.001,
-								noise_std_upper=0.02, gp_lengthscale=45, templates=templates,
+								noise_std_upper=0.02, gp_lengthscale=45, pc_templates=templates,
 								convolve=convolve, sigma=sigma,
 								target=args.target,
 								pc_scale_min=args.pc_scale_min,
