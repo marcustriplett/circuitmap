@@ -19,7 +19,7 @@ git clone https://github.com/marcustriplett/circuitmap
 pip install ./circuitmap  
 ```
 
-Then install the JAX version compatible with your OS and hardware using the instructions at https://github.com/google/jax.  
+Then install the JAX version compatible with your OS and hardware using the instructions at https://github.com/google/jax. Currently, CAVIaR supports JAX versions up to 0.3.15.
   
 # Basic usage
 
