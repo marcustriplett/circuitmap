@@ -1,7 +1,7 @@
 # CAVIaR
 
 Computational tools for inferring synaptic connectivity from two-photon holographic neural ensemble stimulation. Accompanies the paper:
-> _Rapid learning of neural circuitry from holographic ensemble stimulation enabled by Bayesian model-based compressed sensing_. (2022). M. A. Triplett\*, M. Gajowa\*, B. Antin, M. Sadahiro, H. Adesnik, and L. Paninski.
+> _Rapid learning of neural circuitry from holographic ensemble stimulation enabled by model-based compressed sensing_. (2022). M. A. Triplett\*, M. Gajowa\*, B. Antin, M. Sadahiro, H. Adesnik, and L. Paninski.
 
 <img width="150" img align="right" alt="logo" src="https://user-images.githubusercontent.com/23161252/188723534-4674e1d9-202a-46ce-aeb6-22bb373a34e2.png"> 
 
@@ -19,7 +19,7 @@ git clone https://github.com/marcustriplett/circuitmap
 pip install ./circuitmap  
 ```
 
-Then install the JAX version compatible with your OS and hardware using the instructions at https://github.com/google/jax.  
+Then install the JAX version compatible with your OS and hardware using the instructions at https://github.com/google/jax. Currently, CAVIaR supports JAX versions up to 0.3.15.
   
 # Basic usage
 
