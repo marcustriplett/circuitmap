@@ -190,7 +190,7 @@ def get_cell_order(weights):
     return cell_order.astype(int)
 
 def plot_spike_inference_comparison(den_pscs, stim_matrices, models, spks=None, titles=None, save=None, ymax=1.1, n_plots=15, max_trials_to_show=30, 
-	col_widths=None, row_height=0.6, order=None, trial_len=900, lp_cell=None, fontsize=fontsize):
+	col_widths=None, row_height=0.6, order=None, trial_len=900, lp_cell=None, fontsize=14):
 	if col_widths is None:
 		col_widths = 7.5 * np.ones(len(models))
 		
