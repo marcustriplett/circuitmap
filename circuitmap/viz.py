@@ -180,8 +180,17 @@ def plot_checkerboard(_psc, _stim_matrix, model, true_spikes=None, true_weights=
 
 	plt.show()
 
+def get_cell_order(weights):
+    N = weights[0].shape[0]
+    cell_order = np.array([])
+    for wgt in weights:
+        cnx = np.sort(np.where(wgt)[0])[::-1]
+        cell_order = np.concatenate([cell_order, np.setdiff1d(cnx, cell_order)])
+    cell_order = np.concatenate([cell_order, np.setdiff1d(np.arange(N), cell_order)])
+    return cell_order.astype(int)
+
 def plot_spike_inference_comparison(den_pscs, stim_matrices, models, spks=None, titles=None, save=None, ymax=1.1, n_plots=15, max_trials_to_show=30, 
-	col_widths=None, row_height=0.6, order=None, trial_len=900, lp_cell=None):
+	col_widths=None, row_height=0.6, order=None, trial_len=900, lp_cell=None, fontsize=fontsize):
 	if col_widths is None:
 		col_widths = 7.5 * np.ones(len(models))
 		
