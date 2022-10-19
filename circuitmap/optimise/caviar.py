@@ -21,7 +21,7 @@ from .pava import _isotonic_regression, simultaneous_isotonic_regression
 def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters=50, num_mc_samples=100, seed=0, y_xcorr_thresh=1e-2, minimum_spike_count=3,
 	delay_spont_est=1, msrmp=0.3, scale_factor=0.75, penalty=5e0, save_histories=False, 
-	max_backtrack_iters=20, tol=0.05, spont_orthogonality=0.1):
+	max_backtrack_iters=20, tol=0.05, spont_orthogonality=0.1, fn_scan=True):
 	''' Coordinate-ascent variational inference and isotonic regularisation.
 	'''
 	print('Running coordinate-ascent variational inference and isotonic regularisation (CAVIaR) algorithm.')
@@ -92,10 +92,11 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 			for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
 				hist_arrs[hindx] = hist_arrs[hindx].at[it].set(pa)
 
-	# final scan for false negatives
-	mu, beta, lam, z = reconnect_spont_cells(y, I, lam, mu, beta, z, minimax_spk_prob=msrmp, 
-		minimum_spike_count=minimum_spike_count)
-	(phi, phi_cov), _ = update_phi(lam, I, phi_prior, phi_cov_prior, key)
+	if fn_scan:
+		# final scan for possible false negatives
+		mu, beta, lam, z = reconnect_spont_cells(y, I, lam, mu, beta, z, minimax_spk_prob=msrmp, 
+			minimum_spike_count=minimum_spike_count)
+		(phi, phi_cov), _ = update_phi(lam, I, phi_prior, phi_cov_prior, key)
 
 	return (mu, beta, lam, shape, rate, phi, phi_cov, z, receptive_fields, *hist_arrs)
 
