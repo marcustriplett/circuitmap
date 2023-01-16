@@ -243,33 +243,33 @@ if __name__ == '__main__':
 	"""
 
 	fig, axes = plt.subplot_mosaic(mosaic=figure_mosaic, figsize=(15, 12))
-	for i in range(5):
-		ax = axes[str(i + 1)]
-		ax.imshow(data['img'][0, i])
-		ax.set_title(str(int(planes[i])) + ' $\mu$m', fontsize=fontsize)
-		ax.set_xticks([])
-		ax.set_yticks([])
-		if i == 0:
-			ax.set_ylabel('Single-target\nconnections', fontsize=fontsize)
-		targets_cnx = targets[cnx_single]
-		tars = targets_cnx[targets_cnx[:, -1] == planes[i]][:, :2]
-		ax.scatter(tars[:, 1], tars[:, 0], edgecolor='white', facecolor='None', marker='o', s=13, linewidth=0.5)
-		for j, tar in enumerate(tars):
-			ax.text(tars[j, 1], tars[j, 0], lookup(tars[j], targets), color='white', fontsize=8)
+	# for i in range(5):
+	# 	ax = axes[str(i + 1)]
+	# 	ax.imshow(data['img'][0, i])
+	# 	ax.set_title(str(int(planes[i])) + ' $\mu$m', fontsize=fontsize)
+	# 	ax.set_xticks([])
+	# 	ax.set_yticks([])
+	# 	if i == 0:
+	# 		ax.set_ylabel('Single-target\nconnections', fontsize=fontsize)
+	# 	targets_cnx = targets[cnx_single]
+	# 	tars = targets_cnx[targets_cnx[:, -1] == planes[i]][:, :2]
+	# 	ax.scatter(tars[:, 1], tars[:, 0], edgecolor='white', facecolor='None', marker='o', s=13, linewidth=0.5)
+	# 	for j, tar in enumerate(tars):
+	# 		ax.text(tars[j, 1], tars[j, 0], lookup(tars[j], targets), color='white', fontsize=8)
 			
-	for i, st in enumerate(['A', 'B', 'C', 'D', 'E']):
-		ax = axes[st]
-		ax.imshow(data['img'][0, i])
-		ax.set_xticks([])
-		ax.set_yticks([])
-		if i == 0:
-			ax.set_ylabel('Ten-target\nconnections', fontsize=fontsize)
+	# for i, st in enumerate(['A', 'B', 'C', 'D', 'E']):
+	# 	ax = axes[st]
+	# 	ax.imshow(data['img'][0, i])
+	# 	ax.set_xticks([])
+	# 	ax.set_yticks([])
+	# 	if i == 0:
+	# 		ax.set_ylabel('Ten-target\nconnections', fontsize=fontsize)
 
-		targets_cnx = targets[cnx_multi]
-		tars = targets_cnx[targets_cnx[:, -1] == planes[i]]
-		ax.scatter(tars[:, 1], tars[:, 0], edgecolor='white', facecolor='None', marker='o', s=13, linewidth=0.5)
-		for j, tar in enumerate(tars):
-			ax.text(tars[j, 1], tars[j, 0], lookup(tars[j], targets), color='white', fontsize=8)
+	# 	targets_cnx = targets[cnx_multi]
+	# 	tars = targets_cnx[targets_cnx[:, -1] == planes[i]]
+	# 	ax.scatter(tars[:, 1], tars[:, 0], edgecolor='white', facecolor='None', marker='o', s=13, linewidth=0.5)
+	# 	for j, tar in enumerate(tars):
+	# 		ax.text(tars[j, 1], tars[j, 0], lookup(tars[j], targets), color='white', fontsize=8)
 
 	ax = axes['6']
 	for n in range(N):
