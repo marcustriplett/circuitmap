@@ -318,6 +318,11 @@ def _eval_sponts(trange, tau_r, tau_d, delta, weight, divisor, eps=1e-8):
 
 eval_sponts = jit(lambda *args: jnp.sum(vmap(_eval_sponts, in_axes=(None, 0, 0, 0, 0, 0))(*args), axis=0))
 
+def split_overlapping(trace, stim_times, prior_context, response_length):
+	"""Split trace into overlapping segments of length prior_context + response_length.
+	"""
+	return np.array([trace[st-prior_context: st+response_length-prior_context] for st in stim_times])	
+
 def _get_true_evoked_resp(spike_time, noise_weighted_spike, weight, psc_kernel, response_length=900, prior_context=100):
 	stimv = jnp.zeros(response_length).at[(prior_context + spike_time).astype(int)].set(noise_weighted_spike * weight)
 	return jnp.convolve(stimv, psc_kernel)[:stimv.shape[0]]
@@ -470,7 +475,8 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 		ar1_noise[t] = ar_coef * ar1_noise[t-1] + iid_noise[t]
 
 	pscs = pscs + sponts + ar1_noise
-	obs_resps = np.array([pscs[st-prior_context: st+response_length-prior_context] for st in stim_times])
+	# obs_resps = np.array([pscs[st-prior_context: st+response_length-prior_context] for st in stim_times])
+	obs_resps = split_overlapping(pscs, stim_times, prior_context, response_length)
 	
 	expt = {
 		'pscs': pscs,
@@ -478,7 +484,8 @@ def simulate_continuous_experiment(N=100, expt_len=int(2e4), gamma_beta=1.5e1, m
 		'true_responses': true_resps,
 		'stim_matrix': stim_matrix,
 		'weights': weights,
-		'spike_matrix': spks
+		'spike_matrix': spks,
+		'stim_times': stim_times,
 	}
 
 	return expt
