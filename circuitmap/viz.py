@@ -191,6 +191,8 @@ def get_cell_order(weights):
 
 def plot_spike_inference_comparison(den_pscs, stim_matrices, models, spks=None, titles=None, save=None, ymax=1.1, n_plots=15, max_trials_to_show=30, 
 	col_widths=None, row_height=0.6, order=None, trial_len=900, lp_cell=None, fontsize=14):
+	# assumes each model in models is the state dictionary.
+
 	if col_widths is None:
 		col_widths = 7.5 * np.ones(len(models))
 		
@@ -203,13 +205,13 @@ def plot_spike_inference_comparison(den_pscs, stim_matrices, models, spks=None, 
 	gs = fig.add_gridspec(ncols=ncols, nrows=n_plots, hspace=0.5, wspace=0.05, width_ratios=col_widths/col_widths[0])
 	
 	normalisation_factor = np.max(np.abs(np.vstack(den_pscs)))
-	mu_norm = np.max(np.abs([model.state['mu'] for model in models]))
+	mu_norm = np.max(np.abs([model['mu'] for model in models]))
 	ymin = -0.05 * ymax
 	
 	trace_linewidth = 0.65
 	
 	if order is None:
-		order = get_cell_order([model.state['mu'] for model in models])
+		order = get_cell_order([model['mu'] for model in models])
 	
 	for col in range(ncols):
 		for m in range(n_plots):
@@ -234,13 +236,13 @@ def plot_spike_inference_comparison(den_pscs, stim_matrices, models, spks=None, 
 			plt.xlim([0, trial_len*n_repeats])
 			facecol = 'firebrick' if n != lp_cell else 'C0'
 			model = models[col]
-			lam = model.state['lam']
+			lam = model['lam']
 			K = lam.shape[1]
-			mu = model.state['mu'].copy()
+			mu = model['mu'].copy()
 			trace_col = 'k' if mu[n] != 0 else 'gray'
 			
-			if 'z' in model.state.keys():
-				z = model.state['z']
+			if 'z' in model.keys():
+				z = model['z']
 			else:
 				z = np.zeros(K)
 				
