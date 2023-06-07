@@ -270,7 +270,7 @@ def plot_spike_inference_comparison(den_pscs, stim_matrices, models, spks=None, 
 			
 			if col == 0:
 				label_col = 'k'
-				plt.ylabel(m+1, fontsize=fontsize-1, rotation=0, labelpad=15, va='center', color=label_col)
+				plt.ylabel('%i (%i)'(m+1, n), fontsize=fontsize-1, rotation=0, labelpad=15, va='center', color=label_col)
 
 			ax.set_rasterization_zorder(-2)
 	
