@@ -100,7 +100,7 @@ class NeuralDemixer():
 		prev_mode_probs=[0.5, 0.4, 0.05, 0.05], next_mode_probs=[0.5, 0.4, 0.05, 0.05],
 		noise_std_lower=0.01, noise_std_upper=0.1, gp_lengthscale=25, gp_scale=0.01, 
 		max_modes=4, observed_amplitude_lower=0.75, observed_amplitude_upper=1.25, 
-		prob_zero_event=0.001, templates=None, convolve=False, sigma=20, template_prob=0.075, 
+		prob_zero_event=0.001, templates=None, template_prob=0.075, 
 		save_path=None):
 		''' Simulate data for training a PSC demixer. 
 		'''
@@ -128,18 +128,19 @@ class NeuralDemixer():
 			else:
 				targets[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-								delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i], convolve=convolve), 0)
+								delta_lower=delta_lower, delta_upper=delta_upper, n_samples=n_modes[i]), 0)
 
 				next_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper,
-								delta_lower=next_delta_lower, delta_upper=next_delta_upper, n_samples=n_modes_next[i], convolve=convolve), 0)
+								delta_lower=next_delta_lower, delta_upper=next_delta_upper, n_samples=n_modes_next[i]), 0)
 
 				prev_pscs[i] = np.sum(_sample_psc_kernel(trial_dur=trial_dur, tau_r_lower=tau_r_lower, 
 								tau_r_upper=tau_r_upper, tau_diff_lower=tau_diff_lower, tau_diff_upper=tau_diff_upper, 
-								delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i], convolve=convolve), 0)
+								delta_lower=prev_delta_lower, delta_upper=prev_delta_upper, n_samples=n_modes_prev[i]), 0)
 
 				# lowpass filter inputs as with experimental data
-				inputs[i] = sg.filtfilt(b_lp, a_lp, prev_pscs[i] + targets[i] + next_pscs[i], axis=-1)
+				# inputs[i] = sg.filtfilt(b_lp, a_lp, prev_pscs[i] + targets[i] + next_pscs[i], axis=-1)
+				inputs[i] = prev_pscs[i] + targets[i] + next_pscs[i]
 
 			iid_noise[i] = np.random.normal(0, noise_stds[i], trial_dur)
 
@@ -313,12 +314,9 @@ def _sample_gp(trial_dur=800, gp_lengthscale=25, gp_scale=0.01, n_samples=1):
 def _kernel_func(tau_r, tau_d, delta):
 	return lambda x: (np.exp(-(x - delta)/tau_d) - np.exp(-(x - delta)/tau_r)) * (x >= delta)
 
-def _gauss_func(sigma):
-	return lambda x: np.exp(-(x**2)/(2 * sigma**2))
-
 def _sample_psc_kernel(trial_dur=900, tau_r_lower=10, tau_r_upper=80, tau_diff_lower=50, 
 	tau_diff_upper=150, delta_lower=100, delta_upper=200, n_samples=1,
-	amplitude_lower=0.1, amplitude_upper=1.5, convolve=False, sigma=20):
+	amplitude_lower=0.1, amplitude_upper=1.5):
 	''' Sample PSCs with random time constants, onset times, and amplitudes.
 	'''
 	if n_samples == 0:
@@ -329,16 +327,8 @@ def _sample_psc_kernel(trial_dur=900, tau_r_lower=10, tau_r_upper=80, tau_diff_l
 	delta_samples = np.random.uniform(delta_lower, delta_upper, n_samples)
 	xeval = np.arange(trial_dur)
 
-	if convolve:
-		xs = np.arange(-trial_dur//2, trial_dur//2)
-		gauss = _gauss_func(sigma)(xs)
-		pscs = np.zeros((n_samples, trial_dur))
-		for i in range(n_samples):
-			kern = _kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(np.arange(2*trial_dur)) # padded input
-			pscs[i] = np.convolve(kern, gauss, mode='same')[:trial_dur]
-	else:
-		pscs = np.array([_kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(xeval) 
-			for i in range(n_samples)])
+	pscs = np.array([_kernel_func(tau_r_samples[i], tau_d_samples[i], delta_samples[i])(xeval) 
+		for i in range(n_samples)])
 	max_vec = np.max(pscs, 1)[:, None]
 	amplitude = np.random.uniform(amplitude_lower, amplitude_upper, n_samples)[:, None]
 
