@@ -184,9 +184,10 @@ def get_cell_order(weights):
     N = weights[0].shape[0]
     cell_order = np.array([])
     for wgt in weights:
-        cnx = np.sort(np.where(wgt)[0])[::-1]
-        cell_order = np.concatenate([cell_order, np.setdiff1d(cnx, cell_order)])
-    cell_order = np.concatenate([cell_order, np.setdiff1d(np.arange(N), cell_order)])
+        this_cnx = np.where(wgt)[0]
+        cnx = this_cnx[np.argsort(wgt[this_cnx])[::-1]]
+        cell_order = np.concatenate([cell_order, np.setdiff1d(cnx, cell_order, assume_unique=True)])
+    cell_order = np.concatenate([cell_order, np.setdiff1d(np.arange(N), cell_order, assume_unique=True)])
     return cell_order.astype(int)
 
 def plot_spike_inference_comparison(den_pscs, stim_matrices, models, spks=None, titles=None, save=None, ymax=1.1, n_plots=15, max_trials_to_show=30, 

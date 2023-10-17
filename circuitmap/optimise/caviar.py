@@ -42,27 +42,27 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 	K = y.shape[0]
 	powers = jnp.array(np.unique(I)[1:])
 
-	mu 			= jnp.array(mu_prior)
-	beta 		= jnp.array(beta_prior)
-	shape 		= jnp.array(shape_prior)
-	rate 		= jnp.array(rate_prior)
-	phi 		= jnp.array(phi_prior)
-	phi_cov 	= jnp.array(phi_cov_prior)
-	z 			= jnp.zeros(K)
+	mu = jnp.array(mu_prior)
+	beta = jnp.array(beta_prior)
+	shape = jnp.array(shape_prior)
+	rate = jnp.array(rate_prior)
+	phi = jnp.array(phi_prior)
+	phi_cov = jnp.array(phi_cov_prior)
+	z = jnp.zeros(K)
 	receptive_fields = None # prevent error when num-iters < phi_thresh_delay
 
 	if save_histories:
 		cpu = jax.devices('cpu')[0]
 
 		# define history arrays
-		mu_hist 		= np.zeros((iters, N))
-		beta_hist 		= np.zeros((iters, N))
-		lam_hist 		= np.zeros((iters, N, K))
-		shape_hist 		= np.zeros((iters, K))
-		rate_hist 		= np.zeros((iters, K))
-		phi_hist  		= np.zeros((iters, N, 2))
-		phi_cov_hist 	= np.zeros((iters, N, 2, 2))
-		z_hist 			= np.zeros((iters, K))
+		mu_hist = np.zeros((iters, N))
+		beta_hist = np.zeros((iters, N))
+		lam_hist = np.zeros((iters, N, K))
+		shape_hist = np.zeros((iters, K))
+		rate_hist = np.zeros((iters, K))
+		phi_hist = np.zeros((iters, N, 2))
+		phi_cov_hist = np.zeros((iters, N, 2, 2))
+		z_hist = np.zeros((iters, K))
 		
 		hist_arrs = [mu_hist, beta_hist, lam_hist, shape_hist, rate_hist, \
 			phi_hist, phi_cov_hist, z_hist]
@@ -78,15 +78,15 @@ def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, p
 
 	# iterate CAVIaR updates
 	for it in trange(iters):
-		mu, beta 			= block_update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N)
-		lam, key 			= update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, 
+		mu, beta = block_update_mu(y, mu, beta, lam, shape, rate, mu_prior, beta_prior, N)
+		lam, key = update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, 
 								num_mc_samples, N, powers, minimum_spike_count, msrmp + spont_rate, 
 								it, delay_spont_est)
-		shape, rate 		= update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
+		shape, rate = update_sigma(y, mu, beta, lam, shape_prior, rate_prior)
 		(phi, phi_cov), key = update_phi(lam, I, phi_prior, phi_cov_prior, key)
-		z 					= estimate_spont_act_soft_thresh((y, mu, lam, it, max_backtrack_iters, jnp.sum(y), 
+		z = estimate_spont_act_soft_thresh((y, mu, lam, it, max_backtrack_iters, jnp.sum(y), 
 								z, penalty, lam_mask, scale_factor, tol, spont_orthogonality))[6]
-		spont_rate 			= jnp.mean(z != 0.)
+		spont_rate = jnp.mean(z != 0.)
 
 		if save_histories:
 			for hindx, pa in enumerate([mu, beta, lam, shape, rate, phi, phi_cov, z]):
@@ -184,7 +184,6 @@ def _eval_spike_rates(stimv, lamv, powers):
 			locs = jnp.where(stimv == power, Krange, -1)
 			mask = (locs >= 0)
 			sr = jnp.sum(lamv[locs] * mask)/(jnp.sum(mask) + 1e-4 * (jnp.sum(mask) == 0.))
-			# scope.inf_spike_rates = index_update(scope.inf_spike_rates, p, sr)
 			scope.inf_spike_rates = scope.inf_spike_rates.at[p].set(sr)
 	return scope.inf_spike_rates
 
@@ -234,7 +233,6 @@ def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, nu
 			pava = pava * (it > delay_spont_est) + 1. * (it <= delay_spont_est)
 
 			# update lam
-			# scope.lam = index_update(scope.lam, n, est_lam * pava)
 			scope.lam = scope.lam.at[n].set(est_lam * pava)
 			scope.mu = scope.mu.at[n].set(scope.mu[n] * (pava == 1.))
 
@@ -405,8 +403,6 @@ def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
 			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1) 
 			scope.arg = -2 * mu[n] * jnp.dot(sig * y, lam[n]) + 2 * mu[n] * jnp.dot(sig * lam[n], jnp.sum(jnp.expand_dims(mu[scope.mask] * scope.alpha[scope.mask], 1) \
 				* lam[scope.mask], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(sig * lam[n])
-			# scope.alpha = index_update(scope.alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - 1/2 * scope.arg))
-			# scope.alpha = index_update(scope.alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - scope.arg))
 			scope.alpha = scope.alpha.at[n].set(sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - scope.arg))
 	key, _ = jax.random.split(key)
 	return scope.alpha, key

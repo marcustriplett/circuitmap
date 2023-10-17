@@ -14,6 +14,6 @@ setup(
 		'pandas',
 		'tqdm',
 		'torch',
-		'pytorch-lightning',
+		'pytorch-lightning==1.9',
 	],
 )
