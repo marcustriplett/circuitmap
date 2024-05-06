@@ -28,7 +28,6 @@ if __name__ == '__main__':
 	spont_prob = float(args.spont_prob)
 	connection_prob = float(args.connection_prob)
 	trials = int(args.trials)
-	design = args.design
 
 	if (args.weights is not None) and (args.weight_index is not None):
 		weights_list = np.load(args.weights)
@@ -54,28 +53,22 @@ if __name__ == '__main__':
 	# Configure fit options
 	iters = 50
 	seed = 1
-	minimum_spike_count = 3
-	lam_mask_fraction = 0.025
 
 	fit_options_caviar = { 
 		'iters': iters,
 		'seed': seed,
 		'msrmp': msrmp,
-		'minimum_spike_count': minimum_spike_count,
-		'lam_mask_fraction': lam_mask_fraction
 	}
 
 	fit_options_sns = { 
 		'iters': iters,
 		'seed': seed,
-		'minimum_spike_count': minimum_spike_count,
-		'lam_mask_fraction': lam_mask_fraction
 	}
 
-	model_caviar = cm.Model(N, priors=priors_caviar)
+	model_caviar = cm.Model(N)
 	model_caviar.fit(psc_dem, stim_matrix, fit_options=fit_options_caviar, method='caviar')
 
-	model_sns = cm.Model(N, priors=priors_caviar)
+	model_sns = cm.Model(N)
 	model_sns.fit(psc_dem, stim_matrix, fit_options=fit_options_sns, method='cavi_sns')
 
 	d = {

@@ -165,7 +165,7 @@ def simulate(N=300, T=900, H=10, trials=1000, nreps=1, connection_prob=0.05, pow
 			spike_time_sample = np.random.randint(1, T)
 			weight_sample = np.random.uniform(np.min(weights[connected]), np.max(weights[connected]))
 			kern = spont_kern(Trange, spike_time_sample)
-			spont_psc = weight_sample * kern/np.trapz(kern)
+			spont_psc = weight_sample * kern/(np.trapz(kern) + 1e-5)
 			spont_pscs[k] = spont_psc
 	
 	# Sample correlated noise
