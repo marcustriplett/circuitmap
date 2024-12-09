@@ -8,8 +8,8 @@ setup(
 	author_email='marcus.triplett@columbia.edu',
 	packages=find_packages(),
 	install_requires=[
-		'numpy>=1.21',
-		'scipy>=1.6',
+		'numpy==1.21',
+		'scipy==1.7',
 		'scikit-learn',
 		'pandas',
 		'tqdm',
