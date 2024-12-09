@@ -9,7 +9,7 @@ setup(
 	packages=find_packages(),
 	install_requires=[
 		'numpy==1.21',
-		'scipy==1.7.0',
+		'scipy==1.7.2',
 		'scikit-learn',
 		'pandas',
 		'tqdm',
