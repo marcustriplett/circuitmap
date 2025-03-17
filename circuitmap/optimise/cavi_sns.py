@@ -5,18 +5,12 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 from jax import jit, vmap, grad
-from jax.lax import scan, while_loop
-# from jax.ops import index_update
+from jax.lax import scan, while_loop, fori_loop
 from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
-
-from jax.config import config; config.update("jax_enable_x64", True)
-
-# Experimental loops
-from jax.experimental import loops
+from jax import config; config.update("jax_enable_x64", True)
 from tqdm import trange
-
-from .pava import _isotonic_regression, simultaneous_isotonic_regression
+# from .pava import _isotonic_regression, simultaneous_isotonic_regression
 
 EPS = 1e-10
 
@@ -99,78 +93,70 @@ def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key
 	''' Update based on solving E_q(Z-mu_n)[ln p(y, Z)]
 	'''
 	sig = shape/rate
-	update_order = jax.random.choice(key, N, [N], replace=False)
-	with loops.Scope() as scope:
-		scope.mu = mu
-		scope.mask = jnp.zeros(N - 1, dtype=int)
-		scope.all_ids = jnp.arange(N)
-		for m in scope.range(N):
-			n = update_order[m]
-			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1)
-			# scope.mu = index_update(scope.mu, n, (beta[n]**2) * (alpha[n] * jnp.dot(sig * y, lam[n]) - alpha[n] \
-			# 	* jnp.dot(sig * lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask] * alpha[scope.mask], 1) * lam[scope.mask], 0)) \
-			# 	+ mu_prior[n]/(beta_prior[n]**2)))
-			scope.mu = scope.mu.at[n].set((beta[n]**2) * (alpha[n] * jnp.dot(sig * y, lam[n]) - alpha[n] \
-				* jnp.dot(sig * lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask] * alpha[scope.mask], 1) * lam[scope.mask], 0)) \
-				+ mu_prior[n]/(beta_prior[n]**2)))
+	update_order = jax.random.choice(key, N, [N], replace=False) # randomize update order
+	all_ids = jnp.arange(N)
+
+	def body_fun(m, mu_vector):
+		n = update_order[m]
+		mask = jnp.unique(jnp.where(all_ids != n, all_ids, jnp.mod(n - 1, N)), size=N-1)
+		mu_n = (beta[n]**2) * (alpha[n] * jnp.dot(sig * y, lam[n]) - alpha[n] \
+			* jnp.dot(sig * lam[n], jnp.sum(jnp.expand_dims(mu_vector[mask] * alpha[mask], 1) * lam[mask], 0)) \
+			+ mu_prior[n]/(beta_prior[n]**2))
+
+		return mu_vector.at[n].set(mu_n)
+
+	mu = fori_loop(0, N, body_fun, mu)
 	key, _ = jax.random.split(key)
-	return scope.mu, key
+
+	return mu, key
 
 @partial(jit, static_argnums=(8))
 def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
-	update_order = jax.random.choice(key, N, [N], replace=False)
-	with loops.Scope() as scope:
-		scope.alpha = alpha
-		scope.arg = 0.
-		scope.mask = jnp.zeros(N - 1, dtype=int)
-		scope.all_ids = jnp.arange(N)
-		for m in scope.range(N):
-			n = update_order[m]
-			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1) 
-			scope.arg = -2 * mu[n] * jnp.dot(y, lam[n]) + 2 * mu[n] * jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[scope.mask] * scope.alpha[scope.mask], 1) \
-				* lam[scope.mask], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(lam[n])
-			# scope.alpha = index_update(scope.alpha, n, sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
-			scope.alpha = scope.alpha.at[n].set(sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * scope.arg))
+	update_order = jax.random.choice(key, N, [N], replace=False) # randomize update order
+	all_ids = jnp.arange(N)
+
+	def body_fun(m, alpha_vector):
+		n = update_order[m]
+		mask = jnp.unique(jnp.where(all_ids != n, all_ids, jnp.mod(n - 1, N)), size=N-1) 
+		arg = -2 * mu[n] * jnp.dot(y, lam[n]) + 2 * mu[n] * jnp.dot(lam[n], jnp.sum(jnp.expand_dims(mu[mask] * alpha_vector[mask], 1) \
+			* lam[mask], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(lam[n])
+		return alpha_vector.at[n].set(sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - shape/(2 * rate) * arg))
+
+	alpha = fori_loop(0, N, body_fun, alpha)
 	key, _ = jax.random.split(key)
-	return scope.alpha, key
+	return alpha, key
 
 @partial(jit, static_argnums=(12, 13)) # lam_mask[k] = 1 if xcorr(y_psc[k]) > thresh else 0.
 def update_lam(y, I, mu, beta, alpha, lam, shape, rate, phi, phi_cov, lam_mask, key, num_mc_samples, N, minimum_spike_count):
 	''' Infer latent spike rates using Monte Carlo samples of the sigmoid coefficients.
 	'''
 	K = I.shape[1]
-	update_order = jax.random.choice(key, N, [N], replace=False)
-	with loops.Scope() as scope:
-		
-		# declare within-scope types
-		scope.lam = lam
-		scope.all_ids = jnp.arange(N)
-		scope.mask = jnp.zeros(N - 1, dtype=int)
-		scope.arg = jnp.zeros(K, dtype=float)
-		scope.key, scope.key_next = key, key
-		scope.u = jnp.zeros((num_mc_samples, 2))
-		scope.mean, scope.sdev = jnp.zeros(2, dtype=float), jnp.zeros(2, dtype=float)
-		scope.mc_samps = jnp.zeros((num_mc_samples, 2), dtype=float)
-		scope.mcE = jnp.zeros(K)
+	update_order = jax.random.choice(key, N, [N], replace=False) # randomize update order
+	all_ids = jnp.arange(N)
 
-		for m in scope.range(N):
-			n = update_order[m]
-			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1)
-			scope.arg = -2 * y * mu[n] * alpha[n] + 2 * mu[n] * alpha[n] * jnp.sum(jnp.expand_dims(mu[scope.mask] * alpha[scope.mask], 1) * scope.lam[scope.mask], 0) \
-			+ (mu[n]**2 + beta[n]**2) * alpha[n]
+	def body_fun(m, carry):
+		lam_vector, current_key = carry
+		n = update_order[m]
 
-			# sample truncated normals
-			scope.key, scope.key_next = jax.random.split(scope.key)
-			scope.u = jax.random.uniform(scope.key, [num_mc_samples, 2])
-			scope.mean, scope.sdev = phi[n], jnp.diag(phi_cov[n])
-			scope.mc_samps = ndtri(ndtr(-scope.mean/scope.sdev) + scope.u * (1 - ndtr(-scope.mean/scope.sdev))) * scope.sdev + scope.mean
+		mask = jnp.unique(jnp.where(all_ids != n, all_ids, jnp.mod(n - 1, N)), size=N-1)
+		arg = -2 * y * mu[n] * alpha[n] + 2 * mu[n] * alpha[n] * jnp.sum(jnp.expand_dims(mu[mask] * alpha[mask], 1) * lam_vector[mask], 0) \
+		+ (mu[n]**2 + beta[n]**2) * alpha[n]
 
-			# monte carlo approximation of expectation
-			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
-			est_lam = lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg) # require spiking cells to be targeted
-			# scope.lam = index_update(scope.lam, n, est_lam * (jnp.sum(est_lam) >= minimum_spike_count))
-			scope.lam = scope.lam.at[n].set(est_lam * (jnp.sum(est_lam) >= minimum_spike_count))
-	return scope.lam, scope.key_next
+		# sample truncated normals
+		key, key_next = jax.random.split(key)
+		u = jax.random.uniform(key, [num_mc_samples, 2])
+		mean, sdev = phi[n], jnp.diag(phi_cov[n])
+		mc_samps = ndtri(ndtr(-mean/sdev) + u * (1 - ndtr(-mean/sdev))) * sdev + mean
+
+		# monte carlo approximation of expectation
+		mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], mc_samps[:, 0], mc_samps[:, 1]), 0)
+		est_lam = lam_mask * (I[n] > 0) * sigmoid(mcE - shape/(2 * rate) * arg) # require spiking cells to be targeted
+		new_lam_vector = lam_vector.at[n].set(est_lam * (jnp.sum(est_lam) >= minimum_spike_count))
+
+		return (new_lam_vector, key_next)
+
+	(lam, key) = fori_loop(0, N, body_fun, (lam, key))
+	return lam, key
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
 	fn = sigmoid(phi_0 * I - phi_1)

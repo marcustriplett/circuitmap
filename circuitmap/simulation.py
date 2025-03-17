@@ -4,6 +4,7 @@ from functools import partial
 from jax import jit, vmap
 import jax.numpy as jnp
 from jax.nn import sigmoid
+from jax.scipy.integrate import trapezoid as trapz
 
 # Conditionally import progress bar
 try:
@@ -284,7 +285,7 @@ def simulate_continuous_experiment_without_spike_failures(N=100, connected_frac=
 def _get_psc_kernel(tau_r, tau_d, kernel_window, response_length=900, eps=1e-5):
 	krange = jnp.arange(kernel_window)
 	ke = jnp.exp(-krange/tau_d) - jnp.exp(-krange/tau_r) # normalised kernel
-	return ke/(jnp.trapz(ke[:response_length]) + eps)
+	return ke/(trapz(ke[:response_length]) + eps)
 get_psc_kernel = jit(vmap(_get_psc_kernel, in_axes=(0, 0, None)), static_argnums=(2))
 
 def _get_unnormalised_psc_kernel(tau_r, tau_d, kernel_window, eps=1e-5):

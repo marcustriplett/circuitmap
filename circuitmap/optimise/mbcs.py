@@ -16,15 +16,11 @@ except:
 import jax
 import jax.numpy as jnp
 from jax import jit, vmap, grad
-from jax.lax import scan, while_loop
-# from jax.ops import index_update
+from jax.lax import scan, while_loop, fori_loop
 from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
 
-from jax.config import config; config.update("jax_enable_x64", True)
-
-# Experimental loops
-from jax.experimental import loops
+from jax import config; config.update("jax_enable_x64", True)
 
 EPS = 1e-10
 
@@ -34,7 +30,7 @@ def mbcs(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, iters=50,
 	learn_noise=False, init_lam=None, learn_lam=True, delay_spont_estimation=1, minimum_spike_count=1, noise_scale=0.5, 
 	num_mc_samples_noise_model=10, minimum_maximal_spike_prob=0.2, orthogonal_outliers=True, outlier_penalty=5e1, 
 	init_spike_prior=0.75, outlier_tol=0.05, spont_rate=0, lam_mask_fraction=0.05):
-	"""Offline-mode coordinate ascent variational inference for the adaprobe model.
+	"""Offline-mode coordinate ascent variational inference for the circuitmap model.
 	"""
 	print('Running model-based compressed sensing algorithm with isotonic regularisation and spike-dependent noise.')
 
@@ -122,17 +118,13 @@ def update_noise(y, mu, beta, lam, noise_scale=0.5, num_mc_samples=10, eps=1e-4)
 def isotonic_filtering(mu, lam, I, isotonic_receptive_field, minimum_spike_count=1, minimum_maximal_spike_prob=0.2):
 	# Enforce minimum maximal spike probability
 	disc_locs = np.where(isotonic_receptive_field[:, -1] < minimum_maximal_spike_prob)[0]
-	# mu = index_update(mu, disc_locs, 0.)
 	mu = mu.at[disc_locs].set(0.)
-	# lam = index_update(lam, disc_locs, 0.)
 	lam = lam.at[disc_locs].set(0.)
 
 	# Filter connection vector via spike counts
 	spks = np.array([len(np.where(lam[n] >= 0.5)[0]) for n in range(mu.shape[0])])
 	few_spk_locs = np.where(spks < minimum_spike_count)[0]
-	# mu = index_update(mu, few_spk_locs, 0.)
 	mu = mu.at[few_spk_locs].set(0.)
-	# lam = index_update(lam, few_spk_locs, 0.)
 	lam = lam.at[few_spk_locs].set(0.)
 
 	return mu, lam
@@ -323,9 +315,7 @@ def update_lam_with_isotonic_receptive_field(y, I, mu, beta, lam, shape, rate, l
 			mask = jnp.array(np.delete(all_ids, n)).squeeze()
 			arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
 			+ (mu[n]**2 + beta[n]**2)
-			# lam = index_update(lam, n, lam_mask * (I[n] > 0) * (mu[n] != 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
 			lam = lam.at[n].set(lam_mask * (I[n] > 0) * (mu[n] != 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
-			# lam = index_update(lam, n, lam_mask * (I[n] > 0) * sigmoid(spike_prior[n] - shape/(2 * rate) * arg))
 
 	return lam
 
@@ -334,38 +324,30 @@ def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, update_
 	''' JIT-compiled inference of latent spikes using Monte Carlo samples of sigmoid coefficients.
 	'''
 	K = I.shape[1]
-	with loops.Scope() as scope:
+	all_ids = jnp.arange(N)
+
+	def body_fun(m, state):
+		lam_vector, key = state
+		n = update_order[m]
+		mask = jnp.unique(jnp.where(all_ids != n, all_ids, n - 1), size=N-1)
+		arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[mask], 1) * lam_vector[mask], 0) \
+		+ (mu[n]**2 + beta[n]**2)
+
+		# sample truncated normals
+		key, key_next = jax.random.split(key)
+		u = jax.random.uniform(key, [num_mc_samples, 2])
+		mean, sdev = phi[n], jnp.diag(phi_cov[n])
+		mc_samps = ndtri(ndtr(-mean/sdev) + u * (1 - ndtr(-mean/sdev))) * sdev + mean
+
+		# monte carlo approximation of expectation
+		mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], mc_samps[:, 0], mc_samps[:, 1]), 0)
 		
-		# declare within-scope types
-		scope.lam = lam
-		scope.all_ids = jnp.arange(N)
-		scope.mask = jnp.zeros(N - 1, dtype=int)
-		scope.arg = jnp.zeros(K, dtype=float)
-		scope.key, scope.key_next = key, key # scope.key_next needs to be initiated outside of loop
-		scope.u = jnp.zeros((num_mc_samples, 2))
-		scope.mean, scope.sdev = jnp.zeros(2, dtype=float), jnp.zeros(2, dtype=float)
-		scope.mc_samps = jnp.zeros((num_mc_samples, 2), dtype=float)
-		scope.mcE = jnp.zeros(K)
+		new_lam_vector = lam_vector.at[n].set(lam_mask * (I[n] > 0) * sigmoid(mcE - shape/(2 * rate) * arg))
 
-		for m in scope.range(N):
-			n = update_order[m]
-			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, n - 1), size=N-1)
-			scope.arg = -2 * y * mu[n] + 2 * mu[n] * jnp.sum(jnp.expand_dims(mu[scope.mask], 1) * scope.lam[scope.mask], 0) \
-			+ (mu[n]**2 + beta[n]**2)
+		return new_lam_vector, key_next
 
-			# sample truncated normals
-			scope.key, scope.key_next = jax.random.split(scope.key)
-			scope.u = jax.random.uniform(scope.key, [num_mc_samples, 2])
-			scope.mean, scope.sdev = phi[n], jnp.diag(phi_cov[n])
-			scope.mc_samps = ndtri(ndtr(-scope.mean/scope.sdev) + scope.u * (1 - ndtr(-scope.mean/scope.sdev))) * scope.sdev + scope.mean
-
-			# monte carlo approximation of expectation
-			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
-			
-			# scope.lam = index_update(scope.lam, n, lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg))
-			scope.lam = scope.lam.at[n].set(lam_mask * (I[n] > 0) * sigmoid(scope.mcE - shape/(2 * rate) * scope.arg))
-
-	return scope.lam, scope.key_next
+	(lam, key_next) = fori_loop(0, N, body_fun, (lam, key))
+	return lam, key_next
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
 	fn = sigmoid(phi_0 * I - phi_1)

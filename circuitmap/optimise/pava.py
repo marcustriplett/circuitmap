@@ -1,101 +1,88 @@
 ''' @author Benjamin Antin, Columbia University
 '''
 
+import numpy as np
 import jax
 import jax.numpy as jnp
+from jax import jit
 
-from jax import vmap, jit
-from jax.experimental import loops
-# from jax.ops import index_update
+def _make_pava_pools(y, gamma=1.0):
+	y = jnp.array(y)
+	lg = jnp.log(gamma)
+	T = len(y)
 
-@jit
-def simultaneous_isotonic_regression(X, Ys, y_min=0, y_max=1):
-	"""
-	Run PAVA simultaneously on many problem instances. 
-	Each problem must have the same independent variables, but we parallelize
-	over different observations.
+	v = jnp.zeros_like(y)
+	w = jnp.zeros_like(y)
+	l = jnp.zeros_like(y, dtype=jnp.int32)
+
+	v = v.at[0].set(y[0])
+	w = w.at[0].set(1)
+	l = l.at[0].set(1)
+
+	i = 0  # index of last pool
+
+	def _outer_loop_fun(t, outer_state):
+		(i, v, w, l) = outer_state
+		i += 1
+
+		v = v.at[i].set(y[t])
+		w = w.at[i].set(1)
+		l = l.at[i].set(1)
+
+		(i, t, v, w, l) = jax.lax.while_loop(
+			_check_inner_loop,
+			_inner_loop_fun,
+			(i, t, v, w, l)
+		)
+		return (i, v, w, l)
+
+	def _check_inner_loop(state):
+		(i, t, v, w, l) = state
+		return jnp.all(jnp.array([i > 0,
+			(v[i-1] / w[i-1] * jnp.exp(lg*l[i-1]) > (v[i] / w[i]))
+		]))
 	
-	Args
-		X: (num_measurements)
-		Ys: (num_problems x num_measurements)
+	def _inner_loop_fun(state):
+		(i, t, v, w, l) = state
+		i -= 1
+
+		v = v.at[i].set(v[i] + v[i+1] * jnp.exp(lg*l[i]))
+		w = w.at[i].set(w[i] + w[i+1] * jnp.exp(2*lg*l[i]))
+		l = l.at[i].set(l[i] + l[i+1])
 		
-	Returns
-	
-		Y_hats: (num_problems x num_measurements) where each row is the result of running an isotonic
-				 regression.
-	
-	"""
-	
-	
-	idx = jnp.argsort(X)
-	X_s = X[idx]
-	Y_s = Ys[:,idx]
-	
-	Y_preds = vmap(_isotonic_regression, in_axes=(0, None))(Y_s, jnp.ones_like(Y_s[0,:]))
-	return jnp.clip(Y_preds, a_min=y_min, a_max=y_max)
+		l = l.at[i+1].set(0)
+		w = w.at[i+1].set(0)
+		v = v.at[i+1].set(0)
+		return (i, t, v, w, l)
 
-def _isotonic_regression(y, weight):
+	outer_state = (i, v, w, l)
+	state = jax.lax.fori_loop(1, T, _outer_loop_fun, outer_state)
+	(i, v, w, l) = state
+	return v, w, l
 
-	def true_fun(args):
-		(i, k, solution, numerator, denominator, pooled) = args
-		with loops.Scope() as s:
-			s.i = i
-			s.k = k
-			s.solution = solution
-			s.numerator = 0.0
-			s.denominator = 0.0
-			s.pooled = pooled
-			
-			s.j = s.i
-			for _ in s.while_range(lambda: s.j < s.k + 1):
-				s.numerator += s.solution[s.j] * weight[s.j]
-				s.denominator += weight[s.j]
-				s.j += 1
-				
-			s.j = s.i
-			for _ in s.while_range(lambda: s.j < s.k + 1):
-				# s.solution = index_update(s.solution, s.j, s.numerator / s.denominator)
-				s.solution = s.solution.at[s.j].set(s.numerator / s.denominator)
-				s.j += 1
-			s.pooled = 1
-			return s.solution, s.numerator, s.denominator, s.pooled
+def _reconstruct_from_pools(y_orig, v, w, l, gamma):
+	out = jnp.zeros_like(y_orig)
+	lg = jnp.log(gamma)
 
-	def false_fun(args):
-		return s.solution, s.numerator, s.denominator, s.pooled
-		
-	weight = jnp.array(weight, copy=True)
-	y = jnp.array(y, copy=True)
-	n = y.shape[0]
-	with loops.Scope() as s:
-		s.exit_early = (n <= 1)
-		s.n = n - 1
-		s.pooled = 1
-		s.i = 0
-		s.solution = jnp.array(y, copy=True, dtype=float)
-		s.k = 0
-		s.numerator = 0.0
-		s.denominator = 0.0
-		
-		for _ in s.while_range(lambda:
-			jnp.logical_and(s.pooled > 0, jnp.logical_not(s.exit_early))):
-			s.exit_early = False
-			s.i = 0
-			s.pooled = 0
-			
-			for _ in s.while_range(lambda: s.i < s.n):
-				s.k = s.i
-				for _ in s.while_range(
-					lambda: jnp.logical_and(s.k < s.n, s.solution[s.k] >= s.solution[s.k + 1])
-				):
-					s.k += 1
-				args = (s.i, s.k, s.solution, s.numerator, s.denominator, s.pooled)
-				s.solution, s.numerator, s.denominator, s.pooled = jax.lax.cond(
-					s.solution[s.i] != s.solution[s.k],
-					true_fun,
-					false_fun,
-					args
-				)
-				
-				s.i = s.k + 1
+	def _add_one_pool(i, state):
+		t_curr, out = state
+		value, weight, length = v[i], w[i], l[i]
+		out = jax.lax.fori_loop(
+			t_curr.astype(int), (t_curr + length).astype(int),
+			lambda j, out: out.at[j].set(value / weight * jnp.exp(lg * (j - t_curr))),
+			out)
+		t_curr += length
+		return (t_curr, out)
 
-		return s.solution
+	state = (0, out)
+	state = jax.lax.fori_loop(0, len(v), _add_one_pool, state)
+	(t_curr, out) = state
+	return out
+
+# def pava_decreasing(y, gamma=1.0):
+# 	v, w, l = _make_pava_pools(-y, gamma=gamma)
+# 	return -_reconstruct_from_pools(y, v, w, l, gamma)
+
+def _isotonic_regression(y, gamma=1.0):
+	v, w, l = _make_pava_pools(y, gamma=gamma)
+	return _reconstruct_from_pools(y, v, w, l, gamma)

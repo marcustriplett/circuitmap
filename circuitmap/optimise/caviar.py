@@ -5,18 +5,17 @@ from scipy.stats import sem
 import jax
 import jax.numpy as jnp
 from jax import jit, vmap
-from jax.lax import scan, while_loop
+from jax.lax import scan, while_loop, fori_loop
 from jax.nn import sigmoid
 from jax.scipy.special import ndtr, ndtri
 
-from jax.config import config; config.update("jax_enable_x64", True)
+from jax import config; config.update("jax_enable_x64", True)
 from functools import partial
 
 # Experimental loops
-from jax.experimental import loops
 from tqdm import trange
 
-from .pava import _isotonic_regression, simultaneous_isotonic_regression
+from .pava import _isotonic_regression
 
 def caviar(y_psc, I, mu_prior, beta_prior, shape_prior, rate_prior, phi_prior, phi_cov_prior, 
 	iters=50, num_mc_samples=100, seed=0, y_xcorr_thresh=1e-2, minimum_spike_count=3,
@@ -126,7 +125,7 @@ def reconnect_spont_cells(y, stim_matrix, lam, mu, beta, z, minimax_spk_prob=0.3
 				if len(z_locs) > 0:
 					srates[i] = np.mean(z[z_locs] != 0)
 					spike_count += np.sum(z[z_locs] != 0)
-			pava = _isotonic_regression(srates, np.ones_like(srates))[-1]
+			pava = _isotonic_regression(srates)[-1]
 			
 			if pava >= minimax_spk_prob and spike_count >= minimum_spike_count:
 				# Passes pava condition, reconnect cell
@@ -176,16 +175,15 @@ def _eval_spike_rates(stimv, lamv, powers):
 	K = stimv.shape[0]
 	Krange = jnp.arange(K)
 	npowers = powers.shape[0]
-	inf_spike_rates = jnp.zeros(npowers)
-	with loops.Scope() as scope:
-		scope.inf_spike_rates = jnp.zeros(npowers)
-		for p in scope.range(npowers):
-			power = powers[p]
-			locs = jnp.where(stimv == power, Krange, -1)
-			mask = (locs >= 0)
-			sr = jnp.sum(lamv[locs] * mask)/(jnp.sum(mask) + 1e-4 * (jnp.sum(mask) == 0.))
-			scope.inf_spike_rates = scope.inf_spike_rates.at[p].set(sr)
-	return scope.inf_spike_rates
+
+	def body_fun(p, inf_spike_rates):
+		power = powers[p]
+		locs = jnp.where(stimv == power, Krange, -1)
+		mask = (locs >= 0)
+		sr = jnp.sum(lamv[locs] * mask)/(jnp.sum(mask) + 1e-4 * (jnp.sum(mask) == 0.))
+		return inf_spike_rates.at[p].set(sr)
+
+	return fori_loop(0, npowers, body_fun, jnp.zeros(npowers))
 
 eval_spike_rates = vmap(_eval_spike_rates, in_axes=(0, 0, None))
 
@@ -197,46 +195,40 @@ def update_lam(y, I, mu, beta, lam, shape, rate, phi, phi_cov, lam_mask, key, nu
 	K = I.shape[1]
 	update_order = jax.random.choice(key, N, [N], replace=False)
 	sig = shape/rate
-	with loops.Scope() as scope:
+	all_ids = jnp.arange(N)
 		
-		# declare within-scope types
-		scope.lam = lam
-		scope.mu = mu
-		scope.all_ids = jnp.arange(N)
-		scope.mask = jnp.zeros(N - 1, dtype=int)
-		scope.arg = jnp.zeros(K, dtype=float)
-		scope.key, scope.key_next = key, key
-		scope.u = jnp.zeros((num_mc_samples, 2))
-		scope.mean, scope.sdev = jnp.zeros(2, dtype=float), jnp.zeros(2, dtype=float)
-		scope.mc_samps = jnp.zeros((num_mc_samples, 2), dtype=float)
-		scope.mcE = jnp.zeros(K)
+	def body_fun(m, carry):
+		lam, mu, key = carry
 
-		for m in scope.range(N):
-			n = update_order[m]
-			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1)
-			scope.arg = -2 * sig * y * mu[n] + 2 * mu[n] * jnp.sum(sig * jnp.expand_dims(mu[scope.mask], 1) * scope.lam[scope.mask], 0) \
-				+ sig * (mu[n]**2 + beta[n]**2)
+		n = update_order[m]
+		mask = jnp.unique(jnp.where(all_ids != n, all_ids, jnp.mod(n - 1, N)), size=N-1)
+		arg = -2 * sig * y * mu[n] + 2 * mu[n] * jnp.sum(sig * jnp.expand_dims(mu[mask], 1) * lam[mask], 0) \
+			+ sig * (mu[n]**2 + beta[n]**2)
 
-			# sample truncated normals
-			scope.key, scope.key_next = jax.random.split(scope.key)
-			scope.u = jax.random.uniform(scope.key, [num_mc_samples, 2])
-			scope.mean, scope.sdev = phi[n], jnp.diag(phi_cov[n])
-			scope.mc_samps = ndtri(ndtr(-scope.mean/scope.sdev) + scope.u * (1 - ndtr(-scope.mean/scope.sdev))) * scope.sdev + scope.mean
+		# sample truncated normals
+		key, key_next = jax.random.split(key)
+		u = jax.random.uniform(key, [num_mc_samples, 2])
+		mean, sdev = phi[n], jnp.diag(phi_cov[n])
+		mc_samps = ndtri(ndtr(-mean/sdev) + u * (1 - ndtr(-mean/sdev))) * sdev + mean
 
-			# monte carlo approximation of expectation
-			scope.mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], scope.mc_samps[:, 0], scope.mc_samps[:, 1]), 0)
-			est_lam = lam_mask * (I[n] > 0) * sigmoid(scope.mcE - 1/2 * scope.arg) # require spiking cells to be targeted
+		# monte carlo approximation of expectation
+		mcE = jnp.mean(_vmap_eval_lam_update_monte_carlo(I[n], mc_samps[:, 0], mc_samps[:, 1]), 0)
+		est_lam = lam_mask * (I[n] > 0) * sigmoid(mcE - 1/2 * arg) # require spiking cells to be targeted
 
-			# check pava condition
-			srates = _eval_spike_rates(I[n], est_lam, powers)
-			pava = (_isotonic_regression(srates, jnp.ones_like(srates))[-1] >= minimax_spk_prob) * (jnp.sum(est_lam) >= minimum_spike_count)
-			pava = pava * (it > delay_spont_est) + 1. * (it <= delay_spont_est)
+		# check pava condition
+		srates = _eval_spike_rates(I[n], est_lam, powers)
+		pava = (_isotonic_regression(srates)[-1] >= minimax_spk_prob) * (jnp.sum(est_lam) >= minimum_spike_count)
+		pava = pava * (it > delay_spont_est) + 1. * (it <= delay_spont_est)
 
-			# update lam
-			scope.lam = scope.lam.at[n].set(est_lam * pava)
-			scope.mu = scope.mu.at[n].set(scope.mu[n] * (pava == 1.))
+		# update lam
+		new_lam = lam.at[n].set(est_lam * pava)
+		new_mu = mu.at[n].set(mu[n] * (pava == 1.))
 
-	return scope.lam, scope.key_next
+		return (new_lam, new_mu, key_next)
+
+	lam, mu, key = fori_loop(0, N, body_fun, (lam, mu, key))
+
+	return lam, key
 
 def _eval_lam_update_monte_carlo(I, phi_0, phi_1):
 	fn = sigmoid(phi_0 * I - phi_1)
@@ -322,89 +314,5 @@ def negloglik_with_barrier(y, phi, phi_prior, prec, I, t):
 	lam = sigmoid(phi[0] * I - phi[1])
 	return -jnp.sum(jnp.nan_to_num(y * jnp.log(lam) + (1 - y) * jnp.log(1 - lam))) \
 	- jnp.sum(jnp.log(phi))/t + 1/2 * (phi - phi_prior) @ prec @ (phi - phi_prior)
-
-#% Unused functions that may prove useful at a later point
-
-@partial(jit, static_argnums=(7))
-def update_noise(y, mu, beta, alpha, lam, key, noise_scale=0.5, num_mc_samples=10):
-	N, K = lam.shape
-	std = beta * (mu != 0)
-
-	alpha_samps = (jax.random.uniform(key, [num_mc_samples, N]) <= alpha) * 1.0
-	key, _ = jax.random.split(key)
-
-	w_samps = (mu + std * jax.random.normal(key, [num_mc_samples, N])) * alpha_samps
-	key, _ = jax.random.split(key)
-
-	s_samps = (jax.random.uniform(key, [num_mc_samples, N, K]) <= lam) * 1.0
-	key, _ = jax.random.split(key)
-
-	mc_ws_sq = jnp.mean(jnp.sum((w_samps[..., jnp.newaxis] * s_samps)**2, axis=1), axis=0)
-	mc_recon_err = jnp.mean((y - jnp.sum(w_samps[..., jnp.newaxis] * s_samps, axis=1))**2, axis=0)
-
-	shape = noise_scale**2 * mc_ws_sq + 1/2
-	rate = noise_scale * (mu * alpha) @ lam + 1/2 * mc_recon_err + 1e-5
-	return shape, rate, key
-
-@jit
-def update_isotonic_receptive_field(lam, stim_matrix, powers, mu, minimax_spk_prob=0.3, minimum_spike_count=3, disc_strength=0.):
-	N, K = lam.shape
-	n_powers = powers.shape[0]
-	inferred_spk_probs = jnp.zeros((N, n_powers))
-	disc_cells = jnp.zeros(N)
-	inf_spike_rates = eval_spike_rates(stim_matrix, lam, powers)
-	receptive_fields = simultaneous_isotonic_regression(powers, inf_spike_rates)
-	disc_cells = jnp.logical_or(receptive_fields[:, -1] < minimax_spk_prob, jnp.sum(lam, axis=1) < minimum_spike_count)
-
-	mu = mu * (1. - disc_cells) + disc_strength * disc_cells
-	lam = lam * ((1. - disc_cells)[:, jnp.newaxis]) + (disc_strength * disc_cells)[:, jnp.newaxis]
-
-	return receptive_fields, disc_cells, mu, lam
-
-@jit
-def update_beta(lam, shape, rate, beta_prior):
-	return 1/jnp.sqrt(alpha * jnp.sum(shape/rate * lam, 1) + 1/(beta_prior**2))
-
-@partial(jit, static_argnums=(9))
-def update_mu(y, mu, beta, alpha, lam, shape, rate, mu_prior, beta_prior, N, key):
-	"""Update based on solving E_q(Z-mu_n)[ln p(y, Z)]"""
-	sig = shape/rate
-	update_order = jax.random.choice(key, N, [N], replace=False)
-	with loops.Scope() as scope:
-		scope.mu = mu
-		scope.mask = jnp.zeros(N - 1, dtype=int)
-		scope.all_ids = jnp.arange(N)
-		for m in scope.range(N):
-			n = update_order[m]
-			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1)
-			# scope.mu = index_update(scope.mu, n, (beta[n]**2) * (alpha[n] * jnp.dot(sig * y, lam[n]) - alpha[n] \
-			# 	* jnp.dot(sig * lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask] * alpha[scope.mask], 1) * lam[scope.mask], 0)) \
-			# 	+ mu_prior[n]/(beta_prior[n]**2)))
-			scope.mu = scope.mu.at[n].set(
-				(beta[n]**2) * (alpha[n] * jnp.dot(sig * y, lam[n]) - alpha[n] \
-				* jnp.dot(sig * lam[n], jnp.sum(jnp.expand_dims(scope.mu[scope.mask] * alpha[scope.mask], 1) * lam[scope.mask], 0)) \
-				+ mu_prior[n]/(beta_prior[n]**2))
-			)
-	key, _ = jax.random.split(key)
-	return scope.mu, key
-
-
-@partial(jit, static_argnums=(8))
-def update_alpha(y, mu, beta, alpha, lam, shape, rate, alpha_prior, N, key):
-	update_order = jax.random.choice(key, N, [N], replace=False)
-	sig = shape/rate
-	with loops.Scope() as scope:
-		scope.alpha = alpha
-		scope.arg = 0.
-		scope.mask = jnp.zeros(N - 1, dtype=int)
-		scope.all_ids = jnp.arange(N)
-		for m in scope.range(N):
-			n = update_order[m]
-			scope.mask = jnp.unique(jnp.where(scope.all_ids != n, scope.all_ids, jnp.mod(n - 1, N)), size=N-1) 
-			scope.arg = -2 * mu[n] * jnp.dot(sig * y, lam[n]) + 2 * mu[n] * jnp.dot(sig * lam[n], jnp.sum(jnp.expand_dims(mu[scope.mask] * scope.alpha[scope.mask], 1) \
-				* lam[scope.mask], 0)) + (mu[n]**2 + beta[n]**2) * jnp.sum(sig * lam[n])
-			scope.alpha = scope.alpha.at[n].set(sigmoid(jnp.log((alpha_prior[n] + EPS)/(1 - alpha_prior[n] + EPS)) - scope.arg))
-	key, _ = jax.random.split(key)
-	return scope.alpha, key
 
 
