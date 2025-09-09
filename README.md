@@ -1,9 +1,7 @@
-# CAVIaR
+# CAVIaR <img width="150" img align="right" alt="logo" src="https://user-images.githubusercontent.com/23161252/188723534-4674e1d9-202a-46ce-aeb6-22bb373a34e2.png"> 
 
 Computational tools for inferring synaptic connectivity from two-photon holographic neural ensemble stimulation. Accompanies the paper:
 > Rapid learning of neural circuitry from holographic ensemble stimulation enabled by model-based compressed sensing. (2025). M. A. Triplett\*, M. Gajowa\*, B. Antin, M. Sadahiro, H. Adesnik, and L. Paninski. _Nature Neuroscience_. https://doi.org/10.1038/s41593-025-02053-7.
-
-<img width="150" img align="right" alt="logo" src="https://user-images.githubusercontent.com/23161252/188723534-4674e1d9-202a-46ce-aeb6-22bb373a34e2.png"> 
 
 # Installation
 
