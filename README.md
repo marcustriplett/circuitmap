@@ -1,11 +1,9 @@
 # CAVIaR
 
 Computational tools for inferring synaptic connectivity from two-photon holographic neural ensemble stimulation. Accompanies the paper:
-> _Rapid learning of neural circuitry from holographic ensemble stimulation enabled by model-based compressed sensing_. (2022). M. A. Triplett\*, M. Gajowa\*, B. Antin, M. Sadahiro, H. Adesnik, and L. Paninski.
+> Rapid learning of neural circuitry from holographic ensemble stimulation enabled by model-based compressed sensing. (2025). M. A. Triplett\*, M. Gajowa\*, B. Antin, M. Sadahiro, H. Adesnik, and L. Paninski. _Nature Neuroscience_. https://doi.org/10.1038/s41593-025-02053-7.
 
 <img width="150" img align="right" alt="logo" src="https://user-images.githubusercontent.com/23161252/188723534-4674e1d9-202a-46ce-aeb6-22bb373a34e2.png"> 
-
-Software developed by Marcus Triplett in the Paninski Lab at Columbia University, with contributions from Benjamin Antin.   
 
 # Installation
 
@@ -113,5 +111,8 @@ We also include implementations of CAVI-SnS (based on Shababo et al. (2013)) and
 # Colab notebook demo  
 Click [here](https://bit.ly/3wQcnVu) for a Google Colab notebook showing usage of NWD and CAVIaR on simulated connectivity mapping experiments.  
 
-# Contact
+# About
+
+Software developed by Marcus Triplett in the Paninski Lab at Columbia University, with contributions from Benjamin Antin.
+
 Questions and feedback about the code can be directed to marcus.triplett@columbia.edu.
